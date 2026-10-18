@@ -4,6 +4,7 @@ import { ARENAS, ASSETS, ELEMENTS, POKEMON, SKILL_BY_ID } from '@arena/game-data
 import { battleFeed } from '@/lib/battle-feed';
 import { useGame } from '@/lib/store';
 import { BattleAudio } from './audio';
+import { SkillVfx } from './skill-vfx';
 
 type Visual = {
   sprite: Phaser.GameObjects.Sprite;
@@ -20,7 +21,7 @@ export function createArenaScene(
 ) {
   return class ArenaScene extends Phaser.Scene {
     private actors = new Map<string, Visual>();
-    private projectileGraphics!: Phaser.GameObjects.Graphics;
+    private skillVfx!: SkillVfx;
     private lastEvent = 0;
     private ambience!: BattleAudio;
     private leaves: { dot: Phaser.GameObjects.Ellipse; speed: number; phase: number }[] = [];
@@ -83,7 +84,7 @@ export function createArenaScene(
             repeat: a.repeat,
           });
         }
-      this.projectileGraphics = this.add.graphics().setDepth(12);
+      this.skillVfx = new SkillVfx(this);
       const particleColor =
         arenaId === 'volcano' ? 0xf6aa72 : arenaId === 'lake' ? 0xd2edee : 0xc9df94;
       for (let i = 0; i < 25; i++) {
@@ -106,6 +107,7 @@ export function createArenaScene(
       this.events.once('shutdown', () => {
         this.ambience.destroy();
         this.actors.clear();
+        this.skillVfx.destroy();
         this.leaves = [];
       });
       if (!this.shownError) onReady();
@@ -237,87 +239,18 @@ export function createArenaScene(
           }
         }
       }
-      this.projectileGraphics.clear();
-      for (const f of snapshot.fighters) {
-        if (!f.active || !f.cast) continue;
-        const skill = SKILL_BY_ID[f.cast.skillId];
-        const t = f.cast.elapsed - skill.startup;
-        if (t < 0 || t > skill.active + 0.1) continue;
-        const color = Phaser.Display.Color.HexStringToColor(ELEMENTS[skill.element].color).color;
-        const g = this.projectileGraphics;
-        const x = f.x,
-          y = 492 + f.depth - f.y,
-          reach = f.aimX * skill.range;
-        const reachDepth = f.aimDepth * skill.range;
-        if (skill.behavior === 'area') {
-          g.fillStyle(color, 0.23)
-            .fillTriangle(x, y, x + reach, y + reachDepth - 35, x + reach, y + reachDepth + 20)
-            .lineStyle(3, color, 0.7)
-            .lineBetween(x, y, x + reach * 0.9, y + reachDepth * 0.9 - 5);
-        }
-        if (skill.behavior === 'melee') {
-          g.lineStyle(skill.element === 'grass' ? 4 : 3, color, 0.8);
-          if (skill.element === 'grass') {
-            g.beginPath();
-            g.moveTo(x, y);
-            g.lineTo(x + reach * 0.35, y + reachDepth * 0.35 - 15);
-            g.lineTo(x + reach * 0.7, y + reachDepth * 0.7 + 10);
-            g.lineTo(x + reach, y + reachDepth);
-            g.strokePath();
-          } else {
-            g.beginPath();
-            g.arc(x + reach * 0.6, y + reachDepth * 0.6, 32, -1.1, 1.1, f.facing < 0);
-            g.strokePath();
-          }
-        }
-        if (skill.behavior === 'buff') {
-          g.lineStyle(3, color, 0.55)
-            .strokeCircle(x, y, 45)
-            .lineStyle(1, 0xe4f8fa, 0.7)
-            .strokeCircle(x, y, 50);
-        }
-      }
-      for (const p of snapshot.projectiles) {
-        const skill = SKILL_BY_ID[p.skillId],
-          color = Phaser.Display.Color.HexStringToColor(ELEMENTS[skill.element].color).color;
-        const old = previous?.projectiles.find((v) => v.id === p.id);
-        const x = old ? Phaser.Math.Linear(old.x, p.x, alpha) : p.x;
-        const depth = old
-          ? Phaser.Math.Linear(old.depth ?? 0, p.depth ?? 0, alpha)
-          : (p.depth ?? 0);
-        this.projectileGraphics
-          .fillStyle(color, 0.16)
-          .fillEllipse(x - p.vx * 0.025, 520 + depth - p.y, p.width * 2.5, p.height * 1.5)
-          .fillStyle(color, 0.9)
-          .fillEllipse(x, 520 + depth - p.y, p.width, p.height)
-          .fillStyle(0xffffff, 0.8)
-          .fillEllipse(x + Math.sign(p.vx) * 5, 518 + depth - p.y, p.width * 0.4, p.height * 0.35);
-        const g = this.projectileGraphics,
-          y = 520 + depth - p.y;
-        if (skill.element === 'electric') {
-          g.lineStyle(3, 0xfff4ac, 0.95).beginPath();
-          g.moveTo(x - 27, y - 5);
-          g.lineTo(x - 7, y + 4);
-          g.lineTo(x - 1, y - 10);
-          g.lineTo(x + 25, y + 4);
-          g.strokePath();
-        }
-        if (skill.element === 'grass') {
-          g.lineStyle(2, 0x3c7354, 0.9).lineBetween(x - 13, y + 6, x + 13, y - 6);
-        }
-        if (skill.element === 'water') {
-          g.lineStyle(1, 0xd1f1ff, 0.8)
-            .strokeCircle(x - 18, y - 8, 7)
-            .strokeCircle(x - 29, y + 8, 5)
-            .strokeCircle(x + 6, y, 9);
-        }
-        if (skill.element === 'fire') {
-          g.fillStyle(0xffe5a5, 0.85).fillTriangle(x - 9, y + 7, x + 10, y, x - 11, y - 9);
-        }
-      }
+      this.skillVfx.update(
+        snapshot,
+        previous,
+        alpha,
+        delta,
+        settings.paused,
+        settings.reducedMotion,
+      );
       for (const event of snapshot.events) {
         if (event.id <= this.lastEvent) continue;
         this.lastEvent = event.id;
+        this.skillVfx.event(event);
         if (event.kind === 'damage' || event.kind === 'heal') {
           const floating = this.add
             .text(
@@ -342,24 +275,6 @@ export function createArenaScene(
             duration: 850,
             onComplete: () => floating.destroy(),
           });
-          if (!settings.reducedMotion) {
-            const burst = this.add
-              .circle(
-                event.x,
-                490 + (event.depth ?? 0) - event.y,
-                9,
-                event.kind === 'heal' ? 0xb2dc99 : 0xffe6ac,
-                0.5,
-              )
-              .setDepth(8);
-            this.tweens.add({
-              targets: burst,
-              scale: 3,
-              alpha: 0,
-              duration: 250,
-              onComplete: () => burst.destroy(),
-            });
-          }
         }
         if (event.kind === 'skill') {
           this.ambience.play(event.element ?? 'normal');
