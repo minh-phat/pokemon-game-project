@@ -17,7 +17,7 @@ import {
   type SpeciesId,
   type Projectile,
 } from '@arena/shared-types';
-import { POKEMON, SKILLS } from '@arena/game-data';
+import { ARENAS, POKEMON, SKILLS } from '@arena/game-data';
 function battle(
   teams: [SpeciesId[], SpeciesId[]] = [['pikachu'], ['charmander']],
   rules: Partial<MatchRules> = {},
@@ -354,5 +354,158 @@ describe('complete matches', () => {
     e.state.fighters[0].hp = 0;
     e.state.fighters[1].hp = 0;
     expect(e.determineWinner()).toMatchObject({ winner: 'draw', reason: 'elimination' });
+  });
+});
+
+describe('arena ground-plane movement', () => {
+  it.each([
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+    [1, 1],
+    [1, -1],
+    [-1, 1],
+    [-1, -1],
+  ])('moves along direction (%s, %s) without jumping or gaining diagonal speed', (dx, dz) => {
+    const e = battle();
+    const [f, other] = e.state.fighters;
+    f.x = 600;
+    f.depth = -100;
+    f.thinkIn = other.thinkIn = 100;
+    const length = Math.hypot(dx, dz);
+    f.moveIntent = dx / length;
+    f.moveDepth = dz / length;
+    step(e, 0.25);
+    expect(Math.sign(f.x - 600)).toBe(dx);
+    expect(Math.sign(f.depth + 100)).toBe(dz);
+    expect(Math.hypot(f.vx, f.vDepth)).toBeLessThanOrEqual(POKEMON[f.species].speed + 1e-8);
+    expect(f.y).toBe(0);
+  });
+  it('chases a target diagonally using ground distance', () => {
+    const e = battle();
+    const [a, b] = e.state.fighters;
+    a.depth = -200;
+    b.depth = 0;
+    const action = decideAction(a, e.state, () => 0.99);
+    expect(action.type).toBe('move');
+    if (action.type === 'move') {
+      expect(action.direction).toBeGreaterThan(0);
+      expect(action.depthDirection).toBeGreaterThan(0);
+      expect(Math.hypot(action.direction, action.depthDirection!)).toBeCloseTo(1);
+    }
+  });
+  it('clamps depth while keeping jumps independent', () => {
+    const e = battle();
+    const f = e.state.fighters[0];
+    f.thinkIn = 100;
+    f.moveDepth = -1;
+    f.y = 100;
+    step(e, 2);
+    expect(f.depth).toBe(ARENAS[0].depthBounds[0]);
+    expect(f.y).toBe(0);
+    f.moveDepth = 1;
+    step(e, 3);
+    expect(f.depth).toBe(ARENAS[0].depthBounds[1]);
+  });
+  it('does not collide with bodies or melee attacks on a different row', () => {
+    const e = battle();
+    const [a, b] = e.state.fighters;
+    a.x = b.x = 600;
+    a.depth = -210;
+    b.depth = 10;
+    a.thinkIn = b.thinkIn = 100;
+    a.invulnerable = b.invulnerable = 0;
+    const hp = b.hp;
+    e.beginSkill(a, 'quick-attack');
+    step(e, 0.2);
+    expect(b.hp).toBe(hp);
+    expect(b.x).toBe(600);
+  });
+  it.each([0, 150])('sweeps vertical projectiles with lateral offset %s', (offset) => {
+    const e = battle();
+    const [a, b] = e.state.fighters;
+    a.x = 600;
+    b.x = 600 + offset;
+    a.depth = -210;
+    b.depth = 0;
+    a.thinkIn = b.thinkIn = 100;
+    b.invulnerable = 0;
+    const hp = b.hp;
+    e.state.projectiles.push({
+      id: 'vertical',
+      ownerId: a.id,
+      team: 0,
+      skillId: 'thunderbolt',
+      x: 600,
+      previousX: 600,
+      depth: -150,
+      previousDepth: -150,
+      vDepth: 660,
+      y: 28,
+      vx: 0,
+      width: 28,
+      height: 26,
+      life: 1,
+    });
+    expect(predictThreat(b, e.state.projectiles[0]) !== null).toBe(offset === 0);
+    step(e, 0.3);
+    expect(b.hp < hp).toBe(offset === 0);
+  });
+});
+
+it('hits with a melee attack aimed along arena depth', () => {
+  const e = battle();
+  const [a, b] = e.state.fighters;
+  a.x = b.x = 600;
+  a.depth = -150;
+  b.depth = -90;
+  a.aimX = 0;
+  a.aimDepth = 1;
+  a.thinkIn = b.thinkIn = 100;
+  a.invulnerable = b.invulnerable = 0;
+  const hp = b.hp;
+  expect(e.beginSkill(a, 'quick-attack')).toBe(true);
+  step(e, 0.2);
+  expect(b.hp).toBeLessThan(hp);
+});
+
+describe('varied AI routes', () => {
+  it.each(speciesIds)(
+    '%s changes rows during a real battle starting on the same row',
+    (species) => {
+      const e = battle([[species], [species]], { duration: 60 });
+      const f = e.state.fighters[0];
+      let min = f.depth,
+        max = f.depth,
+        verticalTravel = 0,
+        horizontalTravel = 0;
+      let upward = false,
+        downward = false;
+      for (let i = 0; i < 15 * 60 && e.state.phase === 'battle'; i++) {
+        const x = f.x,
+          depth = f.depth;
+        e.updateBattle(FIXED_DELTA);
+        min = Math.min(min, f.depth);
+        max = Math.max(max, f.depth);
+        verticalTravel += Math.abs(f.depth - depth);
+        horizontalTravel += Math.abs(f.x - x);
+        upward ||= f.vDepth < -30;
+        downward ||= f.vDepth > 30;
+      }
+      expect(max - min).toBeGreaterThan(70);
+      expect(verticalTravel).toBeGreaterThan(horizontalTravel * 0.25);
+      expect(upward && downward).toBe(true);
+    },
+  );
+  it.each(ARENAS[0].depthBounds)('steers back into the arena from depth %s', (depth) => {
+    const e = battle();
+    const [a, b] = e.state.fighters;
+    a.depth = b.depth = depth;
+    for (const skill of POKEMON[a.species].skills) a.cooldowns[skill.id] = 10;
+    const action = decideAction(a, e.state, () => 0.99);
+    expect(action.type).toBe('move');
+    if (action.type === 'move')
+      expect(Math.sign(action.depthDirection!)).toBe(depth === ARENAS[0].depthBounds[0] ? 1 : -1);
   });
 });

@@ -72,6 +72,11 @@ export class BattleEngine {
           energy: def.energy,
           x: team === 0 ? 190 + slot * 65 : 1010 - slot * 65,
           y: 0,
+          depth: -100 + (slot - (this.config.rules.activeSize - 1) / 2) * 65,
+          vDepth: 0,
+          moveDepth: 0,
+          aimX: team === 0 ? 1 : -1,
+          aimDepth: 0,
           vx: 0,
           vy: 0,
           facing: team === 0 ? 1 : -1,
@@ -177,6 +182,7 @@ export class BattleEngine {
       text,
       x: f.x,
       y: f.y,
+      depth: f.depth,
       ...extra,
     });
     if (this.state.events.length > 100) this.state.events.shift();
@@ -206,12 +212,21 @@ export class BattleEngine {
       }
       const target = this.state.fighters
         .filter((v) => v.team !== f.team && v.hp > 0 && v.active)
-        .sort((a, b) => Math.abs(a.x - f.x) - Math.abs(b.x - f.x))[0];
+        .sort(
+          (a, b) =>
+            Math.hypot(a.x - f.x, a.depth - f.depth) - Math.hypot(b.x - f.x, b.depth - f.depth),
+        )[0];
       f.targetId = target?.id ?? null;
-      if (target && !f.cast && f.actionTime === 0) f.facing = target.x >= f.x ? 1 : -1;
+      if (target && !f.cast && f.actionTime === 0) {
+        const distance = Math.hypot(target.x - f.x, target.depth - f.depth) || 1;
+        f.aimX = (target.x - f.x) / distance;
+        f.aimDepth = (target.depth - f.depth) / distance;
+        if (Math.abs(f.aimX) > 0.01) f.facing = f.aimX >= 0 ? 1 : -1;
+      }
       if (stunned) {
         f.cast = null;
         f.moveIntent = 0;
+        f.moveDepth = 0;
         f.state = 'Stunned';
         this.animate(f, 'hit');
       } else if (f.cast) this.castTick(f, dt);
@@ -240,6 +255,7 @@ export class BattleEngine {
         if (f.hp > 0 && f.active) {
           f.cast = null;
           f.vx = 0;
+          f.vDepth = 0;
           f.state = 'Idle';
           this.animate(f, result.winner === f.team ? 'victory' : 'idle');
         }
@@ -247,7 +263,9 @@ export class BattleEngine {
   }
   private act(f: Fighter, action: AIAction) {
     if (action.type === 'move') {
-      f.moveIntent = action.direction;
+      const length = Math.max(1, Math.hypot(action.direction, action.depthDirection ?? 0));
+      f.moveIntent = action.direction / length;
+      f.moveDepth = (action.depthDirection ?? 0) / length;
       f.state = action.state;
     }
     if (action.type === 'skill') this.beginSkill(f, action.skillId);
@@ -255,6 +273,11 @@ export class BattleEngine {
       if (f.dodgeCooldown > 0 || f.y > 1) return;
       const def = POKEMON[f.species];
       f.moveIntent = 0;
+      f.moveDepth = 0;
+      f.vDepth =
+        (action.depthDirection ?? 0) *
+        def.speed *
+        (action.mode === 'dash' ? 2.8 : action.mode === 'jump' ? 1 : 0);
       f.dodgeCooldown = def.dodgeCooldown;
       if (action.mode === 'jump') {
         f.vy = def.jumpStrength;
@@ -279,7 +302,7 @@ export class BattleEngine {
         f.actionTime = 0.25;
         f.invulnerable = 0.13;
         f.state = 'Dodge';
-        this.animate(f, action.direction === f.facing ? 'dash' : 'backstep');
+        this.animate(f, Math.sign(action.direction) === f.facing ? 'dash' : 'backstep');
       }
       this.event(
         action.mode === 'guard' ? 'guard' : 'dodge',
@@ -307,7 +330,9 @@ export class BattleEngine {
     f.cooldowns[s.id] = s.cooldown;
     f.cast = { skillId, elapsed: 0, fired: 0, hitIds: [] };
     f.moveIntent = 0;
+    f.moveDepth = 0;
     f.vx *= 0.25;
+    f.vDepth *= 0.25;
     f.state = s.behavior === 'melee' ? 'Attack' : 'CastSkill';
     this.animate(f, s.animation);
     this.event('skill', f, s.name, { element: s.element });
@@ -326,10 +351,13 @@ export class BattleEngine {
             ownerId: f.id,
             team: f.team,
             skillId: s.id,
-            x: f.x + f.facing * 32,
-            previousX: f.x + f.facing * 32,
+            x: f.x + f.aimX * 32,
+            previousX: f.x + f.aimX * 32,
             y: f.y + s.hitbox.altitude,
-            vx: f.facing * s.projectileSpeed,
+            vx: f.aimX * s.projectileSpeed,
+            depth: f.depth + f.aimDepth * 32,
+            previousDepth: f.depth + f.aimDepth * 32,
+            vDepth: f.aimDepth * s.projectileSpeed,
             width: s.hitbox.width,
             height: s.hitbox.height,
             life: s.range / s.projectileSpeed,
@@ -347,7 +375,7 @@ export class BattleEngine {
           target.hp > 0 &&
           target.team !== f.team &&
           !cast.hitIds.includes(target.id) &&
-          overlaps(meleeBox(f, s), fighterBox(target))
+          this.meleeHits(f, target, s)
         ) {
           cast.hitIds.push(target.id);
           this.hit(f, target, s);
@@ -359,20 +387,43 @@ export class BattleEngine {
       f.thinkIn = 0.06;
     }
   }
+  private meleeHits(f: Fighter, target: Fighter, skill: SkillDefinition) {
+    const dx = target.x - f.x,
+      dz = target.depth - f.depth;
+    const forward = dx * f.aimX + dz * f.aimDepth;
+    const side = Math.abs(dx * f.aimDepth - dz * f.aimX);
+    const radius = POKEMON[target.species].collision.width / 2;
+    return (
+      forward >= -radius &&
+      forward <= skill.range + radius &&
+      side <= skill.hitbox.width / 2 + radius &&
+      overlaps(meleeBox({ ...f, x: 0, facing: 1 }, skill), fighterBox({ ...target, x: forward }))
+    );
+  }
   private move(f: Fighter, dt: number, stunned: boolean) {
     const def = POKEMON[f.species],
       arena = ARENAS.find((a) => a.id === this.state.rules.arena)!;
     const movement = f.cast ? SKILL_BY_ID[f.cast.skillId].movement : undefined;
-    if (movement && f.cast!.elapsed <= movement.duration && !stunned)
-      f.vx = f.facing * movement.speed;
-    else if (f.actionTime === 0 || stunned) {
+    if (movement && f.cast!.elapsed <= movement.duration && !stunned) {
+      f.vx = f.aimX * movement.speed;
+      f.vDepth = f.aimDepth * movement.speed;
+    } else if (f.actionTime === 0 || stunned) {
       const slow = f.effects
         .filter((e) => e.kind === 'slow')
         .reduce((v, e) => Math.min(v, 1 - e.strength), 1);
       const desired = (f.cast || stunned ? 0 : f.moveIntent) * def.speed * slow;
       const step = def.acceleration * dt;
-      f.vx += Math.max(-step, Math.min(step, desired - f.vx));
+      const desiredDepth = (f.cast || stunned ? 0 : f.moveDepth) * def.speed * slow;
+      const dx = desired - f.vx,
+        dz = desiredDepth - f.vDepth;
+      const factor = Math.min(1, step / (Math.hypot(dx, dz) || 1));
+      f.vx += dx * factor;
+      f.vDepth += dz * factor;
     }
+    f.depth = Math.max(
+      arena.depthBounds[0],
+      Math.min(arena.depthBounds[1], f.depth + f.vDepth * dt),
+    );
     const oldY = f.y;
     f.x = Math.max(arena.bounds[0], Math.min(arena.bounds[1], f.x + f.vx * dt));
     if (f.y > 0 || f.vy > 0) {
@@ -386,7 +437,7 @@ export class BattleEngine {
     }
     if (!f.cast && f.actionTime === 0 && !stunned) {
       if (f.y > 0) this.animate(f, f.vy > 0 ? 'jump' : 'fall');
-      else if (oldY === 0) this.animate(f, Math.abs(f.vx) > 15 ? 'run' : 'idle');
+      else if (oldY === 0) this.animate(f, Math.hypot(f.vx, f.vDepth) > 15 ? 'run' : 'idle');
     }
   }
   private resolveBodies() {
@@ -397,10 +448,14 @@ export class BattleEngine {
           b = fs[j];
         if (!overlaps(fighterBox(a), fighterBox(b))) continue;
         const min = (POKEMON[a.species].collision.width + POKEMON[b.species].collision.width) / 2;
-        const d = Math.abs(a.x - b.x);
+        const d = Math.hypot(a.x - b.x, a.depth - b.depth);
         const push = (min - d) * 0.5;
         if (push > 0) {
-          const sign = a.x <= b.x ? -1 : 1;
+          const sign = d > 0 ? (a.x - b.x) / d : -1;
+          const depthSign = d > 0 ? (a.depth - b.depth) / d : 0;
+          const bounds = ARENAS.find((arena) => arena.id === this.state.rules.arena)!.depthBounds;
+          a.depth = Math.max(bounds[0], Math.min(bounds[1], a.depth + depthSign * push));
+          b.depth = Math.max(bounds[0], Math.min(bounds[1], b.depth - depthSign * push));
           a.x = Math.max(55, Math.min(1145, a.x + sign * push));
           b.x = Math.max(55, Math.min(1145, b.x - sign * push));
         }
@@ -408,6 +463,8 @@ export class BattleEngine {
   }
   private projectileTick(dt: number) {
     for (const p of this.state.projectiles) {
+      p.previousDepth = p.depth ?? ownerDepth(this.state, p);
+      p.depth = p.previousDepth + (p.vDepth ?? 0) * dt;
       p.previousX = p.x;
       p.x += p.vx * dt;
       p.life -= dt;
@@ -423,7 +480,7 @@ export class BattleEngine {
         .filter((f) => f.active && f.hp > 0 && f.team !== p.team)
         .sort((a, b) => Math.abs(a.x - p.previousX) - Math.abs(b.x - p.previousX));
       for (const f of targets)
-        if (overlaps(box, fighterBox(f))) {
+        if (overlaps(box, fighterBox(f)) && this.projectileCrosses(p, f)) {
           if (f.invulnerable <= 0) {
             this.hit(owner, f, SKILL_BY_ID[p.skillId]);
             p.life = 0;
@@ -434,6 +491,27 @@ export class BattleEngine {
     this.state.projectiles = this.state.projectiles.filter(
       (p) => p.life > 0 && p.x > -50 && p.x < 1250,
     );
+  }
+  private projectileCrosses(p: BattleSnapshot['projectiles'][number], f: Fighter) {
+    // Slab intersection of the swept projectile with the ground-plane hitbox.
+    let enter = 0,
+      exit = 1;
+    const radius = POKEMON[f.species].collision.width / 2;
+    for (const [start, end, center, half] of [
+      [p.previousX, p.x, f.x, radius + p.width / 2],
+      [p.previousDepth!, p.depth!, f.depth, radius + p.height / 2],
+    ]) {
+      const delta = end - start;
+      if (Math.abs(delta) < 1e-8) {
+        if (Math.abs(center - start) > half) return false;
+      } else {
+        const a = (center - half - start) / delta,
+          b = (center + half - start) / delta;
+        enter = Math.max(enter, Math.min(a, b));
+        exit = Math.min(exit, Math.max(a, b));
+      }
+    }
+    return enter <= exit;
   }
   private hit(source: Fighter, target: Fighter, s: SkillDefinition) {
     if (target.invulnerable > 0) return;
@@ -452,10 +530,13 @@ export class BattleEngine {
     );
     target.hp = Math.max(0, target.hp - amount);
     source.damageDealt += amount;
-    target.vx = (target.x >= source.x ? 1 : -1) * s.knockback * (1 - guard);
+    const distance = Math.hypot(target.x - source.x, target.depth - source.depth) || 1;
+    target.vx = ((target.x - source.x) / distance) * s.knockback * (1 - guard);
+    target.vDepth = ((target.depth - source.depth) / distance) * s.knockback * (1 - guard);
     target.actionTime = Math.max(target.actionTime, 0.14);
     target.cast = null;
     target.moveIntent = 0;
+    target.moveDepth = 0;
     target.state = 'Recover';
     this.animate(target, s.knockback > 170 ? 'knockback' : 'hit');
     if (s.behavior !== 'buff' && !target.guarded)
@@ -505,6 +586,8 @@ export class BattleEngine {
       f.cast = null;
       f.vx = 0;
       f.vy = 0;
+      f.vDepth = 0;
+      f.moveDepth = 0;
       f.state = 'Fainted';
       this.animate(f, 'faint');
       this.event('faint', f, `${POKEMON[f.species].name} fainted`);
@@ -515,6 +598,10 @@ export class BattleEngine {
     const allies = this.state.fighters.filter((v) => v.active && v.team === team);
     f.active = true;
     f.x = team === 0 ? 100 + allies.length * 65 : 1100 - allies.length * 65;
+    f.depth = -100 + (allies.length - (this.config.rules.activeSize - 1) / 2) * 65;
+    f.moveIntent = 0;
+    f.moveDepth = 0;
+    f.vDepth = 0;
     f.y = 0;
     f.vy = 0;
     f.vx = 0;
@@ -561,4 +648,8 @@ export class BattleEngine {
 }
 export function initializeBattle(config: BattleConfig, seed = 1) {
   return new BattleEngine(config, seed);
+}
+
+function ownerDepth(state: BattleSnapshot, p: BattleSnapshot['projectiles'][number]) {
+  return state.fighters.find((f) => f.id === p.ownerId)?.depth ?? -100;
 }

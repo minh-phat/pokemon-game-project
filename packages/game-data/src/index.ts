@@ -280,6 +280,7 @@ export const ARENAS: ArenaDefinition[] = [
     color: '#88bca2',
     width: 1200,
     ground: 520,
+    depthBounds: [-300, 200],
     bounds: [55, 1145],
     spawns: [210, 990],
     layers: [
@@ -297,6 +298,7 @@ export const ARENAS: ArenaDefinition[] = [
     color: '#ee927a',
     width: 1200,
     ground: 520,
+    depthBounds: [-300, 200],
     bounds: [55, 1145],
     spawns: [210, 990],
     layers: [
@@ -314,6 +316,7 @@ export const ARENAS: ArenaDefinition[] = [
     color: '#93bde3',
     width: 1200,
     ground: 520,
+    depthBounds: [-300, 200],
     bounds: [55, 1145],
     spawns: [210, 990],
     layers: [

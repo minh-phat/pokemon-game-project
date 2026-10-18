@@ -150,6 +150,7 @@ export interface ArenaDefinition {
   color: string;
   width: number;
   ground: number;
+  depthBounds: [number, number];
   bounds: [number, number];
   spawns: [number, number];
   layers: string[];
@@ -173,6 +174,11 @@ export interface Fighter {
   y: number;
   vx: number;
   vy: number;
+  depth: number;
+  vDepth: number;
+  moveDepth: number;
+  aimX: number;
+  aimDepth: number;
   facing: 1 | -1;
   active: boolean;
   state: AIState;
@@ -199,6 +205,9 @@ export interface Projectile {
   skillId: string;
   x: number;
   y: number;
+  depth?: number;
+  previousDepth?: number;
+  vDepth?: number;
   previousX: number;
   vx: number;
   width: number;
@@ -216,6 +225,7 @@ export interface BattleEvent {
   x: number;
   y: number;
   element?: Element;
+  depth?: number;
 }
 export interface BattleConfig {
   rules: MatchRules;
@@ -257,7 +267,12 @@ export interface LobbySnapshot {
   reconnectSeconds: number;
 }
 export type AIAction =
-  | { type: 'move'; direction: number; state: AIState }
+  | { type: 'move'; direction: number; depthDirection?: number; state: AIState }
   | { type: 'skill'; skillId: string }
-  | { type: 'dodge'; mode: 'dash' | 'jump' | 'crouch' | 'guard'; direction: number }
+  | {
+      type: 'dodge';
+      mode: 'dash' | 'jump' | 'crouch' | 'guard';
+      direction: number;
+      depthDirection?: number;
+    }
   | { type: 'wait' };

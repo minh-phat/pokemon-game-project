@@ -41,8 +41,38 @@ export function createArenaScene(
     }
     create() {
       for (let i = 0; i < 4; i++)
-        this.layers.push(this.add.image(600, 300, `layer-${i}`).setDepth(i - 10));
-      // Foreground collision surface is at y=520; layers share the same authored baseline.
+        this.layers.push(
+          this.add
+            .image(600, 380, `layer-${i}`)
+            .setDisplaySize(1200, 760)
+            .setDepth(i - 10),
+        );
+      // A broad ground plane makes vertical travel distinct from jumping.
+      const floor = this.add.graphics().setDepth(-5);
+      const groundColor =
+        arenaId === 'volcano' ? 0x66514b : arenaId === 'lake' ? 0x7bbaa7 : 0x779b62;
+      const arena = ARENAS.find((a) => a.id === arenaId)!;
+      const left = arena.bounds[0],
+        right = arena.bounds[1];
+      const top = arena.ground + arena.depthBounds[0];
+      const bottom = arena.ground + arena.depthBounds[1];
+      const width = right - left,
+        height = bottom - top;
+      const centerY = (top + bottom) / 2;
+      floor.fillStyle(groundColor, 1).fillRoundedRect(12, top - 65, 1176, height + 95, 38);
+      floor.lineStyle(3, 0xf3e8c6, 0.4).strokeRoundedRect(left, top, width, height, 24);
+      floor.lineStyle(2, 0xf3e8c6, 0.15).strokeEllipse(600, centerY, 260, 210);
+      floor.lineBetween(600, top, 600, bottom);
+      for (let i = 0; i < 110; i++) {
+        floor
+          .fillStyle(i % 2 ? 0xffffff : 0x20382c, 0.08)
+          .fillEllipse(
+            left + 20 + ((i * 173) % (width - 40)),
+            top + 15 + ((i * 71) % (height - 30)),
+            6 + (i % 9),
+            3,
+          );
+      }
       for (const [id, def] of Object.entries(POKEMON))
         for (const animation of ANIMATIONS) {
           const a = def.animations[animation];
@@ -154,11 +184,15 @@ export function createArenaScene(
         const old = previous?.fighters.find((p) => p.id === f.id);
         const x = old && old.active === f.active ? Phaser.Math.Linear(old.x, f.x, alpha) : f.x;
         const y = old && old.active === f.active ? Phaser.Math.Linear(old.y, f.y, alpha) : f.y;
+        const depth =
+          old && old.active === f.active ? Phaser.Math.Linear(old.depth, f.depth, alpha) : f.depth;
+        const ground = 520 + depth;
         const faint = f.hp <= 0;
         const faintAlpha = faint ? Math.max(0, 1 - f.animationTime / 1.6) : 1;
         v.sprite
           .setVisible(faintAlpha > 0)
-          .setPosition(x, 520 - y)
+          .setPosition(x, ground - y)
+          .setDepth(10 + (ground - 300) / 300)
           .setFlipX(f.facing < 0)
           .setAlpha(f.invulnerable > 0 ? 0.55 + Math.sin(time / 35) * 0.2 : faintAlpha);
         const animation = `${f.species}-${f.animation}`;
@@ -177,20 +211,20 @@ export function createArenaScene(
         );
         v.shadow
           .setVisible(!faint)
-          .setPosition(x, 522)
+          .setPosition(x, ground + 2)
           .setScale(Math.max(0.45, 1 - y / 300));
-        v.ring.setVisible(!faint).setPosition(x, 521);
-        v.label.setVisible(!faint).setPosition(x, 424 - y);
+        v.ring.setVisible(!faint).setPosition(x, ground + 1);
+        v.label.setVisible(!faint).setPosition(x, ground - 96 - y);
         const def = POKEMON[f.species];
         v.bars.clear();
         if (!faint) {
-          v.bars.fillStyle(0x172e2b, 0.75).fillRoundedRect(x - 31, 436 - y, 62, 7, 3);
+          v.bars.fillStyle(0x172e2b, 0.75).fillRoundedRect(x - 31, ground - 84 - y, 62, 7, 3);
           v.bars
             .fillStyle(f.team === 0 ? 0xd5e6a9 : 0xf0b0a1)
-            .fillRoundedRect(x - 30, 437 - y, 60 * (f.hp / def.hp), 5, 2);
+            .fillRoundedRect(x - 30, ground - 83 - y, 60 * (f.hp / def.hp), 5, 2);
           v.bars
             .fillStyle(0xa1d9e1, 0.85)
-            .fillRect(x - 30, 446 - y, (60 * f.energy) / def.energy, 2);
+            .fillRect(x - 30, ground - 74 - y, (60 * f.energy) / def.energy, 2);
           if (f.cast) {
             const skill = SKILL_BY_ID[f.cast.skillId];
             const progress = Math.min(1, f.cast.elapsed / skill.startup);
@@ -199,7 +233,7 @@ export function createArenaScene(
               Phaser.Display.Color.HexStringToColor(ELEMENTS[skill.element].color).color,
               0.7,
             );
-            v.bars.strokeCircle(x, 494 - y, 20 + progress * 12);
+            v.bars.strokeCircle(x, ground - 26 - y, 20 + progress * 12);
           }
         }
       }
@@ -212,26 +246,27 @@ export function createArenaScene(
         const color = Phaser.Display.Color.HexStringToColor(ELEMENTS[skill.element].color).color;
         const g = this.projectileGraphics;
         const x = f.x,
-          y = 492 - f.y,
-          reach = f.facing * skill.range;
+          y = 492 + f.depth - f.y,
+          reach = f.aimX * skill.range;
+        const reachDepth = f.aimDepth * skill.range;
         if (skill.behavior === 'area') {
           g.fillStyle(color, 0.23)
-            .fillTriangle(x, y, x + reach, y - 35, x + reach, y + 20)
+            .fillTriangle(x, y, x + reach, y + reachDepth - 35, x + reach, y + reachDepth + 20)
             .lineStyle(3, color, 0.7)
-            .lineBetween(x, y, x + reach * 0.9, y - 5);
+            .lineBetween(x, y, x + reach * 0.9, y + reachDepth * 0.9 - 5);
         }
         if (skill.behavior === 'melee') {
           g.lineStyle(skill.element === 'grass' ? 4 : 3, color, 0.8);
           if (skill.element === 'grass') {
             g.beginPath();
             g.moveTo(x, y);
-            g.lineTo(x + reach * 0.35, y - 15);
-            g.lineTo(x + reach * 0.7, y + 10);
-            g.lineTo(x + reach, y);
+            g.lineTo(x + reach * 0.35, y + reachDepth * 0.35 - 15);
+            g.lineTo(x + reach * 0.7, y + reachDepth * 0.7 + 10);
+            g.lineTo(x + reach, y + reachDepth);
             g.strokePath();
           } else {
             g.beginPath();
-            g.arc(x + reach * 0.6, y, 32, -1.1, 1.1, f.facing < 0);
+            g.arc(x + reach * 0.6, y + reachDepth * 0.6, 32, -1.1, 1.1, f.facing < 0);
             g.strokePath();
           }
         }
@@ -247,15 +282,18 @@ export function createArenaScene(
           color = Phaser.Display.Color.HexStringToColor(ELEMENTS[skill.element].color).color;
         const old = previous?.projectiles.find((v) => v.id === p.id);
         const x = old ? Phaser.Math.Linear(old.x, p.x, alpha) : p.x;
+        const depth = old
+          ? Phaser.Math.Linear(old.depth ?? 0, p.depth ?? 0, alpha)
+          : (p.depth ?? 0);
         this.projectileGraphics
           .fillStyle(color, 0.16)
-          .fillEllipse(x - p.vx * 0.025, 520 - p.y, p.width * 2.5, p.height * 1.5)
+          .fillEllipse(x - p.vx * 0.025, 520 + depth - p.y, p.width * 2.5, p.height * 1.5)
           .fillStyle(color, 0.9)
-          .fillEllipse(x, 520 - p.y, p.width, p.height)
+          .fillEllipse(x, 520 + depth - p.y, p.width, p.height)
           .fillStyle(0xffffff, 0.8)
-          .fillEllipse(x + Math.sign(p.vx) * 5, 518 - p.y, p.width * 0.4, p.height * 0.35);
+          .fillEllipse(x + Math.sign(p.vx) * 5, 518 + depth - p.y, p.width * 0.4, p.height * 0.35);
         const g = this.projectileGraphics,
-          y = 520 - p.y;
+          y = 520 + depth - p.y;
         if (skill.element === 'electric') {
           g.lineStyle(3, 0xfff4ac, 0.95).beginPath();
           g.moveTo(x - 27, y - 5);
@@ -282,14 +320,19 @@ export function createArenaScene(
         this.lastEvent = event.id;
         if (event.kind === 'damage' || event.kind === 'heal') {
           const floating = this.add
-            .text(event.x, 445 - event.y, `${event.kind === 'heal' ? '+' : '−'}${event.value}`, {
-              fontFamily: 'system-ui',
-              fontSize: '22px',
-              fontStyle: 'bold',
-              color: event.kind === 'heal' ? '#c4efa9' : '#fff5d8',
-              stroke: '#273c37',
-              strokeThickness: 4,
-            })
+            .text(
+              event.x,
+              445 + (event.depth ?? 0) - event.y,
+              `${event.kind === 'heal' ? '+' : '−'}${event.value}`,
+              {
+                fontFamily: 'system-ui',
+                fontSize: '22px',
+                fontStyle: 'bold',
+                color: event.kind === 'heal' ? '#c4efa9' : '#fff5d8',
+                stroke: '#273c37',
+                strokeThickness: 4,
+              },
+            )
             .setOrigin(0.5)
             .setDepth(25);
           this.tweens.add({
@@ -301,7 +344,13 @@ export function createArenaScene(
           });
           if (!settings.reducedMotion) {
             const burst = this.add
-              .circle(event.x, 490 - event.y, 9, event.kind === 'heal' ? 0xb2dc99 : 0xffe6ac, 0.5)
+              .circle(
+                event.x,
+                490 + (event.depth ?? 0) - event.y,
+                9,
+                event.kind === 'heal' ? 0xb2dc99 : 0xffe6ac,
+                0.5,
+              )
               .setDepth(8);
             this.tweens.add({
               targets: burst,
@@ -315,7 +364,7 @@ export function createArenaScene(
         if (event.kind === 'skill') {
           this.ambience.play(event.element ?? 'normal');
           const label = this.add
-            .text(event.x, 407 - event.y, event.text, {
+            .text(event.x, 407 + (event.depth ?? 0) - event.y, event.text, {
               fontFamily: 'system-ui',
               fontSize: '12px',
               color: ELEMENTS[event.element ?? 'normal'].color,

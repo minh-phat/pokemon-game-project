@@ -1670,7 +1670,7 @@ select option {
 }
 .battle-canvas {
   width: 100%;
-  aspect-ratio: 2/1;
+  aspect-ratio: 30/19;
 }
 .battle-canvas canvas {
   display: block !important;
@@ -2932,7 +2932,7 @@ select option {
   }
   .battle-canvas {
     height: auto;
-    aspect-ratio: 2/1;
+    aspect-ratio: 30/19;
     display: block;
   }
   .arena-frame:has(.result-overlay),

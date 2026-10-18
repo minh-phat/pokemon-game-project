@@ -30,7 +30,7 @@ export function BattleCanvas({
           type: Phaser.CANVAS,
           parent: container.current,
           width: 1200,
-          height: 600,
+          height: 760,
           backgroundColor: '#28443c',
           scene: Scene,
           scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
