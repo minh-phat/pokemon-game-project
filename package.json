@@ -1,0 +1,38 @@
+{
+  "name": "pokemon-arena",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n web,api,rooms -c cyan,green,magenta \"npm run dev -w @arena/frontend\" \"npm run dev -w @arena/backend\" \"npm run dev -w @arena/game-server\"",
+    "build": "npm run typecheck && npm run build -w @arena/backend && npm run build -w @arena/game-server && npm run build -w @arena/frontend",
+    "start": "concurrently -k -n web,api,rooms \"npm run start -w @arena/frontend\" \"npm run start -w @arena/backend\" \"npm run start -w @arena/game-server\"",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p apps/frontend/tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "assets": "node scripts/generate-assets.mjs",
+    "verify:assets": "node scripts/verify-assets.mjs",
+    "benchmark": "tsx scripts/benchmark.ts",
+    "format": "prettier --write apps/*/src packages/*/src scripts tests *.ts *.json docs README.md",
+    "format:check": "prettier --check apps/*/src packages/*/src scripts tests *.ts *.json docs README.md"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^22.0.0",
+    "concurrently": "^9.2.0",
+    "prettier": "^3.6.2",
+    "sharp": "^0.34.0",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.0",
+    "typescript": "~5.9.3",
+    "vitest": "^4.0.0"
+  }
+}

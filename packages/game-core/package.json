@@ -1,0 +1,1 @@
+{"name":"@arena/game-core","version":"1.0.0","private":true,"type":"module","exports":"./src/index.ts","dependencies":{"@arena/shared-types":"*","@arena/game-data":"*","@arena/game-ai":"*"}}

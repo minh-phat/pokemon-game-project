@@ -1,0 +1,128 @@
+import { test, expect, type Page } from '@playwright/test';
+async function rules(page: Page) {
+  await page.getByLabel('Pokémon per team', { exact: true }).selectOption('1');
+  await page.getByLabel('Battle duration', { exact: true }).selectOption('60');
+  await page.getByRole('button', { name: 'Choose your Pokémon', exact: true }).click();
+}
+test('VS AI: selection, pause, animated combat, results, and play again', async ({
+  page,
+  request,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  expect((await request.get('http://localhost:3001/health')).ok()).toBe(true);
+  const roster = await (await request.get('http://localhost:3001/pokemon')).json();
+  expect(roster).toHaveLength(4);
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: /A little team/ })).toBeVisible();
+  await page.screenshot({ path: 'test-results/home-desktop.png', fullPage: true });
+  await page.getByRole('button', { name: 'Let’s battle' }).click();
+  await page.getByRole('button', { name: /YOUR PACE/ }).click();
+  await rules(page);
+  for (const name of ['Pikachu', 'Charmander', 'Squirtle', 'Bulbasaur'])
+    await expect(page.getByRole('button', { name: `Inspect ${name}`, exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Add Pikachu', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Enter the arena', exact: true })).toBeEnabled();
+  await page.screenshot({ path: 'test-results/selection-desktop.png', fullPage: true });
+  await page.getByRole('button', { name: 'Enter the arena', exact: true }).click();
+  await expect(page.locator('canvas')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled({
+    timeout: 30000,
+  });
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  const paused = await page.getByTestId('match-timer').textContent();
+  await page.waitForTimeout(1200);
+  expect(await page.getByTestId('match-timer').textContent()).toBe(paused);
+  await page.getByRole('button', { name: 'Resume battle', exact: true }).click();
+  await page.waitForTimeout(4500);
+  await page.screenshot({ path: 'test-results/battle-desktop.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(350);
+  await expect(page.locator('canvas')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: 'test-results/battle-mobile.png', fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect(page.getByTestId('battle-result')).toBeVisible({ timeout: 80000 });
+  await expect(page.getByRole('dialog')).toContainText(/won the arena|timer ended|Both teams/);
+  await page.screenshot({ path: 'test-results/result-desktop.png', fullPage: true });
+  await page.getByRole('button', { name: 'Play again', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Choose your companions.' })).toBeVisible();
+  expect(errors).toEqual([]);
+  await expect(page.locator('canvas')).toHaveCount(0);
+});
+test('online: two trainers complete an authoritative match and vote for rematch', async ({
+  browser,
+}) => {
+  const a = await browser.newContext(),
+    b = await browser.newContext();
+  const host = await a.newPage(),
+    guest = await b.newPage();
+  const errors: string[] = [];
+  host.on('pageerror', (e) => errors.push(e.message));
+  guest.on('pageerror', (e) => errors.push(e.message));
+  await host.goto('/');
+  await host.getByRole('button', { name: /Online 1v1 PLAY TOGETHER/ }).click();
+  await host.getByLabel('Your trainer name').fill('Alice');
+  await host.getByRole('button', { name: 'Create a private room' }).click();
+  await rules(host);
+  await host.getByRole('button', { name: 'Add Charmander', exact: true }).click();
+  await host.getByRole('button', { name: 'Confirm team', exact: true }).click();
+  await expect(host.getByTestId('room-code')).toBeVisible();
+  const code = (await host.getByTestId('room-code').textContent())!;
+  await guest.goto(`/?room=${code}`);
+  await guest.getByLabel('Your trainer name').fill('Bob');
+  await guest.getByRole('button', { name: 'Join room', exact: true }).click();
+  await expect(guest.getByTestId('room-code')).toHaveText(code);
+  await expect(guest.getByRole('button', { name: 'Edit match rules' })).toHaveCount(0);
+  await guest.getByRole('button', { name: 'Choose your Pokémon', exact: true }).click();
+  await guest.getByRole('button', { name: 'Add Squirtle', exact: true }).click();
+  await guest.getByRole('button', { name: 'Confirm team', exact: true }).click();
+  await expect(host.getByRole('heading', { name: 'Bob' })).toBeVisible();
+  await host.reload();
+  await expect(host.getByTestId('room-code')).toHaveText(code);
+  await expect(host.getByRole('heading', { name: 'Bob' })).toBeVisible();
+  await guest.reload();
+  await expect(guest.getByTestId('room-code')).toHaveText(code);
+  await expect(guest.getByRole('button', { name: 'Edit your team', exact: true })).toBeVisible();
+  await host.screenshot({ path: 'test-results/lobby-desktop.png', fullPage: true });
+  await host.getByRole('button', { name: 'Ready for battle', exact: true }).click();
+  await guest.getByRole('button', { name: 'Ready for battle', exact: true }).click();
+  await expect(host.locator('canvas')).toHaveCount(1);
+  await expect(guest.locator('canvas')).toHaveCount(1);
+  await expect(host.getByTestId('battle-result')).toBeVisible({ timeout: 85000 });
+  await expect(guest.getByTestId('battle-result')).toBeVisible();
+  const results = [
+    await host.getByTestId('battle-result').textContent(),
+    await guest.getByTestId('battle-result').textContent(),
+  ];
+  expect(
+    results.includes('Victory is yours!') || results.every((x) => x === 'A worthy draw.'),
+  ).toBe(true);
+  expect(await host.getByTestId('match-timer').textContent()).toEqual(
+    await guest.getByTestId('match-timer').textContent(),
+  );
+  await host.getByRole('button', { name: 'Request rematch' }).click();
+  await guest.getByRole('button', { name: 'Request rematch' }).click();
+  await expect(host.getByTestId('room-code')).toBeVisible();
+  await expect(guest.getByTestId('room-code')).toBeVisible();
+  expect(errors).toEqual([]);
+  await a.close();
+  await b.close();
+});
+test('mobile navigation, roster, arenas, and accessible settings', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.screenshot({ path: 'test-results/home-mobile.png', fullPage: true });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('button', { name: 'Pokédex', exact: true }).click();
+  await page.getByRole('button', { name: 'Inspect Bulbasaur', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Bulbasaur', exact: true }).last()).toBeVisible();
+  await page.getByRole('button', { name: 'Open settings' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('switch', { name: /Reduce motion/ }).check();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Arenas', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Crystal Lake', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});

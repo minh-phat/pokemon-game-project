@@ -1,0 +1,564 @@
+import {
+  RulesSchema,
+  validateTeam,
+  type AIAction,
+  type BattleConfig,
+  type BattleEvent,
+  type BattleResult,
+  type BattleSnapshot,
+  type Fighter,
+  type SkillDefinition,
+  type SpeciesId,
+  type AnimationName,
+} from '@arena/shared-types';
+import { ARENAS, DIFFICULTY, POKEMON, SKILL_BY_ID } from '@arena/game-data';
+import { decideAction } from '@arena/game-ai';
+import { calculateDamage, fighterBox, meleeBox, overlaps, seededRandom } from './geometry';
+export * from './geometry';
+export const FIXED_DELTA = 1 / 60;
+const GRAVITY = 1050;
+
+export class BattleEngine {
+  readonly config: BattleConfig;
+  state: BattleSnapshot;
+  private rng: () => number;
+  private accumulator = 0;
+  private eventId = 0;
+  private projectileId = 0;
+  private selections = new Map<string, SpeciesId[]>();
+  constructor(
+    config: BattleConfig,
+    readonly seed: number,
+  ) {
+    if (config.players.length !== 2 || config.players[0] === config.players[1])
+      throw new Error('Two distinct players are required');
+    this.config = { ...config, rules: RulesSchema.parse(config.rules) };
+    this.rng = seededRandom(seed);
+    this.state = this.emptyState();
+    config.teams?.forEach((team, i) => this.submitTeamSelection(config.players[i], team));
+  }
+  private emptyState(): BattleSnapshot {
+    return {
+      seed: this.seed,
+      tick: 0,
+      elapsed: 0,
+      phase: 'selection',
+      rules: this.config.rules,
+      fighters: [],
+      projectiles: [],
+      events: [],
+      result: null,
+    };
+  }
+  submitTeamSelection(playerId: string, team: SpeciesId[]) {
+    if (this.state.phase !== 'selection') throw new Error('Selection is closed');
+    if (!this.config.players.includes(playerId)) throw new Error('Unknown player');
+    this.selections.set(playerId, validateTeam(team, this.config.rules));
+  }
+  startBattle() {
+    if (this.state.phase !== 'selection') throw new Error('Battle already started');
+    if (this.selections.size !== 2) throw new Error('Both teams must be selected');
+    this.config.players.forEach((playerId, team) =>
+      this.selections.get(playerId)!.forEach((species, slot) => {
+        const def = POKEMON[species],
+          active = slot < this.config.rules.activeSize;
+        this.state.fighters.push({
+          id: `${team}-${slot}`,
+          playerId,
+          team: team as 0 | 1,
+          species,
+          slot,
+          hp: def.hp,
+          energy: def.energy,
+          x: team === 0 ? 190 + slot * 65 : 1010 - slot * 65,
+          y: 0,
+          vx: 0,
+          vy: 0,
+          facing: team === 0 ? 1 : -1,
+          active,
+          state: active ? 'FindTarget' : 'Idle',
+          animation: 'idle',
+          animationTime: 0,
+          cooldowns: {},
+          dodgeCooldown: 0.4,
+          invulnerable: active ? 0.5 : 0,
+          actionTime: 0,
+          thinkIn: 0.15 + this.rng() * 0.2,
+          cast: null,
+          effects: [],
+          targetId: null,
+          guarded: false,
+          crouched: false,
+          moveIntent: 0,
+          swapCooldown: 10,
+          damageDealt: 0,
+        });
+      }),
+    );
+    this.state.phase = 'battle';
+    this.state.fighters
+      .filter((f) => f.active)
+      .forEach((f) => this.event('deploy', f, `${POKEMON[f.species].name} enters the arena`));
+  }
+  updateBattle(delta: number) {
+    if (!Number.isFinite(delta) || delta < 0 || delta > 0.25)
+      throw new Error('Use a delta between 0 and 0.25 seconds');
+    this.accumulator += delta;
+    while (this.accumulator + 1e-9 >= FIXED_DELTA) {
+      this.accumulator -= FIXED_DELTA;
+      if (this.state.phase === 'battle') this.tick();
+    }
+  }
+  getBattleSnapshot(): BattleSnapshot {
+    return structuredClone(this.state);
+  }
+  determineWinner(): BattleResult | null {
+    if (this.state.result) return this.state.result;
+    const rosters = [0, 1].map((team) => this.state.fighters.filter((f) => f.team === team));
+    if (!rosters[0].length || !rosters[1].length) return null;
+    const survivors = rosters.map((fs) => fs.filter((f) => f.hp > 0).length);
+    const scores = rosters.map((fs) =>
+      fs.reduce((sum, f) => sum + Math.max(0, f.hp) / POKEMON[f.species].hp, 0),
+    ) as [number, number];
+    if (survivors[0] === 0 || survivors[1] === 0)
+      return {
+        winner: survivors[0] === survivors[1] ? 'draw' : survivors[0] > 0 ? 0 : 1,
+        reason: 'elimination',
+        scores,
+      };
+    if (this.config.rules.duration > 0 && this.state.elapsed + 1e-6 >= this.config.rules.duration) {
+      const difference = scores[0] - scores[1];
+      return {
+        winner:
+          Math.abs(difference) > 0.0001
+            ? difference > 0
+              ? 0
+              : 1
+            : survivors[0] === survivors[1]
+              ? 'draw'
+              : survivors[0] > survivors[1]
+                ? 0
+                : 1,
+        reason: 'time',
+        scores,
+      };
+    }
+    return null;
+  }
+  forfeit(team: 0 | 1) {
+    if (this.state.phase === 'finished') return;
+    this.state.result = { winner: team === 0 ? 1 : 0, reason: 'disconnect', scores: [0, 0] };
+    this.state.phase = 'finished';
+  }
+  resetBattle() {
+    this.state = this.emptyState();
+    this.rng = seededRandom(this.seed);
+    this.accumulator = 0;
+    this.eventId = 0;
+    this.projectileId = 0;
+  }
+  private animate(f: Fighter, animation: AnimationName) {
+    if (f.animation !== animation) {
+      f.animation = animation;
+      f.animationTime = 0;
+    }
+  }
+  private event(
+    kind: BattleEvent['kind'],
+    f: Fighter,
+    text: string,
+    extra: Partial<BattleEvent> = {},
+  ) {
+    this.state.events.push({
+      id: ++this.eventId,
+      tick: this.state.tick,
+      kind,
+      fighterId: f.id,
+      text,
+      x: f.x,
+      y: f.y,
+      ...extra,
+    });
+    if (this.state.events.length > 100) this.state.events.shift();
+  }
+  private tick() {
+    const dt = FIXED_DELTA;
+    this.state.tick++;
+    this.state.elapsed = this.state.tick * dt;
+    for (const f of this.state.fighters) {
+      f.animationTime += dt;
+      if (f.hp <= 0) continue;
+      for (const key of Object.keys(f.cooldowns)) {
+        f.cooldowns[key] = Math.max(0, f.cooldowns[key] - dt);
+      }
+      f.dodgeCooldown = Math.max(0, f.dodgeCooldown - dt);
+      f.invulnerable = Math.max(0, f.invulnerable - dt);
+      f.swapCooldown = Math.max(0, f.swapCooldown - dt);
+      f.energy = Math.min(POKEMON[f.species].energy, f.energy + dt * (f.active ? 6.5 : 9));
+      if (!f.active) continue;
+      this.statusTick(f, dt);
+      if (f.hp <= 0) continue;
+      const stunned = f.effects.some((e) => e.kind === 'stun');
+      f.actionTime = Math.max(0, f.actionTime - dt);
+      if (f.actionTime === 0) {
+        f.guarded = false;
+        f.crouched = false;
+      }
+      const target = this.state.fighters
+        .filter((v) => v.team !== f.team && v.hp > 0 && v.active)
+        .sort((a, b) => Math.abs(a.x - f.x) - Math.abs(b.x - f.x))[0];
+      f.targetId = target?.id ?? null;
+      if (target && !f.cast && f.actionTime === 0) f.facing = target.x >= f.x ? 1 : -1;
+      if (stunned) {
+        f.cast = null;
+        f.moveIntent = 0;
+        f.state = 'Stunned';
+        this.animate(f, 'hit');
+      } else if (f.cast) this.castTick(f, dt);
+      else if (f.actionTime === 0) {
+        f.thinkIn -= dt;
+        if (f.thinkIn <= 0) {
+          const difficulty = this.config.aiTeams?.includes(f.team)
+            ? this.config.rules.difficulty
+            : 'normal';
+          this.act(f, decideAction(f, this.state, this.rng, difficulty));
+          f.thinkIn = DIFFICULTY[difficulty].reaction * (0.8 + this.rng() * 0.4);
+        }
+      }
+      this.move(f, dt, stunned);
+      this.trySwitch(f);
+    }
+    this.resolveBodies();
+    this.projectileTick(dt);
+    this.deployReserves();
+    const result = this.determineWinner();
+    if (result) {
+      this.state.result = result;
+      this.state.phase = 'finished';
+      this.state.projectiles = [];
+      for (const f of this.state.fighters)
+        if (f.hp > 0 && f.active) {
+          f.cast = null;
+          f.vx = 0;
+          f.state = 'Idle';
+          this.animate(f, result.winner === f.team ? 'victory' : 'idle');
+        }
+    }
+  }
+  private act(f: Fighter, action: AIAction) {
+    if (action.type === 'move') {
+      f.moveIntent = action.direction;
+      f.state = action.state;
+    }
+    if (action.type === 'skill') this.beginSkill(f, action.skillId);
+    if (action.type === 'dodge') {
+      if (f.dodgeCooldown > 0 || f.y > 1) return;
+      const def = POKEMON[f.species];
+      f.moveIntent = 0;
+      f.dodgeCooldown = def.dodgeCooldown;
+      if (action.mode === 'jump') {
+        f.vy = def.jumpStrength;
+        f.vx = action.direction * def.speed;
+        f.state = 'Jump';
+        f.actionTime = 0.32;
+        this.animate(f, 'jump');
+      } else if (action.mode === 'crouch') {
+        f.crouched = true;
+        f.vx = f.species === 'squirtle' ? f.facing * def.speed * 0.7 : 0;
+        f.actionTime = 0.48;
+        f.state = 'Dodge';
+        this.animate(f, 'crouch');
+      } else if (action.mode === 'guard') {
+        f.guarded = true;
+        f.vx = 0;
+        f.actionTime = 0.55;
+        f.state = 'Guard';
+        this.animate(f, 'guard');
+      } else {
+        f.vx = action.direction * def.speed * 2.8;
+        f.actionTime = 0.25;
+        f.invulnerable = 0.13;
+        f.state = 'Dodge';
+        this.animate(f, action.direction === f.facing ? 'dash' : 'backstep');
+      }
+      this.event(
+        action.mode === 'guard' ? 'guard' : 'dodge',
+        f,
+        `${POKEMON[f.species].name} ${action.mode === 'jump' ? 'jumps' : action.mode === 'crouch' ? 'ducks' : action.mode === 'guard' ? 'guards' : 'dashes'}`,
+      );
+      f.thinkIn = 0.03; // Counterattack promptly after the defense ends.
+    }
+  }
+  beginSkill(f: Fighter, skillId: string): boolean {
+    const def = POKEMON[f.species],
+      s = def.skills.find((s) => s.id === skillId);
+    if (
+      !s ||
+      f.hp <= 0 ||
+      !f.active ||
+      f.cast ||
+      f.actionTime > 0 ||
+      f.effects.some((e) => e.kind === 'stun') ||
+      f.energy < s.energy ||
+      f.cooldowns[s.id] > 0
+    )
+      return false;
+    f.energy -= s.energy;
+    f.cooldowns[s.id] = s.cooldown;
+    f.cast = { skillId, elapsed: 0, fired: 0, hitIds: [] };
+    f.moveIntent = 0;
+    f.vx *= 0.25;
+    f.state = s.behavior === 'melee' ? 'Attack' : 'CastSkill';
+    this.animate(f, s.animation);
+    this.event('skill', f, s.name, { element: s.element });
+    return true;
+  }
+  private castTick(f: Fighter, dt: number) {
+    const cast = f.cast!,
+      s = SKILL_BY_ID[cast.skillId];
+    cast.elapsed += dt;
+    s.events.forEach((event, index) => {
+      if (cast.elapsed + 1e-9 >= event.at && !(cast.fired & (1 << index))) {
+        cast.fired |= 1 << index;
+        if (event.kind === 'projectile')
+          this.state.projectiles.push({
+            id: `p${++this.projectileId}`,
+            ownerId: f.id,
+            team: f.team,
+            skillId: s.id,
+            x: f.x + f.facing * 32,
+            previousX: f.x + f.facing * 32,
+            y: f.y + s.hitbox.altitude,
+            vx: f.facing * s.projectileSpeed,
+            width: s.hitbox.width,
+            height: s.hitbox.height,
+            life: s.range / s.projectileSpeed,
+          });
+        if (event.kind === 'buff')
+          f.effects.push(...s.effects.map((e) => ({ ...e, sourceId: f.id })));
+      }
+    });
+    // Melee active windows are sampled each fixed tick and hit each target once.
+    const hitEvents = s.events.filter((e) => e.kind === 'hit');
+    if (hitEvents.some((e) => cast.elapsed >= e.at && cast.elapsed <= e.at + s.active)) {
+      for (const target of this.state.fighters)
+        if (
+          target.active &&
+          target.hp > 0 &&
+          target.team !== f.team &&
+          !cast.hitIds.includes(target.id) &&
+          overlaps(meleeBox(f, s), fighterBox(target))
+        ) {
+          cast.hitIds.push(target.id);
+          this.hit(f, target, s);
+        }
+    }
+    if (cast.elapsed >= s.startup + s.active + s.recovery) {
+      f.cast = null;
+      f.state = 'Recover';
+      f.thinkIn = 0.06;
+    }
+  }
+  private move(f: Fighter, dt: number, stunned: boolean) {
+    const def = POKEMON[f.species],
+      arena = ARENAS.find((a) => a.id === this.state.rules.arena)!;
+    const movement = f.cast ? SKILL_BY_ID[f.cast.skillId].movement : undefined;
+    if (movement && f.cast!.elapsed <= movement.duration && !stunned)
+      f.vx = f.facing * movement.speed;
+    else if (f.actionTime === 0 || stunned) {
+      const slow = f.effects
+        .filter((e) => e.kind === 'slow')
+        .reduce((v, e) => Math.min(v, 1 - e.strength), 1);
+      const desired = (f.cast || stunned ? 0 : f.moveIntent) * def.speed * slow;
+      const step = def.acceleration * dt;
+      f.vx += Math.max(-step, Math.min(step, desired - f.vx));
+    }
+    const oldY = f.y;
+    f.x = Math.max(arena.bounds[0], Math.min(arena.bounds[1], f.x + f.vx * dt));
+    if (f.y > 0 || f.vy > 0) {
+      f.vy -= GRAVITY * dt;
+      f.y = Math.max(0, f.y + f.vy * dt);
+      if (f.y === 0) {
+        f.vy = 0;
+        this.animate(f, 'land');
+        f.actionTime = Math.max(f.actionTime, 0.09);
+      }
+    }
+    if (!f.cast && f.actionTime === 0 && !stunned) {
+      if (f.y > 0) this.animate(f, f.vy > 0 ? 'jump' : 'fall');
+      else if (oldY === 0) this.animate(f, Math.abs(f.vx) > 15 ? 'run' : 'idle');
+    }
+  }
+  private resolveBodies() {
+    const fs = this.state.fighters.filter((f) => f.active && f.hp > 0);
+    for (let i = 0; i < fs.length; i++)
+      for (let j = i + 1; j < fs.length; j++) {
+        const a = fs[i],
+          b = fs[j];
+        if (!overlaps(fighterBox(a), fighterBox(b))) continue;
+        const min = (POKEMON[a.species].collision.width + POKEMON[b.species].collision.width) / 2;
+        const d = Math.abs(a.x - b.x);
+        const push = (min - d) * 0.5;
+        if (push > 0) {
+          const sign = a.x <= b.x ? -1 : 1;
+          a.x = Math.max(55, Math.min(1145, a.x + sign * push));
+          b.x = Math.max(55, Math.min(1145, b.x - sign * push));
+        }
+      }
+  }
+  private projectileTick(dt: number) {
+    for (const p of this.state.projectiles) {
+      p.previousX = p.x;
+      p.x += p.vx * dt;
+      p.life -= dt;
+      const owner = this.state.fighters.find((f) => f.id === p.ownerId)!;
+      // Swept horizontal boxes avoid tunnelling even for Solar Beam.
+      const box = {
+        left: Math.min(p.x, p.previousX) - p.width / 2,
+        right: Math.max(p.x, p.previousX) + p.width / 2,
+        bottom: p.y - p.height / 2,
+        top: p.y + p.height / 2,
+      };
+      const targets = this.state.fighters
+        .filter((f) => f.active && f.hp > 0 && f.team !== p.team)
+        .sort((a, b) => Math.abs(a.x - p.previousX) - Math.abs(b.x - p.previousX));
+      for (const f of targets)
+        if (overlaps(box, fighterBox(f))) {
+          if (f.invulnerable <= 0) {
+            this.hit(owner, f, SKILL_BY_ID[p.skillId]);
+            p.life = 0;
+            break;
+          }
+        }
+    }
+    this.state.projectiles = this.state.projectiles.filter(
+      (p) => p.life > 0 && p.x > -50 && p.x < 1250,
+    );
+  }
+  private hit(source: Fighter, target: Fighter, s: SkillDefinition) {
+    if (target.invulnerable > 0) return;
+    const shield = target.effects
+      .filter((e) => e.kind === 'shield')
+      .reduce((v, e) => Math.max(v, e.strength), 0);
+    const guard = Math.max(target.guarded ? 0.65 : 0, shield);
+    const amount = calculateDamage(
+      s.damage,
+      POKEMON[source.species].attack,
+      POKEMON[target.species].defense,
+      s.element,
+      POKEMON[target.species].element,
+      this.state.rules.elements,
+      guard,
+    );
+    target.hp = Math.max(0, target.hp - amount);
+    source.damageDealt += amount;
+    target.vx = (target.x >= source.x ? 1 : -1) * s.knockback * (1 - guard);
+    target.actionTime = Math.max(target.actionTime, 0.14);
+    target.cast = null;
+    target.moveIntent = 0;
+    target.state = 'Recover';
+    this.animate(target, s.knockback > 170 ? 'knockback' : 'hit');
+    if (s.behavior !== 'buff' && !target.guarded)
+      for (const effect of s.effects) {
+        target.effects = target.effects.filter((e) => e.kind !== effect.kind);
+        target.effects.push({ ...effect, sourceId: source.id, pulse: 0 });
+      }
+    this.event('damage', target, `${s.name}${guard ? ' · guarded' : ''}`, {
+      value: amount,
+      targetId: source.id,
+      element: s.element,
+    });
+    this.faint(target);
+  }
+  private statusTick(f: Fighter, dt: number) {
+    for (const effect of f.effects) {
+      effect.duration -= dt;
+      if (effect.kind === 'burn' || effect.kind === 'leech') {
+        effect.pulse = (effect.pulse ?? 0) + dt;
+        if (effect.pulse >= 1) {
+          effect.pulse -= 1;
+          const damage = Math.min(f.hp, effect.strength);
+          f.hp -= damage;
+          this.event('damage', f, effect.kind, {
+            value: damage,
+            element: effect.kind === 'burn' ? 'fire' : 'grass',
+          });
+          const source = this.state.fighters.find((s) => s.id === effect.sourceId);
+          if (source) {
+            source.damageDealt += damage;
+            if (effect.kind === 'leech' && source.hp > 0) {
+              const heal = Math.min(damage, POKEMON[source.species].hp - source.hp);
+              source.hp += heal;
+              if (heal > 0) this.event('heal', source, 'Leech Seed', { value: heal });
+            }
+          }
+        }
+      }
+    }
+    f.effects = f.effects.filter((e) => e.duration > 0);
+    this.faint(f);
+  }
+  private faint(f: Fighter) {
+    if (f.hp <= 0 && f.state !== 'Fainted') {
+      f.hp = 0;
+      f.active = false;
+      f.cast = null;
+      f.vx = 0;
+      f.vy = 0;
+      f.state = 'Fainted';
+      this.animate(f, 'faint');
+      this.event('faint', f, `${POKEMON[f.species].name} fainted`);
+    }
+  }
+  private deploy(f: Fighter) {
+    const team = f.team;
+    const allies = this.state.fighters.filter((v) => v.active && v.team === team);
+    f.active = true;
+    f.x = team === 0 ? 100 + allies.length * 65 : 1100 - allies.length * 65;
+    f.y = 0;
+    f.vy = 0;
+    f.vx = 0;
+    f.cast = null;
+    f.effects = [];
+    f.invulnerable = 0.7;
+    f.state = 'FindTarget';
+    f.thinkIn = 0.15;
+    f.swapCooldown = 12;
+    this.animate(f, 'idle');
+    this.event('deploy', f, `${POKEMON[f.species].name} enters the arena`);
+  }
+  private deployReserves() {
+    for (const team of [0, 1]) {
+      let active = this.state.fighters.filter(
+        (f) => f.team === team && f.hp > 0 && f.active,
+      ).length;
+      for (const f of this.state.fighters.filter((f) => f.team === team && f.hp > 0 && !f.active))
+        if (active < this.state.rules.activeSize) {
+          this.deploy(f);
+          active++;
+        }
+    }
+  }
+  private trySwitch(f: Fighter) {
+    if (
+      !this.state.rules.switching ||
+      f.swapCooldown > 0 ||
+      f.cast ||
+      f.hp / POKEMON[f.species].hp > 0.22
+    )
+      return;
+    const reserve = this.state.fighters.find(
+      (v) => v.team === f.team && !v.active && v.hp / POKEMON[v.species].hp > 0.5,
+    );
+    if (reserve) {
+      f.active = false;
+      f.cast = null;
+      f.swapCooldown = 15;
+      this.event('switch', f, `${POKEMON[f.species].name} switches out`);
+      this.deploy(reserve);
+    }
+  }
+}
+export function initializeBattle(config: BattleConfig, seed = 1) {
+  return new BattleEngine(config, seed);
+}
