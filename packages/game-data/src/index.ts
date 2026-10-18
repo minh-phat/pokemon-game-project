@@ -69,6 +69,16 @@ export const SKILLS = {
     projectileSpeed: 660,
     effects: [{ kind: 'stun', duration: 0.3, strength: 1 }],
   }),
+  electroBall: skill('electro-ball', 'Electro Ball', 'electric', 'projectile', 40, 45, 10, 600, {
+    description:
+      'A large, slow electric orb. Nearby arcs deal 30% damage; both hits paralyze for 2 seconds.',
+    projectileSpeed: 210,
+    hitbox: { width: 64, height: 64, altitude: 36 },
+    knockback: 0,
+    effects: [{ kind: 'stun', duration: 2, strength: 1 }],
+    electricAura: { reach: 42, damageScale: 0.3 },
+    usage: { minRange: 120, priority: 1.5 },
+  }),
   thunderWave: skill('thunder-wave', 'Thunder Wave', 'electric', 'debuff', 7, 14, 5, 430, {
     description: 'A low wave of electricity that slows its target.',
     hitbox: { width: 42, height: 18, altitude: 13 },
@@ -185,7 +195,13 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
     dodgeCooldown: 1.6,
     attackRange: 88,
     collision: { width: 40, height: 54 },
-    skills: [SKILLS.quickAttack, SKILLS.thunderbolt, SKILLS.thunderWave, SKILLS.voltTackle],
+    skills: [
+      SKILLS.quickAttack,
+      SKILLS.thunderbolt,
+      SKILLS.thunderWave,
+      SKILLS.voltTackle,
+      SKILLS.electroBall,
+    ],
     animations,
     ai: { aggression: 0.82, dodge: 0.9, guard: 0.1, preferredDistance: 140, retreat: 0.5 },
   },

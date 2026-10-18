@@ -110,6 +110,7 @@ export interface SkillDefinition {
   sfx: string;
   usage: { minRange: number; priority: number; belowHP?: number };
   events: { at: number; kind: 'hit' | 'projectile' | 'buff' }[];
+  electricAura?: { reach: number; damageScale: number };
   movement?: { speed: number; duration: number };
 }
 export interface PokemonDefinition {
@@ -219,6 +220,7 @@ export interface Projectile {
   width: number;
   height: number;
   life: number;
+  auraHitIds?: string[];
 }
 export interface BattleEvent {
   id: number;

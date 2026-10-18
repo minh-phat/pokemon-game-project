@@ -36,7 +36,9 @@ export class SkillVfx {
   }
 
   private sprite(key: string) {
-    return this.scene.add.sprite(0, 0, key, 0).setDepth(12).play(key);
+    const sprite = this.scene.add.sprite(0, 0, key, 0).setDepth(12);
+    if (key !== 'electro-ball-art') sprite.play(key);
+    return sprite;
   }
 
   private place(
@@ -95,6 +97,12 @@ export class SkillVfx {
         (old
           ? Phaser.Math.Linear(old.depth, f.depth, alpha) - Phaser.Math.Linear(old.y, f.y, alpha)
           : f.depth - f.y);
+      if (f.effects.some((effect) => effect.kind === 'stun')) {
+        const statusId = `paralyzed-${f.id}`;
+        this.place(statusId, 'skill-vfx-paralyzed', x, y, 94, 94, 0);
+        live.add(statusId);
+        if (emit) this.emitters.get('electric')!.emitParticleAt(x, y, 2);
+      }
       if (!f.cast) continue;
       const skill = SKILL_BY_ID[f.cast.skillId];
       const charge = f.cast.elapsed < skill.startup;
@@ -102,17 +110,18 @@ export class SkillVfx {
       if (!charge && (!active || skill.behavior === 'projectile' || skill.behavior === 'debuff'))
         continue;
       const id = `cast-${f.id}`;
+      const electroCharge = charge && skill.id === 'electro-ball';
       const directional = !charge && skill.behavior !== 'buff';
       const angle = Math.atan2(f.aimDepth, f.aimX);
       const length = directional ? skill.range : 76;
       const center = directional ? length * 0.45 : 0;
       this.place(
         id,
-        `skill-vfx-${charge ? `charge-${skill.element}` : skill.id}`,
+        `skill-vfx-${electroCharge ? 'electro-charge' : charge ? `charge-${skill.element}` : skill.id}`,
         x + Math.cos(angle) * center,
         y + Math.sin(angle) * center,
-        length * (directional ? 1.2 : 1),
-        skill.behavior === 'area' && !charge ? 100 : 80,
+        electroCharge ? 112 : length * (directional ? 1.2 : 1),
+        electroCharge ? 112 : skill.behavior === 'area' && !charge ? 100 : 80,
         directional ? angle : 0,
       );
       live.add(id);
@@ -139,12 +148,67 @@ export class SkillVfx {
           : skill.id === 'flame-burst'
             ? 100
             : Math.max(76, p.width * 2);
-      this.place(id, `skill-vfx-${skill.id}`, x, y, width, Math.max(60, p.height * 2.3), angle);
+      const auraSize = skill.electricAura
+        ? ((p.width + skill.electricAura.reach * 2) * 128) / 116
+        : null;
+      this.place(
+        id,
+        skill.id === 'electro-ball' ? 'electro-ball-art' : `skill-vfx-${skill.id}`,
+        x,
+        y,
+        auraSize ?? width,
+        auraSize ?? Math.max(60, p.height * 2.3),
+        angle,
+      );
+      if (skill.id === 'electro-ball') {
+        const orb = this.attached.get(id)!.sprite;
+        orb.setRotation(this.reduced ? 0 : snapshot.elapsed * 0.8).setDepth(12);
+        const arcId = `${id}-arcs`;
+        if (!reduced) {
+          this.place(
+            arcId,
+            'skill-vfx-electro-ball',
+            x,
+            y,
+            auraSize ?? width,
+            auraSize ?? width,
+            0,
+          );
+          this.attached.get(arcId)!.sprite.setAlpha(0.4).setDepth(13);
+          live.add(arcId);
+        }
+      }
       live.add(id);
+      if (skill.id === 'electro-ball' && !reduced) {
+        const speed = Math.hypot(p.vx, p.vDepth ?? 0) || 1;
+        for (let i = 1; i <= 3; i++) {
+          const trailId = `${id}-trail-${i}`;
+          const distance = i * 25;
+          const trailSize = 94 - i * 17;
+          this.place(
+            trailId,
+            'skill-vfx-electro-trail',
+            x - (p.vx / speed) * distance,
+            y - ((p.vDepth ?? 0) / speed) * distance,
+            trailSize,
+            trailSize,
+            0,
+          );
+          this.attached
+            .get(trailId)!
+            .sprite.setAlpha(0.55 - i * 0.11)
+            .setDepth(11);
+          live.add(trailId);
+        }
+      }
       if (emit)
         this.emitters
           .get(skill.element)!
-          .emitParticleAt(x - Math.cos(angle) * 18, y - Math.sin(angle) * 18, 2);
+          .emitParticleAt(
+            x - Math.cos(angle) * 18,
+            y - Math.sin(angle) * 18,
+            skill.id === 'electro-ball' ? 6 : 2,
+          );
     }
     for (const [id, effect] of this.attached)
       if (!live.has(id)) {
@@ -166,9 +230,15 @@ export class SkillVfx {
     const element = event.kind === 'heal' ? 'grass' : (event.element ?? 'normal');
     const x = event.x,
       y = 492 + (event.depth ?? 0) - event.y;
-    const sprite = this.sprite(`skill-vfx-impact-${element}`)
+    const electroBall = event.text.startsWith('Electro Ball');
+    const sprite = this.sprite(
+      electroBall ? 'skill-vfx-electro-impact' : `skill-vfx-impact-${element}`,
+    )
       .setPosition(x, y)
-      .setDisplaySize(this.reduced ? 62 : 110, this.reduced ? 62 : 110);
+      .setDisplaySize(
+        this.reduced ? 62 : electroBall ? 150 : 110,
+        this.reduced ? 62 : electroBall ? 150 : 110,
+      );
     if (this.paused || this.reduced) sprite.anims.pause();
     if (this.reduced) sprite.setFrame(4).setAlpha(0.6);
     this.impacts.push({ sprite, remaining: 400 });

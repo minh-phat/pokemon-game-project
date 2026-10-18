@@ -661,3 +661,89 @@ describe('basic guard', () => {
     },
   );
 });
+
+describe('Electro Ball', () => {
+  function setup(offset = 0) {
+    const e = battle(undefined, { switching: false });
+    const [a, b] = e.state.fighters;
+    for (const f of [a, b]) {
+      f.thinkIn = 999;
+      f.invulnerable = 0;
+      f.depth = 0;
+    }
+    a.x = 200;
+    b.x = 600;
+    b.depth = offset;
+    e.state.projectiles.push({
+      id: 'orb',
+      ownerId: a.id,
+      team: a.team,
+      skillId: 'electro-ball',
+      x: b.x,
+      previousX: b.x,
+      depth: 0,
+      y: 36,
+      vx: 0,
+      width: 64,
+      height: 64,
+      life: 4,
+    });
+    return e;
+  }
+  it('charges high energy and cooldown and launches a large slow orb', () => {
+    const e = setup();
+    e.state.projectiles = [];
+    const a = e.state.fighters[0];
+    a.energy = 44;
+    expect(e.beginSkill(a, 'electro-ball')).toBe(false);
+    a.energy = 100;
+    expect(e.beginSkill(a, 'electro-ball')).toBe(true);
+    expect(a.energy).toBe(55);
+    expect(a.cooldowns['electro-ball']).toBe(10);
+    step(e, 0.4);
+    expect(e.state.projectiles[0]).toMatchObject({ skillId: 'electro-ball', width: 64, vx: 210 });
+  });
+  it('direct hits deal more damage than arcs and consume the orb', () => {
+    const direct = setup(),
+      arc = setup(80);
+    const hp = direct.state.fighters[1].hp;
+    direct.updateBattle(FIXED_DELTA);
+    arc.updateBattle(FIXED_DELTA);
+    expect(direct.state.fighters[1].hp).toBeLessThan(arc.state.fighters[1].hp);
+    expect(arc.state.fighters[1].hp).toBeLessThan(hp);
+    expect(direct.state.projectiles).toHaveLength(0);
+    expect(arc.state.projectiles).toHaveLength(1);
+    const arcHP = arc.state.fighters[1].hp;
+    step(arc, 1);
+    expect(arc.state.fighters[1].hp).toBe(arcHP);
+  });
+  it.each([0, 80])('paralyzes for two seconds on hit at offset %s', (offset) => {
+    const e = setup(offset),
+      b = e.state.fighters[1];
+    e.updateBattle(FIXED_DELTA);
+    expect(b.effects).toContainEqual(expect.objectContaining({ kind: 'stun', duration: 2 }));
+    const x = b.x,
+      depth = b.depth;
+    step(e, 1.9);
+    expect(e.beginSkill(b, 'ember')).toBe(false);
+    expect(e.setGuard(b, true)).toBe(false);
+    expect(e.beginDodge(b, 'dash', 1)).toBe(false);
+    expect(b.x).toBe(x);
+    expect(b.depth).toBe(depth);
+    step(e, 0.15);
+    expect(b.effects.some((effect) => effect.kind === 'stun')).toBe(false);
+    expect(e.beginSkill(b, 'ember')).toBe(true);
+  });
+  it('does not arc outside its reach or through invulnerability', () => {
+    const e = setup(130),
+      b = e.state.fighters[1];
+    const hp = b.hp;
+    e.updateBattle(FIXED_DELTA);
+    expect(b.hp).toBe(hp);
+    b.depth = 80;
+    b.invulnerable = 1;
+    e.updateBattle(FIXED_DELTA);
+    expect(b.hp).toBe(hp);
+    expect(b.effects).toHaveLength(0);
+  });
+});

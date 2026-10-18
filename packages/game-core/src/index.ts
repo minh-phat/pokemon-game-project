@@ -632,6 +632,23 @@ export class BattleEngine {
             break;
           }
         }
+      const skill = SKILL_BY_ID[p.skillId];
+      if (p.life > 0 && skill.electricAura) {
+        const { reach, damageScale } = skill.electricAura;
+        const aura = { ...p, width: p.width + reach * 2, height: p.height + reach * 2 };
+        for (const f of targets) {
+          if (f.invulnerable > 0 || p.auraHitIds?.includes(f.id)) continue;
+          const body = fighterBox(f);
+          if (body.bottom > p.y + aura.height / 2 || body.top < p.y - aura.height / 2) continue;
+          if (!this.projectileCrosses(aura, f)) continue;
+          this.hit(owner, f, {
+            ...skill,
+            name: `${skill.name} · arc`,
+            damage: skill.damage * damageScale,
+          });
+          (p.auraHitIds ??= []).push(f.id);
+        }
+      }
     }
     this.state.projectiles = this.state.projectiles.filter(
       (p) => p.life > 0 && p.x > -50 && p.x < 1250,
@@ -788,6 +805,7 @@ export class BattleEngine {
     if (
       !this.state.rules.switching ||
       f.swapCooldown > 0 ||
+      f.effects.some((effect) => effect.kind === 'stun') ||
       f.cast ||
       f.hp / POKEMON[f.species].hp > 0.22
     )

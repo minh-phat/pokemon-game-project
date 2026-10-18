@@ -118,7 +118,7 @@ export function ManualControls({
         if (canAct || selected.guarded) send({ type: 'guard', active: !selected.guarded });
         return;
       }
-      const match = /^(?:Digit|Numpad)([1-4])$/.exec(code);
+      const match = /^(?:Digit|Numpad)([1-9])$/.exec(code);
       if (!match) return;
       event.preventDefault();
       const skill = POKEMON[selected.species].skills[Number(match[1]) - 1];

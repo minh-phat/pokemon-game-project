@@ -32,6 +32,7 @@ export function createArenaScene(
     }
     preload() {
       const arena = ARENAS.find((a) => a.id === arenaId)!;
+      this.load.image('electro-ball-art', '/assets/electro-ball-art.png');
       arena.layers.forEach((url, i) => this.load.image(`layer-${i}`, url));
       for (const id of Object.keys(ASSETS.sprites) as (keyof typeof ASSETS.sprites)[])
         this.load.spritesheet(id, ASSETS.sprites[id], { frameWidth: 160, frameHeight: 160 });
