@@ -153,7 +153,17 @@ export class BattleEngine {
     const f = this.state.fighters.find((v) => v.id === command.fighterId);
     if (!f || f.team !== team || !f.active || f.hp <= 0) return false;
     if (command.type === 'guard') return this.setGuard(f, command.active);
-    if (command.type === 'dodge') return this.beginDodge(f, command.mode, f.facing);
+    if (command.type === 'dodge') {
+      const x = command.mode === 'dash' ? (command.direction ?? f.facing) : f.facing;
+      const depth = command.mode === 'dash' ? (command.depthDirection ?? 0) : 0;
+      const length = Math.hypot(x, depth);
+      return this.beginDodge(
+        f,
+        command.mode,
+        length > 0 ? x / length : f.facing,
+        length > 0 ? depth / length : 0,
+      );
+    }
     if (f.effects.some((e) => e.kind === 'stun') || f.cast || f.actionTime > 0) return false;
     return this.beginSkill(f, command.skillId);
   }

@@ -172,12 +172,17 @@ test('manual mode: select Pokémon, guard, dodge, cast, and return to auto', asy
   await page.keyboard.press('g');
   await expect(page.getByRole('button', { name: 'Guard · −20%' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Dash · 15' })).toBeEnabled();
-  await page.keyboard.press('Shift');
+  await page.keyboard.press('Shift+w');
   await expect(page.getByRole('button', { name: 'Dash · 15' })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Jump · 15' })).toBeEnabled({ timeout: 5000 });
   await page.keyboard.press('Space');
   await expect(page.getByRole('button', { name: 'Jump · 15' })).toBeDisabled();
   await picker.getByRole('button', { name: /Charmander/ }).click();
+  await expect(page.getByRole('button', { name: 'Dash · 15' })).toBeEnabled({ timeout: 5000 });
+  const scrollBeforeArrow = await page.evaluate(() => scrollY);
+  await page.keyboard.press('Shift+ArrowRight');
+  expect(await page.evaluate(() => scrollY)).toBe(scrollBeforeArrow);
+  await expect(page.getByRole('button', { name: 'Dash · 15' })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Crouch · 15' })).toBeEnabled({ timeout: 5000 });
   await page.keyboard.press('c');
   await expect(page.getByRole('button', { name: 'Crouch · 15' })).toBeDisabled();

@@ -292,6 +292,8 @@ export const ManualBattleCommandSchema = z.discriminatedUnion('type', [
       type: z.literal('dodge'),
       fighterId: z.string().min(1),
       mode: z.enum(['dash', 'jump', 'crouch']),
+      direction: z.number().finite().min(-1).max(1).optional(),
+      depthDirection: z.number().finite().min(-1).max(1).optional(),
     })
     .strict(),
   z

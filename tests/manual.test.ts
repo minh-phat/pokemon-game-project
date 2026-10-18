@@ -152,6 +152,45 @@ describe('manual battle commands', () => {
       expect(a.stamina).toBeCloseTo(before - 15);
     },
   );
+  it.each([
+    [-1, 0],
+    [1, 0],
+    [0, -1],
+    [0, 1],
+    [1, -1],
+  ])('dashes in the chosen direction (%i, %i) without diagonal speed gain', (x, depth) => {
+    const e = engine();
+    const [a] = e.state.fighters;
+    e.setManualMode('alice', true);
+    expect(
+      e.command('alice', {
+        type: 'dodge',
+        fighterId: a.id,
+        mode: 'dash',
+        direction: x,
+        depthDirection: depth,
+      }),
+    ).toBe(true);
+    const speed = Math.hypot(a.vx, a.vDepth);
+    expect(speed).toBeGreaterThan(0);
+    expect(a.vx / speed).toBeCloseTo(x / Math.hypot(x, depth));
+    expect(a.vDepth / speed).toBeCloseTo(depth / Math.hypot(x, depth));
+  });
+  it('keeps facing as the default dash direction and rejects invalid input', () => {
+    const e = engine();
+    const [a] = e.state.fighters;
+    a.facing = -1;
+    e.setManualMode('alice', true);
+    expect(e.command('alice', { type: 'dodge', fighterId: a.id, mode: 'dash', direction: 2 })).toBe(
+      false,
+    );
+    expect(
+      e.command('alice', { type: 'dodge', fighterId: a.id, mode: 'dash', depthDirection: NaN }),
+    ).toBe(false);
+    expect(e.command('alice', { type: 'dodge', fighterId: a.id, mode: 'dash' })).toBe(true);
+    expect(a.vx).toBeLessThan(0);
+    expect(a.vDepth).toBe(0);
+  });
   it.each(['dash', 'jump', 'crouch'] as const)(
     'lets a player %s interrupt an AI basic attack immediately',
     (mode) => {

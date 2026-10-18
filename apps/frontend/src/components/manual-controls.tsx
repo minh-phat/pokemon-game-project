@@ -1,5 +1,5 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { POKEMON } from '@arena/game-data';
 import { STAMINA_RULES, type BattleSnapshot, type ManualBattleCommand } from '@arena/shared-types';
 import { Portrait } from './common';
@@ -10,6 +10,33 @@ type ManualInput = ManualBattleCommand extends infer T
     ? Omit<T, 'fighterId'>
     : never
   : never;
+
+const directionCodes = new Set([
+  'KeyW',
+  'KeyA',
+  'KeyS',
+  'KeyD',
+  'ArrowUp',
+  'ArrowLeft',
+  'ArrowDown',
+  'ArrowRight',
+]);
+function dodgeDirection(keys: Set<string>) {
+  return {
+    direction:
+      Number(keys.has('KeyD') || keys.has('ArrowRight')) -
+      Number(keys.has('KeyA') || keys.has('ArrowLeft')),
+    depthDirection:
+      Number(keys.has('KeyS') || keys.has('ArrowDown')) -
+      Number(keys.has('KeyW') || keys.has('ArrowUp')),
+  };
+}
+function isTypingTarget(target: EventTarget | null) {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable || !!target.closest('input, textarea, select, [contenteditable]'))
+  );
+}
 
 export function ManualControls({
   snapshot,
@@ -26,6 +53,8 @@ export function ManualControls({
   selectedId: string;
   onSelect: (fighterId: string) => void;
 }) {
+  const heldDirections = useRef(new Set<string>());
+  const shiftUsed = useRef(false);
   const active = snapshot.fighters.filter((f) => f.team === team && f.active && f.hp > 0);
   const selected = active.find((f) => f.id === selectedId) ?? active[0];
   useEffect(() => {
@@ -51,29 +80,39 @@ export function ManualControls({
     selected.stamina >= STAMINA_RULES.dodgeCost;
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!selected || disabled || event.repeat || event.altKey || event.ctrlKey || event.metaKey)
-        return;
-      const target = event.target;
-      if (
-        target instanceof HTMLElement &&
-        (target.isContentEditable || target.closest('input, textarea, select, [contenteditable]'))
-      )
-        return;
+      if (!selected || disabled || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (isTypingTarget(event.target)) return;
       const code = event.code;
-      const dodgeMode =
-        code === 'Space'
-          ? 'jump'
-          : code === 'ShiftLeft' || code === 'ShiftRight'
-            ? 'dash'
-            : code === 'KeyC'
-              ? 'crouch'
-              : null;
+      if (directionCodes.has(code)) {
+        if (code.startsWith('Arrow')) event.preventDefault();
+        heldDirections.current.add(code);
+        if (event.shiftKey) {
+          event.preventDefault();
+          shiftUsed.current = true;
+          if (!event.repeat && canDodge)
+            send({ type: 'dodge', mode: 'dash', ...dodgeDirection(heldDirections.current) });
+        }
+        return;
+      }
+      if (code === 'ShiftLeft' || code === 'ShiftRight') {
+        event.preventDefault();
+        if (event.repeat) return;
+        const direction = dodgeDirection(heldDirections.current);
+        shiftUsed.current = direction.direction !== 0 || direction.depthDirection !== 0;
+        if (shiftUsed.current && canDodge) send({ type: 'dodge', mode: 'dash', ...direction });
+        return;
+      }
+      if (event.repeat) return;
+      const dodgeMode = code === 'Space' ? 'jump' : code === 'KeyC' ? 'crouch' : null;
       if (dodgeMode) {
         event.preventDefault();
         if (canDodge) send({ type: 'dodge', mode: dodgeMode });
         return;
       }
-      if (event.shiftKey) return;
+      if (event.shiftKey) {
+        shiftUsed.current = true;
+        return;
+      }
       if (code === 'KeyG') {
         event.preventDefault();
         if (canAct || selected.guarded) send({ type: 'guard', active: !selected.guarded });
@@ -91,8 +130,26 @@ export function ManualControls({
       )
         send({ type: 'skill', skillId: skill.id });
     };
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (directionCodes.has(event.code)) heldDirections.current.delete(event.code);
+      if (event.code !== 'ShiftLeft' && event.code !== 'ShiftRight') return;
+      const wasUsed = shiftUsed.current;
+      shiftUsed.current = false;
+      if (!wasUsed && canDodge && selected && !disabled && !isTypingTarget(event.target))
+        send({ type: 'dodge', mode: 'dash' });
+    };
+    const onBlur = () => {
+      heldDirections.current.clear();
+      shiftUsed.current = true;
+    };
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', onBlur);
+    };
   }, [selected, disabled, canAct, canDodge, command]);
   if (!selected) return null;
   return (
@@ -122,11 +179,11 @@ export function ManualControls({
             size="sm"
             type="button"
             aria-label="Dash · 15"
-            title="Dash · 15 stamina · Shift"
+            title="Dash · 15 stamina · Shift + WASD or arrow keys to choose a direction"
             disabled={!canDodge}
             onClick={() => send({ type: 'dodge', mode: 'dash' })}
           >
-            Dash <kbd aria-hidden="true">Shift</kbd>
+            Dash <kbd aria-hidden="true">Shift+WASD/↑↓←→</kbd>
           </Button>
           <Button
             variant="outline"
