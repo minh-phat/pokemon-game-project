@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "node scripts/run-services.mjs dev",
     "dev:services": "concurrently -k -n web,api,rooms -c cyan,green,magenta \"npm run dev -w @arena/frontend\" \"npm run dev -w @arena/backend\" \"npm run dev -w @arena/game-server\"",
-    "build": "npm run typecheck && npm run build -w @arena/backend && npm run build -w @arena/game-server && npm run build -w @arena/frontend",
+    "build": "node scripts/build.mjs",
     "start": "node scripts/run-services.mjs start",
     "start:services": "concurrently -k -n web,api,rooms \"npm run start -w @arena/frontend\" \"npm run start -w @arena/backend\" \"npm run start -w @arena/game-server\"",
     "typecheck": "tsc --noEmit && tsc --noEmit -p apps/frontend/tsconfig.json",
