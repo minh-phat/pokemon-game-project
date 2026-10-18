@@ -106,7 +106,7 @@ Regenerate the checked-in art and synthesized sounds with `npm run assets`. This
 
 ## Configuration and LAN play
 
-Defaults work without environment files. `.env.example` lists supported variables. Next reads frontend overrides from `apps/frontend/.env.local`; the Node services read exported environment variables.
+Defaults work without environment files. `.env.example` lists supported variables. `npm run dev` and `npm start` load the root `.env` when present. The first port in `FRONTEND_ORIGIN` sets the Next.js listening port; `API_PORT` and `GAME_PORT` set the other services' ports. Shell environment variables take precedence. Next also reads frontend overrides from `apps/frontend/.env.local`. Restart the services after changing `.env`.
 
 For another device on your LAN, replace `192.168.1.20` with the server computer's reachable address:
 

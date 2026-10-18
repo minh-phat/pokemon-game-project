@@ -58,5 +58,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 app.enableShutdownHooks();
-await app.listen(Number(process.env.API_PORT ?? 3001), '0.0.0.0');
-console.log('Game API ready at http://localhost:3001');
+const apiPort = Number(process.env.API_PORT ?? 3001);
+await app.listen(apiPort, '0.0.0.0');
+console.log(`Game API ready at http://localhost:${apiPort}`);
