@@ -1,6 +1,7 @@
 import {
   RulesSchema,
   BASIC_GUARD_REDUCTION,
+  STAMINA_RULES,
   validateTeam,
   type AIAction,
   type BattleConfig,
@@ -14,7 +15,14 @@ import {
 } from '@arena/shared-types';
 import { ARENAS, DIFFICULTY, POKEMON, SKILL_BY_ID } from '@arena/game-data';
 import { decideAction } from '@arena/game-ai';
-import { calculateDamage, fighterBox, meleeBox, overlaps, seededRandom } from './geometry';
+import {
+  calculateDamage,
+  fighterBox,
+  meleeBox,
+  overlaps,
+  seededRandom,
+  staminaSpeedMultiplier,
+} from './geometry';
 export * from './geometry';
 export const FIXED_DELTA = 1 / 60;
 const GRAVITY = 1050;
@@ -71,6 +79,9 @@ export class BattleEngine {
           slot,
           hp: def.hp,
           energy: def.energy,
+          stamina: def.maxStamina,
+          maxStamina: def.maxStamina,
+          sprinting: false,
           x: team === 0 ? 190 + slot * 65 : 1010 - slot * 65,
           y: 0,
           depth: -100 + (slot - (this.config.rules.activeSize - 1) / 2) * 65,
@@ -202,7 +213,10 @@ export class BattleEngine {
       f.invulnerable = Math.max(0, f.invulnerable - dt);
       f.swapCooldown = Math.max(0, f.swapCooldown - dt);
       f.energy = Math.min(POKEMON[f.species].energy, f.energy + dt * (f.active ? 6.5 : 9));
-      if (!f.active) continue;
+      if (!f.active) {
+        this.staminaTick(f, dt, false);
+        continue;
+      }
       this.statusTick(f, dt);
       if (f.hp <= 0) continue;
       const stunned = f.effects.some((e) => e.kind === 'stun');
@@ -225,6 +239,7 @@ export class BattleEngine {
       }
       if (stunned) {
         f.guarded = false;
+        f.sprinting = false;
         f.cast = null;
         f.moveIntent = 0;
         f.moveDepth = 0;
@@ -241,7 +256,11 @@ export class BattleEngine {
           f.thinkIn = DIFFICULTY[difficulty].reaction * (0.8 + this.rng() * 0.4);
         }
       }
+      const beforeX = f.x,
+        beforeDepth = f.depth;
       this.move(f, dt, stunned);
+      this.staminaTick(f, dt, Math.hypot(f.x - beforeX, f.depth - beforeDepth) > 0.001 || f.y > 0);
+
       this.trySwitch(f);
     }
     this.resolveBodies();
@@ -256,6 +275,7 @@ export class BattleEngine {
         if (f.hp > 0 && f.active) {
           f.cast = null;
           f.guarded = false;
+          f.sprinting = false;
           f.vx = 0;
           f.vDepth = 0;
           f.state = 'Idle';
@@ -263,7 +283,22 @@ export class BattleEngine {
         }
     }
   }
-  /** Basic defense has no resource cost, timer, or dodge cooldown. */
+  private staminaTick(f: Fighter, dt: number, moving: boolean) {
+    const fast =
+      f.sprinting ||
+      (f.state === 'Dodge' && f.actionTime > 0) ||
+      f.y > 0 ||
+      (f.cast && SKILL_BY_ID[f.cast.skillId].movement);
+    const rate = f.guarded
+      ? -STAMINA_RULES.guardDrain
+      : !moving
+        ? STAMINA_RULES.idleRecovery
+        : fast
+          ? STAMINA_RULES.sprintRecovery
+          : STAMINA_RULES.moveRecovery;
+    f.stamina = Math.max(0, Math.min(f.maxStamina, f.stamina + rate * dt));
+  }
+  /** Basic defense drains stamina while held, with no timer or cooldown. */
   setGuard(f: Fighter, active: boolean): boolean {
     if (!active) {
       if (f.guarded) {
@@ -286,6 +321,7 @@ export class BattleEngine {
     if (!f.guarded)
       this.event('guard', f, `${POKEMON[f.species].name} guards · 20% damage reduction`);
     f.guarded = true;
+    f.sprinting = false;
     f.crouched = false;
     f.moveIntent = 0;
     f.moveDepth = 0;
@@ -308,46 +344,67 @@ export class BattleEngine {
       const length = Math.max(1, Math.hypot(action.direction, action.depthDirection ?? 0));
       f.moveIntent = action.direction / length;
       f.moveDepth = (action.depthDirection ?? 0) / length;
+      f.sprinting =
+        Boolean(action.sprint) && f.stamina >= f.maxStamina * STAMINA_RULES.lowThreshold;
       f.state = action.state;
     }
     if (action.type === 'skill') this.beginSkill(f, action.skillId);
-    if (action.type === 'dodge') {
-      if (f.dodgeCooldown > 0 || f.y > 1) return;
-      this.setGuard(f, false);
-      const def = POKEMON[f.species];
-      f.moveIntent = 0;
-      f.moveDepth = 0;
-      f.vDepth =
-        (action.depthDirection ?? 0) *
-        def.speed *
-        (action.mode === 'dash' ? 2.8 : action.mode === 'jump' ? 1 : 0);
-      f.dodgeCooldown = def.dodgeCooldown;
-      if (action.mode === 'jump') {
-        f.vy = def.jumpStrength;
-        f.vx = action.direction * def.speed;
-        f.state = 'Jump';
-        f.actionTime = 0.32;
-        this.animate(f, 'jump');
-      } else if (action.mode === 'crouch') {
-        f.crouched = true;
-        f.vx = f.species === 'squirtle' ? f.facing * def.speed * 0.7 : 0;
-        f.actionTime = 0.48;
-        f.state = 'Dodge';
-        this.animate(f, 'crouch');
-      } else {
-        f.vx = action.direction * def.speed * 2.8;
-        f.actionTime = 0.25;
-        f.invulnerable = 0.13;
-        f.state = 'Dodge';
-        this.animate(f, Math.sign(action.direction) === f.facing ? 'dash' : 'backstep');
-      }
-      this.event(
-        'dodge',
-        f,
-        `${POKEMON[f.species].name} ${action.mode === 'jump' ? 'jumps' : action.mode === 'crouch' ? 'ducks' : 'dashes'}`,
-      );
-      f.thinkIn = 0.03; // Counterattack promptly after the defense ends.
+    if (action.type === 'dodge' && action.mode !== 'guard')
+      this.beginDodge(f, action.mode, action.direction, action.depthDirection);
+  }
+  beginDodge(
+    f: Fighter,
+    mode: 'dash' | 'jump' | 'crouch',
+    direction: number,
+    depthDirection = 0,
+  ): boolean {
+    if (
+      this.state.phase !== 'battle' ||
+      !f.active ||
+      f.hp <= 0 ||
+      f.cast ||
+      f.actionTime > 0 ||
+      f.effects.some((e) => e.kind === 'stun') ||
+      f.dodgeCooldown > 0 ||
+      f.y > 1 ||
+      f.stamina < STAMINA_RULES.dodgeCost
+    )
+      return false;
+    f.stamina -= STAMINA_RULES.dodgeCost;
+    f.sprinting = false;
+    this.setGuard(f, false);
+    const def = POKEMON[f.species];
+    const speed = def.speed * staminaSpeedMultiplier(f);
+    f.moveIntent = 0;
+    f.moveDepth = 0;
+    f.vDepth = depthDirection * speed * (mode === 'dash' ? 2.8 : mode === 'jump' ? 1 : 0);
+    f.dodgeCooldown = def.dodgeCooldown;
+    if (mode === 'jump') {
+      f.vy = def.jumpStrength;
+      f.vx = direction * speed;
+      f.state = 'Jump';
+      f.actionTime = 0.32;
+      this.animate(f, 'jump');
+    } else if (mode === 'crouch') {
+      f.crouched = true;
+      f.vx = f.species === 'squirtle' ? f.facing * speed * 0.7 : 0;
+      f.actionTime = 0.48;
+      f.state = 'Dodge';
+      this.animate(f, 'crouch');
+    } else {
+      f.vx = direction * speed * 2.8;
+      f.actionTime = 0.25;
+      f.invulnerable = 0.13;
+      f.state = 'Dodge';
+      this.animate(f, Math.sign(direction) === f.facing ? 'dash' : 'backstep');
     }
+    this.event(
+      'dodge',
+      f,
+      `${POKEMON[f.species].name} ${mode === 'jump' ? 'jumps' : mode === 'crouch' ? 'ducks' : 'dashes'}`,
+    );
+    f.thinkIn = 0.03; // Counterattack promptly after the defense ends.
+    return true;
   }
   beginSkill(f: Fighter, skillId: string): boolean {
     const def = POKEMON[f.species],
@@ -364,6 +421,7 @@ export class BattleEngine {
     )
       return false;
     this.setGuard(f, false);
+    f.sprinting = false;
     f.energy -= s.energy;
     f.cooldowns[s.id] = s.cooldown;
     f.cast = { skillId, elapsed: 0, fired: 0, hitIds: [] };
@@ -441,17 +499,20 @@ export class BattleEngine {
   private move(f: Fighter, dt: number, stunned: boolean) {
     const def = POKEMON[f.species],
       arena = ARENAS.find((a) => a.id === this.state.rules.arena)!;
+    const staminaScale = staminaSpeedMultiplier(f);
+    if (f.stamina < f.maxStamina * STAMINA_RULES.lowThreshold) f.sprinting = false;
+    const speed = (f.sprinting ? def.sprintSpeed : def.speed) * staminaScale;
     const movement = f.cast ? SKILL_BY_ID[f.cast.skillId].movement : undefined;
     if (movement && f.cast!.elapsed <= movement.duration && !stunned) {
-      f.vx = f.aimX * movement.speed;
-      f.vDepth = f.aimDepth * movement.speed;
+      f.vx = f.aimX * movement.speed * staminaScale;
+      f.vDepth = f.aimDepth * movement.speed * staminaScale;
     } else if (f.actionTime === 0 || stunned) {
       const slow = f.effects
         .filter((e) => e.kind === 'slow')
         .reduce((v, e) => Math.min(v, 1 - e.strength), 1);
-      const desired = (f.cast || stunned ? 0 : f.moveIntent) * def.speed * slow;
+      const desired = (f.cast || stunned ? 0 : f.moveIntent) * speed * slow;
       const step = def.acceleration * dt;
-      const desiredDepth = (f.cast || stunned ? 0 : f.moveDepth) * def.speed * slow;
+      const desiredDepth = (f.cast || stunned ? 0 : f.moveDepth) * speed * slow;
       const dx = desired - f.vx,
         dz = desiredDepth - f.vDepth;
       const factor = Math.min(1, step / (Math.hypot(dx, dz) || 1));
@@ -573,6 +634,7 @@ export class BattleEngine {
     target.vx = ((target.x - source.x) / distance) * s.knockback * (1 - guard);
     target.vDepth = ((target.depth - source.depth) / distance) * s.knockback * (1 - guard);
     if (!target.guarded) target.actionTime = Math.max(target.actionTime, 0.14);
+    target.sprinting = false;
     target.cast = null;
     target.moveIntent = 0;
     target.moveDepth = 0;
@@ -630,6 +692,7 @@ export class BattleEngine {
     if (f.hp <= 0 && f.state !== 'Fainted') {
       f.hp = 0;
       f.guarded = false;
+      f.sprinting = false;
       f.active = false;
       f.cast = null;
       f.vx = 0;
@@ -645,6 +708,7 @@ export class BattleEngine {
     const team = f.team;
     const allies = this.state.fighters.filter((v) => v.active && v.team === team);
     f.guarded = false;
+    f.sprinting = false;
     f.active = true;
     f.x = team === 0 ? 100 + allies.length * 65 : 1100 - allies.length * 65;
     f.depth = -100 + (allies.length - (this.config.rules.activeSize - 1) / 2) * 65;
@@ -688,6 +752,7 @@ export class BattleEngine {
     );
     if (reserve) {
       f.guarded = false;
+      f.sprinting = false;
       f.active = false;
       f.cast = null;
       f.swapCooldown = 15;

@@ -31,8 +31,13 @@ test('VS AI: selection, pause, animated combat, results, and play again', async 
   });
   await page.getByRole('button', { name: 'Pause', exact: true }).click();
   const paused = await page.getByTestId('match-timer').textContent();
+  const stamina = page.getByRole('progressbar', { name: 'Pikachu stamina', exact: true }).first();
+  await expect(stamina).toBeVisible();
+  await expect(stamina).toHaveAttribute('aria-valuemax', '100');
+  const pausedStamina = await stamina.getAttribute('aria-valuenow');
   await page.waitForTimeout(1200);
   expect(await page.getByTestId('match-timer').textContent()).toBe(paused);
+  await expect(stamina).toHaveAttribute('aria-valuenow', pausedStamina!);
   await page.getByRole('button', { name: 'Resume battle', exact: true }).click();
   await page.waitForTimeout(4500);
   await page.screenshot({ path: 'test-results/battle-desktop.png', fullPage: true });

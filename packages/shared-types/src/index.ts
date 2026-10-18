@@ -122,9 +122,11 @@ export interface PokemonDefinition {
   color: string;
   hp: number;
   energy: number;
+  maxStamina: number;
   attack: number;
   defense: number;
   speed: number;
+  sprintSpeed: number;
   acceleration: number;
   jumpStrength: number;
   dodgeCooldown: number;
@@ -170,6 +172,9 @@ export interface Fighter {
   slot: number;
   hp: number;
   energy: number;
+  stamina: number;
+  maxStamina: number;
+  sprinting: boolean;
   x: number;
   y: number;
   vx: number;
@@ -267,10 +272,18 @@ export interface LobbySnapshot {
   reconnectSeconds: number;
 }
 export const BASIC_GUARD_REDUCTION = 0.2;
+export const STAMINA_RULES = {
+  dodgeCost: 15,
+  sprintRecovery: 3,
+  moveRecovery: 10,
+  idleRecovery: 15,
+  guardDrain: 10,
+  lowThreshold: 0.2,
+} as const;
 
 export type AIAction =
   | { type: 'guard' }
-  | { type: 'move'; direction: number; depthDirection?: number; state: AIState }
+  | { type: 'move'; direction: number; depthDirection?: number; state: AIState; sprint?: boolean }
   | { type: 'skill'; skillId: string }
   | {
       type: 'dodge';

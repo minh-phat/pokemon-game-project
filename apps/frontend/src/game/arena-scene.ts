@@ -202,6 +202,14 @@ export function createArenaScene(
           v.sprite.play(animation);
           v.lastAnimation = animation;
         }
+        v.sprite.anims.timeScale =
+          f.animation === 'run'
+            ? f.sprinting
+              ? 1.5
+              : f.stamina < f.maxStamina * 0.2
+                ? 0.55
+                : 1
+            : 1;
         if (settings.paused) v.sprite.anims.pause();
         else v.sprite.anims.resume();
         v.sprite.setTint(
@@ -227,6 +235,15 @@ export function createArenaScene(
           v.bars
             .fillStyle(0xa1d9e1, 0.85)
             .fillRect(x - 30, ground - 74 - y, (60 * f.energy) / def.energy, 2);
+          v.bars.fillStyle(0x292b24, 0.8).fillRect(x - 30, ground - 70 - y, 60, 3);
+          v.bars
+            .fillStyle(f.stamina < f.maxStamina * 0.2 ? 0xee9777 : 0xe0be70, 0.95)
+            .fillRect(
+              x - 30,
+              ground - 70 - y,
+              60 * Math.max(0, Math.min(1, f.stamina / f.maxStamina)),
+              3,
+            );
           if (f.cast) {
             const skill = SKILL_BY_ID[f.cast.skillId];
             const progress = Math.min(1, f.cast.elapsed / skill.startup);

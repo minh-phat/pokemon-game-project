@@ -540,7 +540,7 @@ describe('basic guard', () => {
     return e.state.events.filter((v) => v.kind === 'damage').at(-1)!.value!;
   }
   it.each(speciesIds)(
-    '%s can guard continuously for free and repeat without cooldown',
+    '%s can guard continuously without skill energy and repeat without cooldown',
     (species) => {
       const e = guardedBattle(species),
         f = e.state.fighters[0];

@@ -110,6 +110,13 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
               { label: 'Attack', value: selected.attack, max: 40, Icon: Swords },
               { label: 'Defense', value: selected.defense, max: 45, Icon: Shield },
               { label: 'Speed', value: selected.speed, max: 220, Icon: Zap },
+              { label: 'Sprint speed', value: selected.sprintSpeed, max: 330, Icon: Zap },
+              {
+                label: 'Stamina',
+                value: selected.maxStamina,
+                max: Math.max(100, selected.maxStamina),
+                Icon: Heart,
+              },
             ].map(({ label, value, max, Icon }) => (
               <div className="stat" key={label}>
                 <span>

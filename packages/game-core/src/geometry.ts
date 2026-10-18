@@ -1,4 +1,9 @@
-import type { Fighter, SkillDefinition, Element } from '@arena/shared-types';
+import {
+  STAMINA_RULES,
+  type Fighter,
+  type SkillDefinition,
+  type Element,
+} from '@arena/shared-types';
 import { EFFECTIVENESS, POKEMON } from '@arena/game-data';
 export interface Rect {
   left: number;
@@ -55,4 +60,12 @@ export function seededRandom(seed: number) {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+/** Low stamina slows voluntary movement to 5–50%; 20% or more gives full speed. */
+export function staminaSpeedMultiplier(f: Pick<Fighter, 'stamina' | 'maxStamina'>): number {
+  const ratio = Math.max(0, f.stamina) / Math.max(1, f.maxStamina);
+  return ratio >= STAMINA_RULES.lowThreshold
+    ? 1
+    : 0.05 + (0.45 * ratio) / STAMINA_RULES.lowThreshold;
 }

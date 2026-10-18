@@ -2940,3 +2940,33 @@ select option {
     min-height: 350px;
   }
 }
+
+.stamina-meter {
+  margin-top: 6px;
+}
+.stamina-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 3px;
+  font-size: 8px;
+  color: #d6bd81;
+}
+.stamina-track {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #2a2c23;
+}
+.stamina-track i {
+  display: block;
+  height: 100%;
+  background: #e0be70;
+  transition: width 0.1s;
+}
+.stamina-low .stamina-caption {
+  color: #efab91;
+}
+.stamina-low .stamina-track i {
+  background: #ee9777;
+}

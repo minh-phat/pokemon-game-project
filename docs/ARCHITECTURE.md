@@ -63,9 +63,17 @@ base × (0.72 + attack / 70) × 100 / (100 + defense)
      × elementalMultiplier × (1 - guardReduction)
 ```
 
-Every Pokémon has a basic Guard action that reduces damage by 20%, costs no energy, and has no cooldown or maximum duration. The AI can maintain it across consecutive threats, independently of the dodge cooldown. Starting a skill, moving, or dodging releases guard; stun, fainting, switching, and battle completion clear it. Guard cannot start during a cast, recovery, stun, or while airborne. Ordinary hits preserve the guard animation, but guard does not prevent status effects. Guard and shield use the stronger reduction for direct hits; they do not stack. Guard also reduces Burn and Leech Seed damage while held. Invulnerability skips damage entirely. Burn and Leech Seed tick once per second. Slow reduces movement speed. Stun interrupts casting. Reserve Pokémon regenerate energy, and deployment clears residual statuses. Switching requires low health, an available healthy reserve, and a swap cooldown; faint replacement never depends on the optional switching rule.
+Every Pokémon has a basic Guard action that reduces damage by 20%, costs no skill energy, drains 10 stamina per second, and has no cooldown or maximum duration. The AI can maintain it across consecutive threats, independently of the dodge cooldown. Starting a skill, moving, or dodging releases guard; stun, fainting, switching, and battle completion clear it. Guard cannot start during a cast, recovery, stun, or while airborne. Ordinary hits preserve the guard animation, but guard does not prevent status effects. Guard and shield use the stronger reduction for direct hits; they do not stack. Guard also reduces Burn and Leech Seed damage while held. Invulnerability skips damage entirely. Burn and Leech Seed tick once per second. Slow reduces movement speed. Stun interrupts casting. Reserve Pokémon regenerate energy, and deployment clears residual statuses. Switching requires low health, an available healthy reserve, and a swap cooldown; faint replacement never depends on the optional switching rule.
 
 Timed scoring sums normalized remaining HP across the entire roster, then compares surviving count. Elimination is checked before time. Offline pause stops simulation ticks; online disconnection freezes the whole authoritative battle until reconnect or forfeit.
+
+## Stamina and sprinting
+
+Each species defines `maxStamina` (initially 100 points) and a separate `sprintSpeed` (initially 1.5 times normal speed). Fighters store current stamina, their maximum, and whether they are sprinting; snapshots carry all three values. The maximum is a point capacity, not a percentage.
+
+Jump, crouch dodge, and dash each require and consume 15 points on activation. Recovery is 3 points/second during sprinting, jumps, dashes, or moving attacks; 10 during ordinary movement; and 15 while stationary or in reserve. Guard overrides all recovery with a net drain of 10 points/second and may remain held at zero. Values stay between zero and the fighter's maximum. A blocked movement at the arena boundary counts as stationary.
+
+Below 20% of the current maximum, voluntary movement slows to 5–50% of normal speed; exactly zero gives 5%. At 20% or more, full speed returns. Tired fighters use normal movement instead of sprinting. Skill-driven lunges and the horizontal motion of evasive moves also respect fatigue; knockback remains a physical reaction. AI uses sprinting for distant pursuit and retreats, and checks stamina before choosing evasive actions. The HUD displays current/max points and highlights low stamina.
 
 ## AI
 

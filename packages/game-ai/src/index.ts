@@ -1,4 +1,10 @@
-import type { AIAction, BattleSnapshot, Fighter, Projectile } from '@arena/shared-types';
+import {
+  STAMINA_RULES,
+  type AIAction,
+  type BattleSnapshot,
+  type Fighter,
+  type Projectile,
+} from '@arena/shared-types';
 import { ARENAS, DIFFICULTY, EFFECTIVENESS, POKEMON, SKILL_BY_ID } from '@arena/game-data';
 
 /** Predict a projectile crossing a fighter on the arena plane, in seconds. */
@@ -80,6 +86,10 @@ export function decideAction(
       direction: x / length,
       depthDirection: depth / length,
       state: movementState,
+      sprint:
+        f.stamina >= f.maxStamina * STAMINA_RULES.lowThreshold &&
+        (movementState === 'Retreat' ||
+          (movementState === 'Chase' && distance > def.ai.preferredDistance + 100)),
     };
   };
   const threat = state.projectiles
@@ -92,6 +102,7 @@ export function decideAction(
     distance < SKILL_BY_ID[target.cast.skillId].range + 25;
   if (f.guarded && (threat || meleeDanger) && f.y === 0) return { type: 'guard' };
   if (
+    f.stamina >= STAMINA_RULES.dodgeCost &&
     f.dodgeCooldown <= 0 &&
     f.y < 2 &&
     (threat || meleeDanger) &&
@@ -175,6 +186,8 @@ export function decideAction(
     return steer(1, distance > 300 ? 0.65 : 0.45, 'Chase');
   if (allies.length) return steer(0.1, 1, 'MaintainDistance');
   if (
+    f.stamina >= STAMINA_RULES.dodgeCost &&
+    f.dodgeCooldown <= 0 &&
     f.species === 'charmander' &&
     f.y === 0 &&
     distance > 120 &&

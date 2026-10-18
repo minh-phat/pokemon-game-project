@@ -33,7 +33,11 @@ function FighterStatus({ fighter }: { fighter: Fighter }) {
             {fighter.hp <= 0
               ? 'Fainted'
               : fighter.active
-                ? fighter.state.replace(/([a-z])([A-Z])/g, '$1 $2')
+                ? fighter.guarded
+                  ? 'Guard'
+                  : fighter.sprinting
+                    ? 'Sprinting'
+                    : fighter.state.replace(/([a-z])([A-Z])/g, '$1 $2')
                 : 'Reserve'}
           </span>
         </div>
@@ -50,9 +54,34 @@ function FighterStatus({ fighter }: { fighter: Fighter }) {
             {Math.floor(fighter.energy)}
           </span>
         </div>
+        <div
+          className={`stamina-meter ${fighter.stamina < fighter.maxStamina * 0.2 ? 'stamina-low' : ''}`}
+        >
+          <div className="stamina-caption">
+            <span>Stamina{fighter.stamina < fighter.maxStamina * 0.2 ? ' · tired' : ''}</span>
+            <span>
+              {Math.floor(fighter.stamina)} / {fighter.maxStamina}
+            </span>
+          </div>
+          <div
+            className="stamina-track"
+            role="progressbar"
+            aria-label={`${def.name} stamina`}
+            aria-valuemin={0}
+            aria-valuemax={fighter.maxStamina}
+            aria-valuenow={Math.floor(fighter.stamina)}
+            title="Sprint: +3/s · Move: +10/s · Rest: +15/s · Dodge: −15 · Guard: −10/s"
+          >
+            <i
+              style={{
+                width: `${Math.max(0, Math.min(1, fighter.stamina / fighter.maxStamina)) * 100}%`,
+              }}
+            />
+          </div>
+        </div>
         {fighter.active && fighter.hp > 0 && (
           <div className="cooldowns">
-            <span title="Basic Guard · reduces damage by 20% · no energy cost or cooldown">
+            <span title="Basic Guard · reduces damage by 20% · 10 stamina/s · no energy cost or cooldown">
               Guard <small>{fighter.guarded ? '−20%' : '✓'}</small>
             </span>
             {def.skills.map((s) => (
