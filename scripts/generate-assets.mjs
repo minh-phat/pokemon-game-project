@@ -138,11 +138,15 @@ function creature(id, state = 'idle', frame = 0) {
         'stroke="#68543b" stroke-width="2"',
       );
   const transform = rolling
-    ? `rotate(${frame * 60} 80 101)`
+    ? state === 'guard'
+      ? `translate(80 130) scale(${1 + Math.sin(phase) * 0.015}) translate(-80 -130)`
+      : `rotate(${frame * 60} 80 101)`
     : faint
       ? `translate(80 130) rotate(${Math.min(85, frame * 20)}) translate(-80 -130)`
       : guard
-        ? `translate(0 38) scale(1 .72)`
+        ? state === 'guard'
+          ? `translate(0 ${22 + Math.sin(phase) * 1.3}) scale(1 .84) rotate(-5 80 120)`
+          : `translate(0 38) scale(1 .72)`
         : `translate(0 ${bounce}) rotate(${lean} 80 120)`;
   return `<g stroke="#34463c" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" transform="${transform}">${body}</g>`;
 }

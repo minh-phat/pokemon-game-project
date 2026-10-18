@@ -1,5 +1,6 @@
 import {
   RulesSchema,
+  BASIC_GUARD_REDUCTION,
   validateTeam,
   type AIAction,
   type BattleConfig,
@@ -207,7 +208,6 @@ export class BattleEngine {
       const stunned = f.effects.some((e) => e.kind === 'stun');
       f.actionTime = Math.max(0, f.actionTime - dt);
       if (f.actionTime === 0) {
-        f.guarded = false;
         f.crouched = false;
       }
       const target = this.state.fighters
@@ -224,6 +224,7 @@ export class BattleEngine {
         if (Math.abs(f.aimX) > 0.01) f.facing = f.aimX >= 0 ? 1 : -1;
       }
       if (stunned) {
+        f.guarded = false;
         f.cast = null;
         f.moveIntent = 0;
         f.moveDepth = 0;
@@ -254,6 +255,7 @@ export class BattleEngine {
       for (const f of this.state.fighters)
         if (f.hp > 0 && f.active) {
           f.cast = null;
+          f.guarded = false;
           f.vx = 0;
           f.vDepth = 0;
           f.state = 'Idle';
@@ -261,8 +263,48 @@ export class BattleEngine {
         }
     }
   }
+  /** Basic defense has no resource cost, timer, or dodge cooldown. */
+  setGuard(f: Fighter, active: boolean): boolean {
+    if (!active) {
+      if (f.guarded) {
+        f.guarded = false;
+        f.state = 'Idle';
+        this.animate(f, 'idle');
+      }
+      return true;
+    }
+    if (
+      this.state.phase !== 'battle' ||
+      !f.active ||
+      f.hp <= 0 ||
+      f.cast ||
+      f.actionTime > 0 ||
+      f.y > 0 ||
+      f.effects.some((e) => e.kind === 'stun')
+    )
+      return false;
+    if (!f.guarded)
+      this.event('guard', f, `${POKEMON[f.species].name} guards · 20% damage reduction`);
+    f.guarded = true;
+    f.crouched = false;
+    f.moveIntent = 0;
+    f.moveDepth = 0;
+    f.vx = 0;
+    f.vDepth = 0;
+    f.state = 'Guard';
+    this.animate(f, 'guard');
+    return true;
+  }
   private act(f: Fighter, action: AIAction) {
+    // Keep the old action compatible without charging the dodge cooldown.
+    if (action.type === 'guard' || (action.type === 'dodge' && action.mode === 'guard')) {
+      this.setGuard(f, true);
+      return;
+    }
+    if (action.type === 'wait') return;
+
     if (action.type === 'move') {
+      this.setGuard(f, false);
       const length = Math.max(1, Math.hypot(action.direction, action.depthDirection ?? 0));
       f.moveIntent = action.direction / length;
       f.moveDepth = (action.depthDirection ?? 0) / length;
@@ -271,6 +313,7 @@ export class BattleEngine {
     if (action.type === 'skill') this.beginSkill(f, action.skillId);
     if (action.type === 'dodge') {
       if (f.dodgeCooldown > 0 || f.y > 1) return;
+      this.setGuard(f, false);
       const def = POKEMON[f.species];
       f.moveIntent = 0;
       f.moveDepth = 0;
@@ -291,12 +334,6 @@ export class BattleEngine {
         f.actionTime = 0.48;
         f.state = 'Dodge';
         this.animate(f, 'crouch');
-      } else if (action.mode === 'guard') {
-        f.guarded = true;
-        f.vx = 0;
-        f.actionTime = 0.55;
-        f.state = 'Guard';
-        this.animate(f, 'guard');
       } else {
         f.vx = action.direction * def.speed * 2.8;
         f.actionTime = 0.25;
@@ -305,9 +342,9 @@ export class BattleEngine {
         this.animate(f, Math.sign(action.direction) === f.facing ? 'dash' : 'backstep');
       }
       this.event(
-        action.mode === 'guard' ? 'guard' : 'dodge',
+        'dodge',
         f,
-        `${POKEMON[f.species].name} ${action.mode === 'jump' ? 'jumps' : action.mode === 'crouch' ? 'ducks' : action.mode === 'guard' ? 'guards' : 'dashes'}`,
+        `${POKEMON[f.species].name} ${action.mode === 'jump' ? 'jumps' : action.mode === 'crouch' ? 'ducks' : 'dashes'}`,
       );
       f.thinkIn = 0.03; // Counterattack promptly after the defense ends.
     }
@@ -326,6 +363,7 @@ export class BattleEngine {
       f.cooldowns[s.id] > 0
     )
       return false;
+    this.setGuard(f, false);
     f.energy -= s.energy;
     f.cooldowns[s.id] = s.cooldown;
     f.cast = { skillId, elapsed: 0, fired: 0, hitIds: [] };
@@ -436,7 +474,8 @@ export class BattleEngine {
       }
     }
     if (!f.cast && f.actionTime === 0 && !stunned) {
-      if (f.y > 0) this.animate(f, f.vy > 0 ? 'jump' : 'fall');
+      if (f.guarded) this.animate(f, 'guard');
+      else if (f.y > 0) this.animate(f, f.vy > 0 ? 'jump' : 'fall');
       else if (oldY === 0) this.animate(f, Math.hypot(f.vx, f.vDepth) > 15 ? 'run' : 'idle');
     }
   }
@@ -518,7 +557,7 @@ export class BattleEngine {
     const shield = target.effects
       .filter((e) => e.kind === 'shield')
       .reduce((v, e) => Math.max(v, e.strength), 0);
-    const guard = Math.max(target.guarded ? 0.65 : 0, shield);
+    const guard = Math.max(target.guarded ? BASIC_GUARD_REDUCTION : 0, shield);
     const amount = calculateDamage(
       s.damage,
       POKEMON[source.species].attack,
@@ -533,17 +572,22 @@ export class BattleEngine {
     const distance = Math.hypot(target.x - source.x, target.depth - source.depth) || 1;
     target.vx = ((target.x - source.x) / distance) * s.knockback * (1 - guard);
     target.vDepth = ((target.depth - source.depth) / distance) * s.knockback * (1 - guard);
-    target.actionTime = Math.max(target.actionTime, 0.14);
+    if (!target.guarded) target.actionTime = Math.max(target.actionTime, 0.14);
     target.cast = null;
     target.moveIntent = 0;
     target.moveDepth = 0;
-    target.state = 'Recover';
-    this.animate(target, s.knockback > 170 ? 'knockback' : 'hit');
-    if (s.behavior !== 'buff' && !target.guarded)
+    target.state = target.guarded ? 'Guard' : 'Recover';
+    this.animate(target, target.guarded ? 'guard' : s.knockback > 170 ? 'knockback' : 'hit');
+    if (s.behavior !== 'buff')
       for (const effect of s.effects) {
         target.effects = target.effects.filter((e) => e.kind !== effect.kind);
         target.effects.push({ ...effect, sourceId: source.id, pulse: 0 });
       }
+    if (target.effects.some((e) => e.kind === 'stun')) {
+      target.guarded = false;
+      target.state = 'Stunned';
+      this.animate(target, 'hit');
+    }
     this.event('damage', target, `${s.name}${guard ? ' · guarded' : ''}`, {
       value: amount,
       targetId: source.id,
@@ -558,7 +602,10 @@ export class BattleEngine {
         effect.pulse = (effect.pulse ?? 0) + dt;
         if (effect.pulse >= 1) {
           effect.pulse -= 1;
-          const damage = Math.min(f.hp, effect.strength);
+          const damage = Math.min(
+            f.hp,
+            effect.strength * (f.guarded ? 1 - BASIC_GUARD_REDUCTION : 1),
+          );
           f.hp -= damage;
           this.event('damage', f, effect.kind, {
             value: damage,
@@ -582,6 +629,7 @@ export class BattleEngine {
   private faint(f: Fighter) {
     if (f.hp <= 0 && f.state !== 'Fainted') {
       f.hp = 0;
+      f.guarded = false;
       f.active = false;
       f.cast = null;
       f.vx = 0;
@@ -596,6 +644,7 @@ export class BattleEngine {
   private deploy(f: Fighter) {
     const team = f.team;
     const allies = this.state.fighters.filter((v) => v.active && v.team === team);
+    f.guarded = false;
     f.active = true;
     f.x = team === 0 ? 100 + allies.length * 65 : 1100 - allies.length * 65;
     f.depth = -100 + (allies.length - (this.config.rules.activeSize - 1) / 2) * 65;
@@ -638,6 +687,7 @@ export class BattleEngine {
       (v) => v.team === f.team && !v.active && v.hp / POKEMON[v.species].hp > 0.5,
     );
     if (reserve) {
+      f.guarded = false;
       f.active = false;
       f.cast = null;
       f.swapCooldown = 15;

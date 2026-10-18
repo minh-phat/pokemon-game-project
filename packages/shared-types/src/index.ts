@@ -266,7 +266,10 @@ export interface LobbySnapshot {
   countdown: number;
   reconnectSeconds: number;
 }
+export const BASIC_GUARD_REDUCTION = 0.2;
+
 export type AIAction =
+  | { type: 'guard' }
   | { type: 'move'; direction: number; depthDirection?: number; state: AIState }
   | { type: 'skill'; skillId: string }
   | {

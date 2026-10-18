@@ -90,6 +90,7 @@ export function decideAction(
     target.cast &&
     SKILL_BY_ID[target.cast.skillId]?.behavior === 'melee' &&
     distance < SKILL_BY_ID[target.cast.skillId].range + 25;
+  if (f.guarded && (threat || meleeDanger) && f.y === 0) return { type: 'guard' };
   if (
     f.dodgeCooldown <= 0 &&
     f.y < 2 &&
@@ -108,7 +109,7 @@ export function decideAction(
     }
     const away = -direction,
       enoughSpace = f.x + away * 100 > 55 && f.x + away * 100 < 1145;
-    if (def.ai.guard > 0.6 || !enoughSpace) return { type: 'dodge', mode: 'guard', direction: 0 };
+    if (def.ai.guard > 0.6 || !enoughSpace) return { type: 'guard' };
     const sidestep = steer(-0.3, 1, 'Retreat');
     if (sidestep.type === 'move')
       return {
@@ -119,6 +120,9 @@ export function decideAction(
       };
     return { type: 'wait' };
   }
+  // Every species can block even while its evasive moves are cooling down.
+  if (f.y === 0 && (threat || meleeDanger) && random() < def.ai.guard * tuning.accuracy)
+    return { type: 'guard' };
   const hpRatio = f.hp / def.hp;
   const available = def.skills.filter(
     (s) =>

@@ -509,3 +509,155 @@ describe('varied AI routes', () => {
       expect(Math.sign(action.depthDirection!)).toBe(depth === ARENAS[0].depthBounds[0] ? 1 : -1);
   });
 });
+
+describe('basic guard', () => {
+  function guardedBattle(species: SpeciesId = 'pikachu') {
+    const e = battle([[species], ['squirtle']], { switching: false });
+    for (const f of e.state.fighters) {
+      f.thinkIn = 999;
+      f.invulnerable = 0;
+      f.depth = 0;
+    }
+    return e;
+  }
+  function shoot(e: ReturnType<typeof battle>, skillId = 'water-gun') {
+    const [target, source] = e.state.fighters;
+    e.state.projectiles.push({
+      id: `guard-test-${e.state.tick}`,
+      ownerId: source.id,
+      team: source.team,
+      skillId,
+      x: target.x,
+      previousX: target.x,
+      depth: target.depth,
+      y: 28,
+      vx: 0,
+      width: 28,
+      height: 26,
+      life: 1,
+    });
+    e.updateBattle(FIXED_DELTA);
+    return e.state.events.filter((v) => v.kind === 'damage').at(-1)!.value!;
+  }
+  it.each(speciesIds)(
+    '%s can guard continuously for free and repeat without cooldown',
+    (species) => {
+      const e = guardedBattle(species),
+        f = e.state.fighters[0];
+      f.energy = 0;
+      f.dodgeCooldown = 10;
+      expect(e.setGuard(f, true)).toBe(true);
+      expect(f.energy).toBe(0);
+      expect(f.dodgeCooldown).toBe(10);
+      step(e, 2);
+      expect(f.guarded).toBe(true);
+      expect(f.animation).toBe('guard');
+      expect(f.actionTime).toBe(0);
+      for (let i = 0; i < 10; i++) {
+        expect(e.setGuard(f, false)).toBe(true);
+        expect(e.setGuard(f, true)).toBe(true);
+      }
+      expect(POKEMON[species].animations.guard.repeat).toBe(-1);
+      expect(POKEMON[species].animations.guard.end).toBeGreaterThan(
+        POKEMON[species].animations.guard.start,
+      );
+    },
+  );
+  it.each(speciesIds)(
+    '%s takes 20% reduced direct damage and keeps guarding repeated hits',
+    (species) => {
+      const e = guardedBattle(species),
+        f = e.state.fighters[0];
+      e.setGuard(f, true);
+      const expected = calculateDamage(
+        SKILLS.waterGun.damage,
+        POKEMON.squirtle.attack,
+        POKEMON[species].defense,
+        'water',
+        POKEMON[species].element,
+        true,
+        0.2,
+      );
+      for (let i = 0; i < 3; i++) {
+        expect(shoot(e)).toBe(expected);
+        expect(f.guarded).toBe(true);
+        expect(f.animation).toBe('guard');
+        expect(f.state).toBe('Guard');
+      }
+      expect(e.state.events.filter((v) => v.kind === 'guard')).toHaveLength(1);
+    },
+  );
+  it('uses the stronger shield without adding guard reductions together', () => {
+    const e = guardedBattle(),
+      f = e.state.fighters[0];
+    e.setGuard(f, true);
+    f.effects.push({ kind: 'shield', duration: 2, strength: 0.55 });
+    expect(shoot(e)).toBe(
+      calculateDamage(
+        SKILLS.waterGun.damage,
+        POKEMON.squirtle.attack,
+        POKEMON.pikachu.defense,
+        'water',
+        'electric',
+        true,
+        0.55,
+      ),
+    );
+  });
+  it('reduces ongoing damage but does not grant status immunity', () => {
+    const e = guardedBattle(),
+      f = e.state.fighters[0];
+    e.setGuard(f, true);
+    f.effects.push({ kind: 'burn', duration: 2, strength: 5, pulse: 1 });
+    const hp = f.hp;
+    e.updateBattle(FIXED_DELTA);
+    expect(hp - f.hp).toBe(4);
+    shoot(e, 'thunderbolt');
+    expect(f.effects.some((v) => v.kind === 'stun')).toBe(true);
+    expect(f.guarded).toBe(false);
+    expect(e.setGuard(f, true)).toBe(false);
+  });
+  it('leaves guard when attacking and rejects guard during a cast or after fainting', () => {
+    const e = guardedBattle(),
+      f = e.state.fighters[0];
+    e.setGuard(f, true);
+    expect(e.beginSkill(f, 'quick-attack')).toBe(true);
+    expect(f.guarded).toBe(false);
+    expect(e.setGuard(f, true)).toBe(false);
+    f.cast = null;
+    f.hp = 0;
+    expect(e.setGuard(f, true)).toBe(false);
+  });
+  it.each(speciesIds)(
+    '%s AI can guard during dodge cooldown and keep guarding a threat',
+    (species) => {
+      const e = guardedBattle(species),
+        f = e.state.fighters[0];
+      f.dodgeCooldown = 99;
+      e.state.projectiles.push({
+        id: 'threat',
+        ownerId: e.state.fighters[1].id,
+        team: 1,
+        skillId: 'water-gun',
+        x: f.x + 80,
+        previousX: f.x + 80,
+        depth: f.depth,
+        y: 28,
+        vx: -200,
+        width: 28,
+        height: 26,
+        life: 2,
+      });
+      expect(decideAction(f, e.state, () => 0)).toEqual({ type: 'guard' });
+      e.setGuard(f, true);
+      expect(decideAction(f, e.state, () => 1)).toEqual({ type: 'guard' });
+      f.thinkIn = 0;
+      e.updateBattle(FIXED_DELTA);
+      expect(f.guarded).toBe(true);
+      e.state.projectiles = [];
+      f.thinkIn = 0;
+      e.updateBattle(FIXED_DELTA);
+      expect(f.guarded).toBe(false);
+    },
+  );
+});

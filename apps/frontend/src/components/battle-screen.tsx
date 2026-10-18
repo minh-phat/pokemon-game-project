@@ -52,6 +52,9 @@ function FighterStatus({ fighter }: { fighter: Fighter }) {
         </div>
         {fighter.active && fighter.hp > 0 && (
           <div className="cooldowns">
+            <span title="Basic Guard · reduces damage by 20% · no energy cost or cooldown">
+              Guard <small>{fighter.guarded ? '−20%' : '✓'}</small>
+            </span>
             {def.skills.map((s) => (
               <span
                 key={s.id}
