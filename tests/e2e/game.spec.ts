@@ -131,3 +131,68 @@ test('mobile navigation, roster, arenas, and accessible settings', async ({ page
   await expect(page.getByRole('heading', { name: 'Crystal Lake', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+test('manual mode: select Pokémon, guard, dodge, cast, and return to auto', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Let’s battle' }).click();
+  await page.getByRole('button', { name: /YOUR PACE/ }).click();
+  await page.getByLabel('Pokémon per team', { exact: true }).selectOption('2');
+  await page.getByLabel('Active at once', { exact: true }).selectOption('2');
+  await page.getByLabel('Battle duration', { exact: true }).selectOption('60');
+  await page.getByRole('button', { name: 'Choose your Pokémon', exact: true }).click();
+  await page.getByRole('button', { name: 'Add Pikachu', exact: true }).click();
+  await page.getByRole('button', { name: 'Add Charmander', exact: true }).click();
+  await page.getByRole('button', { name: 'Enter the arena', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Auto mode' })).toBeEnabled({ timeout: 30000 });
+  await page.getByRole('button', { name: 'Auto mode' }).click();
+  const frame = page.locator('.arena-frame');
+  const controls = frame.getByRole('region', { name: 'Manual battle controls' });
+  await expect(controls).toBeVisible();
+  await expect(controls.getByRole('heading')).toHaveCount(0);
+  expect(
+    await controls.evaluate((element) => Number(getComputedStyle(element).opacity)),
+  ).toBeLessThan(1);
+  const desktopFrame = await frame.boundingBox();
+  const desktopControls = await controls.boundingBox();
+  expect(desktopControls!.height).toBeLessThan(100);
+  expect(desktopControls!.y).toBeGreaterThanOrEqual(desktopFrame!.y);
+  expect(desktopControls!.y + desktopControls!.height).toBeLessThanOrEqual(
+    desktopFrame!.y + desktopFrame!.height + 1,
+  );
+  const picker = page.getByRole('group', { name: 'Choose active Pokémon' });
+  await expect(picker.getByRole('button')).toHaveCount(2);
+  await picker.getByRole('button', { name: /Charmander/ }).click();
+  await expect(page.getByRole('button', { name: /Flamethrower/ })).toBeVisible();
+  await picker.getByRole('button', { name: /Pikachu/ }).click();
+  await expect(page.getByRole('button', { name: 'Guard · −20%' })).toBeEnabled({ timeout: 5000 });
+  await page.keyboard.press('g');
+  await expect(page.getByRole('button', { name: 'Release guard' })).toBeVisible();
+  await page.keyboard.press('g');
+  await expect(page.getByRole('button', { name: 'Guard · −20%' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Dash · 15' })).toBeEnabled();
+  await page.keyboard.press('Shift');
+  await expect(page.getByRole('button', { name: 'Dash · 15' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Jump · 15' })).toBeEnabled({ timeout: 5000 });
+  await page.keyboard.press('Space');
+  await expect(page.getByRole('button', { name: 'Jump · 15' })).toBeDisabled();
+  await picker.getByRole('button', { name: /Charmander/ }).click();
+  await expect(page.getByRole('button', { name: 'Crouch · 15' })).toBeEnabled({ timeout: 5000 });
+  await page.keyboard.press('c');
+  await expect(page.getByRole('button', { name: 'Crouch · 15' })).toBeDisabled();
+  await picker.getByRole('button', { name: /Pikachu/ }).click();
+  await expect(page.getByRole('button', { name: 'Quick Attack 0 EN' })).toBeEnabled({
+    timeout: 5000,
+  });
+  await page.keyboard.press('1');
+  await expect(page.getByRole('button', { name: /Quick Attack.*s$/ })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Movement controls' })).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileCanvas = await frame.locator('canvas').boundingBox();
+  const mobileControls = await controls.boundingBox();
+  expect(mobileControls!.y).toBeGreaterThanOrEqual(mobileCanvas!.y + mobileCanvas!.height - 1);
+  await page.getByRole('button', { name: 'Manual mode' }).click();
+  await expect(page.getByRole('region', { name: 'Manual battle controls' })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

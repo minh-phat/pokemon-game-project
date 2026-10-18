@@ -3,7 +3,7 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Pokémon Arena — A little team. A legendary battle.',
   description:
-    'Build your team and watch an animated Pokémon auto-battle unfold. Play against AI or invite a friend.',
+    'Build your team and watch or control an animated Pokémon battle. Play against AI or invite a friend.',
   icons: { icon: '/assets/favicon.svg' },
 };
 export default function RootLayout({ children }: { children: React.ReactNode }) {

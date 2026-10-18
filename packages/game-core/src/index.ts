@@ -2,6 +2,7 @@ import {
   RulesSchema,
   BASIC_GUARD_REDUCTION,
   STAMINA_RULES,
+  ManualBattleCommandSchema,
   validateTeam,
   type AIAction,
   type BattleConfig,
@@ -14,7 +15,7 @@ import {
   type AnimationName,
 } from '@arena/shared-types';
 import { ARENAS, DIFFICULTY, POKEMON, SKILL_BY_ID } from '@arena/game-data';
-import { decideAction } from '@arena/game-ai';
+import { decideAction, decideManualAction } from '@arena/game-ai';
 import {
   calculateDamage,
   fighterBox,
@@ -52,6 +53,7 @@ export class BattleEngine {
       tick: 0,
       elapsed: 0,
       phase: 'selection',
+      manualTeams: [false, false],
       rules: this.config.rules,
       fighters: [],
       projectiles: [],
@@ -128,6 +130,32 @@ export class BattleEngine {
   }
   getBattleSnapshot(): BattleSnapshot {
     return structuredClone(this.state);
+  }
+  setManualMode(playerId: string, enabled: boolean): boolean {
+    const team = this.config.players.indexOf(playerId);
+    if (team < 0 || this.state.phase !== 'battle') return false;
+    this.state.manualTeams[team] = enabled;
+    for (const f of this.state.fighters.filter((v) => v.team === team)) {
+      f.moveIntent = 0;
+      f.moveDepth = 0;
+      f.sprinting = false;
+      this.setGuard(f, false);
+      f.thinkIn = 0;
+    }
+    return true;
+  }
+  command(playerId: string, value: unknown): boolean {
+    const parsed = ManualBattleCommandSchema.safeParse(value);
+    if (!parsed.success || this.state.phase !== 'battle') return false;
+    const team = this.config.players.indexOf(playerId);
+    if (team < 0 || !this.state.manualTeams[team]) return false;
+    const command = parsed.data;
+    const f = this.state.fighters.find((v) => v.id === command.fighterId);
+    if (!f || f.team !== team || !f.active || f.hp <= 0) return false;
+    if (command.type === 'guard') return this.setGuard(f, command.active);
+    if (command.type === 'dodge') return this.beginDodge(f, command.mode, f.facing);
+    if (f.effects.some((e) => e.kind === 'stun') || f.cast || f.actionTime > 0) return false;
+    return this.beginSkill(f, command.skillId);
   }
   determineWinner(): BattleResult | null {
     if (this.state.result) return this.state.result;
@@ -246,13 +274,18 @@ export class BattleEngine {
         f.state = 'Stunned';
         this.animate(f, 'hit');
       } else if (f.cast) this.castTick(f, dt);
-      else if (f.actionTime === 0) {
+      else if (f.actionTime === 0 && (!this.state.manualTeams[f.team] || !f.guarded)) {
         f.thinkIn -= dt;
         if (f.thinkIn <= 0) {
           const difficulty = this.config.aiTeams?.includes(f.team)
             ? this.config.rules.difficulty
             : 'normal';
-          this.act(f, decideAction(f, this.state, this.rng, difficulty));
+          this.act(
+            f,
+            this.state.manualTeams[f.team]
+              ? decideManualAction(f, this.state)
+              : decideAction(f, this.state, this.rng, difficulty),
+          );
           f.thinkIn = DIFFICULTY[difficulty].reaction * (0.8 + this.rng() * 0.4);
         }
       }
@@ -305,6 +338,7 @@ export class BattleEngine {
         f.guarded = false;
         f.state = 'Idle';
         this.animate(f, 'idle');
+        if (this.state.manualTeams[f.team]) f.thinkIn = 0;
       }
       return true;
     }
@@ -348,7 +382,7 @@ export class BattleEngine {
         Boolean(action.sprint) && f.stamina >= f.maxStamina * STAMINA_RULES.lowThreshold;
       f.state = action.state;
     }
-    if (action.type === 'skill') this.beginSkill(f, action.skillId);
+    if (action.type === 'skill') this.beginSkill(f, action.skillId, this.state.manualTeams[f.team]);
     if (action.type === 'dodge' && action.mode !== 'guard')
       this.beginDodge(f, action.mode, action.direction, action.depthDirection);
   }
@@ -362,14 +396,15 @@ export class BattleEngine {
       this.state.phase !== 'battle' ||
       !f.active ||
       f.hp <= 0 ||
-      f.cast ||
+      (f.cast && (!this.state.manualTeams[f.team] || !f.cast.autoBasic)) ||
       f.actionTime > 0 ||
       f.effects.some((e) => e.kind === 'stun') ||
-      f.dodgeCooldown > 0 ||
+      (!this.state.manualTeams[f.team] && f.dodgeCooldown > 0) ||
       f.y > 1 ||
       f.stamina < STAMINA_RULES.dodgeCost
     )
       return false;
+    f.cast = null;
     f.stamina -= STAMINA_RULES.dodgeCost;
     f.sprinting = false;
     this.setGuard(f, false);
@@ -378,7 +413,7 @@ export class BattleEngine {
     f.moveIntent = 0;
     f.moveDepth = 0;
     f.vDepth = depthDirection * speed * (mode === 'dash' ? 2.8 : mode === 'jump' ? 1 : 0);
-    f.dodgeCooldown = def.dodgeCooldown;
+    f.dodgeCooldown = this.state.manualTeams[f.team] ? 0 : def.dodgeCooldown;
     if (mode === 'jump') {
       f.vy = def.jumpStrength;
       f.vx = direction * speed;
@@ -406,7 +441,7 @@ export class BattleEngine {
     f.thinkIn = 0.03; // Counterattack promptly after the defense ends.
     return true;
   }
-  beginSkill(f: Fighter, skillId: string): boolean {
+  beginSkill(f: Fighter, skillId: string, autoBasic = false): boolean {
     const def = POKEMON[f.species],
       s = def.skills.find((s) => s.id === skillId);
     if (
@@ -424,7 +459,7 @@ export class BattleEngine {
     f.sprinting = false;
     f.energy -= s.energy;
     f.cooldowns[s.id] = s.cooldown;
-    f.cast = { skillId, elapsed: 0, fired: 0, hitIds: [] };
+    f.cast = { skillId, elapsed: 0, fired: 0, hitIds: [], ...(autoBasic && { autoBasic: true }) };
     f.moveIntent = 0;
     f.moveDepth = 0;
     f.vx *= 0.25;

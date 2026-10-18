@@ -32,6 +32,8 @@ class ArenaRoom extends Room {
     operation('rules', (c, v) => this.session.rules(c.sessionId, v));
     operation('team', (c, v) => this.session.select(c.sessionId, v));
     operation('ready', (c, v) => this.session.ready(c.sessionId, v));
+    operation('manual-mode', (c, v) => this.session.manualMode(c.sessionId, v));
+    operation('battle-command', (c, v) => this.session.command(c.sessionId, v));
     operation('rematch', (c, v) => {
       if (v !== true) throw new Error('Invalid rematch request');
       this.session.rematch(c.sessionId);

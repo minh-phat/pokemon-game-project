@@ -41,7 +41,7 @@ export function BattleCanvas({
         });
         game.canvas.setAttribute(
           'aria-label',
-          'Animated Pokémon auto-battle arena. Battle details are available in the adjacent text panels.',
+          'Animated Pokémon battle arena. In manual mode, select an active Pokémon using the controls in this arena.',
         );
         game.canvas.setAttribute('role', 'img');
       })

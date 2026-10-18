@@ -30,6 +30,7 @@ interface GameStore {
   sessionId: string;
   connection: 'offline' | 'connecting' | 'connected' | 'reconnecting' | 'lost';
   snapshot: BattleSnapshot | null;
+  selectedFighterId: string;
   error: string;
   notice: string;
   paused: boolean;
@@ -56,6 +57,7 @@ export const useGame = create<GameStore>()(
       sessionId: '',
       connection: 'offline',
       snapshot: null,
+      selectedFighterId: '',
       error: '',
       notice: '',
       paused: false,

@@ -1,6 +1,11 @@
 'use client';
 import { Client, type Room } from '@colyseus/sdk';
-import { RoomCodeSchema, type BattleSnapshot, type LobbySnapshot } from '@arena/shared-types';
+import {
+  RoomCodeSchema,
+  type BattleSnapshot,
+  type LobbySnapshot,
+  type ManualBattleCommand,
+} from '@arena/shared-types';
 import { useGame } from './store';
 import { battleFeed } from './battle-feed';
 let room: Room | null = null;
@@ -112,6 +117,12 @@ export async function restoreRoom() {
 export function sendRoom(type: 'rules' | 'team' | 'ready' | 'rematch', value: unknown) {
   if (room) room.send(type, value);
   else useGame.getState().set({ error: 'No active room. Create or join a room first.' });
+}
+export function sendManualMode(enabled: boolean) {
+  room?.send('manual-mode', enabled);
+}
+export function sendBattleCommand(command: ManualBattleCommand) {
+  room?.send('battle-command', command);
 }
 export function leaveRoom() {
   const previous = room;

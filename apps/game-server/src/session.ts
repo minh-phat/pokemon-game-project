@@ -89,6 +89,15 @@ export class BattleSession {
       this.lobby.countdown = 3;
     }
   }
+  manualMode(id: string, value: unknown) {
+    this.player(id);
+    if (typeof value !== 'boolean' || !this.engine?.setManualMode(id, value))
+      throw new Error('Manual mode is unavailable');
+  }
+  command(id: string, value: unknown) {
+    this.player(id);
+    if (!this.engine?.command(id, value)) throw new Error('Battle command is unavailable');
+  }
   tick(delta: number) {
     if (this.lobby.players.some((p) => !p.connected)) return;
     if (this.lobby.phase === 'countdown') {
@@ -111,6 +120,8 @@ export class BattleSession {
   disconnected(id: string) {
     const p = this.player(id);
     p.connected = false;
+    const team = this.lobby.players.indexOf(p);
+    if (this.engine?.state.manualTeams[team]) this.engine.setManualMode(id, true);
     this.lastActivity = Date.now();
   }
   reconnected(id: string) {

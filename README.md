@@ -1,6 +1,6 @@
 # Pokémon Arena
 
-A runnable, account-free 2D auto-battle game. Build a team of Pikachu, Charmander, Squirtle, and Bulbasaur, then watch their AI fight in a Phaser arena. Play locally against AI or invite a second browser into a private online room.
+A runnable, account-free 2D Pokémon arena game. Build a team of Pikachu, Charmander, Squirtle, and Bulbasaur, then watch their AI fight or switch to manual controls during the match. Play locally against AI or invite a second browser into a private online room.
 
 This is an unofficial fan project with custom, bundled vector artwork and synthesized audio. The graphics are a consistent prototype art set, not licensed official Pokémon artwork or finished commercial animation.
 
@@ -36,7 +36,7 @@ npm start
 
 **Online:** choose Online 1v1, enter a trainer name, create a private room, configure rules, and confirm a team. Share the invitation link/code with a second browser or browser profile. The guest selects their own team. Both players click **Ready for battle**. Both teams run on the server's AI. Two rematch votes reopen the lobby after the result.
 
-**Rules:** 1–4 Pokémon per roster, 1–4 active fighters subject to roster size, 60/120/180 seconds or unlimited, three arenas, optional duplicates, optional elemental multipliers, and optional strategic reserve switching. Offline opponents have Easy/Normal/Hard reaction and decision modifiers. Online AI uses the same Normal tuning on both sides.
+**Rules:** 1–4 Pokémon per roster, 1–4 active fighters subject to roster size, 60/120/180 seconds or unlimited, three arenas, optional duplicates, optional elemental multipliers, and optional strategic reserve switching. Offline opponents have Easy/Normal/Hard reaction and decision modifiers. Online AI uses the same Normal tuning on both sides when they are in auto mode. Either trainer can switch to manual mode during a battle, select an active Pokémon, guard, dodge, jump, crouch, and use its four skills while AI keeps moving it and using its basic attack. Keyboard shortcuts for the selected Pokémon are Shift (dash), Space (jump), C (crouch), G (toggle guard), and 1–4 (skills).
 
 When a fighter faints, a reserve always enters if available. Strategic switching additionally permits a weakened fighter to retreat into reserve; it does not directly heal them. Elimination wins immediately. At the time limit, compare the sum of each surviving fighter's HP/maxHP, including reserves; surviving count breaks ties, then a draw. Thus a high-base-HP species has no automatic advantage in timer scoring.
 

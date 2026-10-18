@@ -163,6 +163,7 @@ export interface Cast {
   elapsed: number;
   fired: number;
   hitIds: string[];
+  autoBasic?: boolean;
 }
 export interface Fighter {
   id: string;
@@ -249,6 +250,7 @@ export interface BattleSnapshot {
   elapsed: number;
   phase: 'selection' | 'battle' | 'finished';
   rules: MatchRules;
+  manualTeams: [boolean, boolean];
   fighters: Fighter[];
   projectiles: Projectile[];
   events: BattleEvent[];
@@ -280,6 +282,23 @@ export const STAMINA_RULES = {
   guardDrain: 10,
   lowThreshold: 0.2,
 } as const;
+
+export const ManualBattleCommandSchema = z.discriminatedUnion('type', [
+  z
+    .object({ type: z.literal('guard'), fighterId: z.string().min(1), active: z.boolean() })
+    .strict(),
+  z
+    .object({
+      type: z.literal('dodge'),
+      fighterId: z.string().min(1),
+      mode: z.enum(['dash', 'jump', 'crouch']),
+    })
+    .strict(),
+  z
+    .object({ type: z.literal('skill'), fighterId: z.string().min(1), skillId: z.string().min(1) })
+    .strict(),
+]);
+export type ManualBattleCommand = z.infer<typeof ManualBattleCommandSchema>;
 
 export type AIAction =
   | { type: 'guard' }

@@ -13,10 +13,11 @@ import {
 } from 'lucide-react';
 import { initializeBattle, seededRandom } from '@arena/game-core';
 import { ARENAS, POKEMON, ROSTER } from '@arena/game-data';
-import type { Fighter, SpeciesId } from '@arena/shared-types';
+import type { Fighter, ManualBattleCommand, SpeciesId } from '@arena/shared-types';
 import { useGame } from '@/lib/store';
 import { battleFeed } from '@/lib/battle-feed';
-import { leaveRoom } from '@/lib/network';
+import { leaveRoom, sendBattleCommand, sendManualMode } from '@/lib/network';
+import { ManualControls } from './manual-controls';
 import { Button } from './ui/button';
 import { Portrait } from './common';
 import { BattleCanvas } from './battle-canvas';
@@ -115,6 +116,7 @@ export function BattleScreen() {
   const [ready, setReady] = useState(false);
   const [countdown, setCountdown] = useState(3);
   const [loadError, setLoadError] = useState('');
+  const [offlineManual, setOfflineManual] = useState(false);
   const online = state.mode === 'online';
   const snapshot = state.snapshot;
   const arena = ARENAS.find((a) => a.id === state.rules.arena)!;
@@ -170,6 +172,21 @@ export function BattleScreen() {
   const myTeam = online
     ? Math.max(0, state.lobby?.players.findIndex((p) => p.id === state.sessionId) ?? 0)
     : 0;
+  const manual = online ? Boolean(snapshot?.manualTeams[myTeam]) : offlineManual;
+  const changeMode = () => {
+    const enabled = !manual;
+    if (enabled && snapshot) {
+      const first = snapshot.fighters.find((f) => f.team === myTeam && f.active && f.hp > 0);
+      if (first) state.set({ selectedFighterId: first.id });
+    }
+    if (online) sendManualMode(enabled);
+    else if (battleFeed.engine?.setManualMode('you', enabled)) setOfflineManual(enabled);
+  };
+  const sendCommand = (command: ManualBattleCommand) => {
+    if (!manual || controlsDisabled) return;
+    if (online) sendBattleCommand(command);
+    else battleFeed.engine?.command('you', command);
+  };
   const names = online
     ? (state.lobby?.players.map((p) => p.name) ?? ['You', 'Opponent'])
     : [
@@ -179,6 +196,12 @@ export function BattleScreen() {
   const finished = snapshot?.phase === 'finished';
   const disconnected =
     online && (state.connection !== 'connected' || state.lobby?.players.some((p) => !p.connected));
+  const controlsDisabled =
+    !ready ||
+    finished ||
+    disconnected ||
+    state.paused ||
+    (online ? snapshot?.phase !== 'battle' : !battleFeed.running);
   const remaining = state.rules.duration
     ? Math.max(0, state.rules.duration - (snapshot?.elapsed ?? 0))
     : (snapshot?.elapsed ?? 0);
@@ -211,6 +234,15 @@ export function BattleScreen() {
           {arena.name.toUpperCase()} <i /> {online ? 'ONLINE 1V1' : 'VS AI'}
         </span>
         <div>
+          <Button
+            variant={manual ? 'default' : 'outline'}
+            size="sm"
+            disabled={!ready || !snapshot || finished || disconnected || displayCountdown > 0}
+            aria-pressed={manual}
+            onClick={changeMode}
+          >
+            {manual ? 'Manual mode' : 'Auto mode'}
+          </Button>
           {!online && (
             <Button
               variant="outline"
@@ -254,7 +286,9 @@ export function BattleScreen() {
                   ? 'GET READY'
                   : state.paused
                     ? 'PAUSED'
-                    : 'AUTO BATTLE'}
+                    : manual
+                      ? 'MANUAL BATTLE'
+                      : 'AUTO BATTLE'}
             </span>
             <strong data-testid="match-timer">{time}</strong>
           </div>
@@ -272,6 +306,16 @@ export function BattleScreen() {
           </div>
         </div>
         <BattleCanvas arena={arena.id} onReady={() => setReady(true)} onError={setLoadError} />
+        {manual && snapshot && (
+          <ManualControls
+            snapshot={snapshot}
+            team={myTeam}
+            disabled={controlsDisabled}
+            command={sendCommand}
+            selectedId={state.selectedFighterId}
+            onSelect={(fighterId) => state.set({ selectedFighterId: fighterId })}
+          />
+        )}
         {!ready && (
           <div className="arena-overlay">
             <LoaderCircle className="spin" size={28} />
@@ -284,7 +328,7 @@ export function BattleScreen() {
           <div className="arena-overlay countdown-overlay">
             <span className="eyebrow">YOUR COMPANIONS ARE READY</span>
             <strong data-testid="countdown">{displayCountdown}</strong>
-            <p>Let their instincts take over.</p>
+            <p>Choose auto or manual controls when the battle begins.</p>
           </div>
         )}
         {state.paused && !finished && (
@@ -358,7 +402,7 @@ export function BattleScreen() {
           )}
           <p className="battle-tip">
             {online
-              ? 'Both teams are controlled by AI. Enjoy the show.'
+              ? 'Each trainer can choose auto or manual controls.'
               : 'A good team is more than the sum of its Pokémon.'}
           </p>
         </div>

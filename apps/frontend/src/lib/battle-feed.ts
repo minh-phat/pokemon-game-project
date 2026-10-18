@@ -36,6 +36,6 @@ export const battleFeed: {
     this.engine = null;
     this.running = false;
     this.lastUI = 0;
-    useGame.getState().set({ snapshot: null, paused: false });
+    useGame.getState().set({ snapshot: null, paused: false, selectedFighterId: '' });
   },
 };

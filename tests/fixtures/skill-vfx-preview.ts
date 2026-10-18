@@ -20,6 +20,7 @@ new Phaser.Game({
         elapsed: 0,
         phase: 'battle',
         rules: DEFAULT_RULES,
+        manualTeams: [false, false],
         fighters: [],
         events: [],
         result: null,

@@ -48,7 +48,7 @@ The coordinate system uses **feet at `y=0`**, with positive height above the gro
 Each tick:
 
 1. Advance cooldowns, energy, statuses, and action durations.
-2. Choose a target and run AI when a species/difficulty reaction timer allows it.
+2. Choose a target and run AI on its reaction timer. In manual mode, AI selects movement and the species’ free basic attack; the player selects defense and special skills.
 3. Advance casts and fire configured animation events.
 4. Apply movement, acceleration, gravity, ground collision, and boundaries.
 5. Separate overlapping bodies; sweep projectile segments through target hitboxes.
@@ -71,7 +71,7 @@ Timed scoring sums normalized remaining HP across the entire roster, then compar
 
 Each species defines `maxStamina` (initially 100 points) and a separate `sprintSpeed` (initially 1.5 times normal speed). Fighters store current stamina, their maximum, and whether they are sprinting; snapshots carry all three values. The maximum is a point capacity, not a percentage.
 
-Jump, crouch dodge, and dash each require and consume 15 points on activation. Recovery is 3 points/second during sprinting, jumps, dashes, or moving attacks; 10 during ordinary movement; and 15 while stationary or in reserve. Guard overrides all recovery with a net drain of 10 points/second and may remain held at zero. Values stay between zero and the fighter's maximum. A blocked movement at the arena boundary counts as stationary.
+Jump, crouch dodge, and dash each require and consume 15 points on activation. In manual mode, they have no separate cooldown and can be repeated after each action finishes; jumps must also land before another dodge. Auto mode retains the species dodge cooldown. Recovery is 3 points/second during sprinting, jumps, dashes, or moving attacks; 10 during ordinary movement; and 15 while stationary or in reserve. Guard overrides all recovery with a net drain of 10 points/second and may remain held at zero. Values stay between zero and the fighter's maximum. A blocked movement at the arena boundary counts as stationary.
 
 Below 20% of the current maximum, voluntary movement slows to 5–50% of normal speed; exactly zero gives 5%. At 20% or more, full speed returns. Tired fighters use normal movement instead of sprinting. Skill-driven lunges and the horizontal motion of evasive moves also respect fatigue; knockback remains a physical reaction. AI uses sprinting for distant pursuit and retreats, and checks stamina before choosing evasive actions. The HUD displays current/max points and highlights low stamina.
 
@@ -83,7 +83,7 @@ The explicit states are Idle, FindTarget, Chase, MaintainDistance, Retreat, Atta
 
 Decisions consider distance, facing, enemy windup, projectile relative velocity/collision time, current HP, cooldowns, energy, boundaries, nearby allies, preferred range, and elemental matchups. Defensive reactions are checked only on think intervals. Probability and noisy timing prevent perfect evasion. Jump height is predicted ballistically; crouch tests the projectile's lower edge against a reduced hitbox. Dash requires space and has a short invulnerability window. Guard is preferred by Squirtle. Bulbasaur favors retreat and zoning; Charmander pursues aggressively; Pikachu reacts and dashes quickly.
 
-Species stats and balance values live in `game-data`, not React. Default player AI is Normal. Offline difficulty modifies the opposing team's reaction delay, accuracy, and aggression. Online both sides receive identical difficulty tuning.
+In manual mode, the player can select any active Pokémon by its control card or sprite, then guard, dodge, jump, crouch, or use one of four skills while AI continues moving it and using its basic attack. Player dodges take priority and cancel an AI-started basic attack immediately; they do not cancel a skill chosen by the player. Each Pokémon keeps independent stamina, energy, and cooldowns. Offline commands go directly to the local engine; online commands go to the authoritative room. The opponent remains AI-controlled in offline games. Species stats and balance values live in `game-data`, not React. Default player AI is Normal. Offline difficulty modifies the opposing team's reaction delay, accuracy, and aggression. Online both sides receive identical difficulty tuning.
 
 ## Rendering and accessibility
 
@@ -107,7 +107,7 @@ Clients send only these operations:
 | `rematch` | literal `true` | Finished match; both connected players must vote                  |
 | `sync`    | ignored        | Requests current lobby and battle snapshots                       |
 
-Unknown messages receive an error. There are no movement, damage, RNG seed, winner, or health-write messages. Every accepted mutation must identify a current room member. Room message token buckets allow 20 initial operations and replenish 5/second, with an additional Colyseus limit of 30 messages/second. HTTP matchmaking limits POST operations to 30/minute/IP. The API allows 120 requests/minute/IP. These are in-memory initial-release limits, not a distributed protection service.
+`manual-mode` accepts a boolean during a battle. `battle-command` accepts a strict discriminated command for a selected active fighter: guard on/off, dodge (dash/jump/crouch), or one of that species’ skills. AI controls movement and sprinting in both modes. The server checks room membership, team ownership, manual mode, fighter state, stamina, energy, and cooldowns; the client never writes damage or health. The current mode for each team travels in every battle snapshot, so reconnecting restores the controls. Switching modes resets movement intent and guard. A disconnect also releases held inputs while keeping that team’s manual choice. Unknown messages receive an error. There are no damage, RNG seed, winner, or health-write messages. Every accepted mutation must identify a current room member. Room message token buckets allow 20 initial operations and replenish 5/second, with an additional Colyseus limit of 30 messages/second. HTTP matchmaking limits POST operations to 30/minute/IP. The API allows 120 requests/minute/IP. These are in-memory initial-release limits, not a distributed protection service.
 
 The server chooses the seed and ticks at 60 Hz using an elapsed-time accumulator. It publishes full MessagePack-encoded lobby/battle messages at 20 Hz. Each snapshot includes all units, cooldowns, statuses, current casts, projectiles, a bounded last-100 event list, tick number, and result. Clients can read these values but have no authority to change them.
 

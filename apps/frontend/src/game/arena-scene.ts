@@ -138,6 +138,21 @@ export function createArenaScene(
         lastAnimation: '',
       };
       this.actors.set(f.id, visual);
+      visual.sprite.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
+        const game = useGame.getState();
+        const team =
+          game.mode === 'online'
+            ? (game.lobby?.players.findIndex((p) => p.id === game.sessionId) ?? -1)
+            : 0;
+        const current = battleFeed.latest?.fighters.find((actor) => actor.id === f.id);
+        if (
+          f.team === team &&
+          battleFeed.latest?.manualTeams[team] &&
+          current?.active &&
+          current.hp > 0
+        )
+          game.set({ selectedFighterId: f.id });
+      });
       return visual;
     }
     update(time: number, delta: number) {
@@ -223,7 +238,21 @@ export function createArenaScene(
           .setVisible(!faint)
           .setPosition(x, ground + 2)
           .setScale(Math.max(0.45, 1 - y / 300));
-        v.ring.setVisible(!faint).setPosition(x, ground + 1);
+        const myTeam =
+          settings.mode === 'online'
+            ? (settings.lobby?.players.findIndex((p) => p.id === settings.sessionId) ?? -1)
+            : 0;
+        const selected =
+          f.team === myTeam && snapshot.manualTeams[f.team] && settings.selectedFighterId === f.id;
+        v.ring
+          .setVisible(!faint)
+          .setPosition(x, ground + 1)
+          .setStrokeStyle(
+            selected ? 3 : 2,
+            selected ? 0xffe88c : f.team === 0 ? 0xf3d36e : 0xeeb4a2,
+            selected ? 0.95 : 0.55,
+          )
+          .setScale(selected ? 1.35 : 1);
         v.label.setVisible(!faint).setPosition(x, ground - 96 - y);
         const def = POKEMON[f.species];
         v.bars.clear();
