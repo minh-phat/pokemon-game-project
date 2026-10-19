@@ -5,6 +5,7 @@ import {
   Bot,
   ChevronRight,
   Leaf,
+  Maximize,
   Shield,
   Sparkles,
   Swords,
@@ -15,7 +16,13 @@ import { ARENAS, ROSTER } from '@arena/game-data';
 import { useGame } from '@/lib/store';
 import { Button } from './ui/button';
 import { ElementBadge, Portrait } from './common';
-export function Home() {
+export function Home({
+  isAppMode,
+  onEnterFullscreen,
+}: {
+  isAppMode: boolean;
+  onEnterFullscreen: () => void;
+}) {
   const { go, set } = useGame();
   return (
     <div className="home-content">
@@ -47,9 +54,19 @@ export function Home() {
             Watch a world of possibilities come to life.
           </p>
           <div className="hero-buttons">
-            <Button onClick={() => go('modes')}>
+            <Button
+              onClick={() => {
+                onEnterFullscreen();
+                go('modes');
+              }}
+            >
               Let’s battle <ArrowRight size={19} />
             </Button>
+            {!isAppMode && (
+              <Button variant="outline" onClick={onEnterFullscreen}>
+                Fullscreen <Maximize size={16} />
+              </Button>
+            )}
             <Button variant="ghost" onClick={() => go('codex')}>
               Meet the Pokémon <ArrowUpRight size={16} />
             </Button>

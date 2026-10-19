@@ -232,6 +232,9 @@ small {
   max-width: 1536px;
   margin: auto;
 }
+:root:fullscreen .app-shell {
+  max-width: none;
+}
 .site-header {
   height: 96px;
   margin: 0 6%;
@@ -467,6 +470,7 @@ small {
 }
 .hero-buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 27px;
 }

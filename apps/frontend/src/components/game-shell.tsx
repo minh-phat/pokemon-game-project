@@ -1,6 +1,16 @@
 'use client';
-import { useEffect } from 'react';
-import { BookOpen, Compass, Settings2, Swords, Volume2, VolumeX, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  BookOpen,
+  Compass,
+  Maximize,
+  Minimize,
+  Settings2,
+  Swords,
+  Volume2,
+  VolumeX,
+  X,
+} from 'lucide-react';
 import { useGame } from '@/lib/store';
 import { leaveRoom, restoreRoom } from '@/lib/network';
 import { battleFeed } from '@/lib/battle-feed';
@@ -21,7 +31,16 @@ import { Dialog } from './ui/dialog';
 
 export function GameShell() {
   const state = useGame();
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isAppMode, setIsAppMode] = useState(false);
   useEffect(() => {
+    const syncFullscreen = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', syncFullscreen);
+    syncFullscreen();
+    setIsAppMode(
+      matchMedia('(display-mode: fullscreen)').matches ||
+        matchMedia('(display-mode: standalone)').matches,
+    );
     void useGame.persist.rehydrate();
     const query = new URLSearchParams(location.search);
     const code = query.get('room');
@@ -32,7 +51,22 @@ export function GameShell() {
     else if (code) useGame.getState().set({ mode: 'online', screen: 'online', roomCode: code });
     if (matchMedia('(prefers-reduced-motion: reduce)').matches)
       useGame.getState().set({ reducedMotion: true });
+    return () => document.removeEventListener('fullscreenchange', syncFullscreen);
   }, []);
+  async function toggleFullscreen() {
+    if (isAppMode) return;
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else if (document.documentElement.requestFullscreen)
+        await document.documentElement.requestFullscreen();
+      else throw new Error('Fullscreen is unavailable');
+    } catch {
+      useGame.getState().set({
+        notice:
+          'Fullscreen is unavailable in this browser. Try adding the game to your home screen.',
+      });
+    }
+  }
   function navigate(screen: 'home' | 'codex' | 'arenas') {
     if (state.sessionId) leaveRoom();
     else battleFeed.clear();
@@ -86,6 +120,17 @@ export function GameShell() {
             <i />
             READY TO PLAY
           </span>
+          {!isAppMode && (
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+              title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+              onClick={() => void toggleFullscreen()}
+            >
+              {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -121,7 +166,9 @@ export function GameShell() {
             </Button>
           </div>
         )}
-        {state.screen === 'home' && <Home />}
+        {state.screen === 'home' && (
+          <Home isAppMode={isAppMode} onEnterFullscreen={() => void toggleFullscreen()} />
+        )}
         {state.screen === 'modes' && <ModeSelection />}
         {state.screen === 'rules' && <RulesScreen />}
         {state.screen === 'roster' && <RosterScreen />}
