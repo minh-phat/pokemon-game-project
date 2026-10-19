@@ -145,11 +145,17 @@ test('manual mode: select Pokémon, guard, dodge, cast, and return to auto', asy
   await page.getByRole('button', { name: 'Add Pikachu', exact: true }).click();
   await page.getByRole('button', { name: 'Add Charmander', exact: true }).click();
   await page.getByRole('button', { name: 'Enter the arena', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Auto mode' })).toBeEnabled({ timeout: 30000 });
-  await page.getByRole('button', { name: 'Auto mode' }).click();
+  await expect(page.getByRole('button', { name: 'Manual mode' })).toBeEnabled({ timeout: 30000 });
   const frame = page.locator('.arena-frame');
   const controls = frame.getByRole('region', { name: 'Manual battle controls' });
   await expect(controls).toBeVisible();
+  const arenaBounds = await frame.boundingBox();
+  expect(arenaBounds!.x).toBe(0);
+  expect(arenaBounds!.y).toBe(0);
+  expect(arenaBounds!.width).toBe(1440);
+  expect(arenaBounds!.height).toBeGreaterThanOrEqual(1000);
+  await expect(frame.getByRole('button', { name: 'Manual mode' })).toBeVisible();
+  await expect(frame.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
   await expect(controls.getByRole('heading')).toHaveCount(0);
   expect(
     await controls.evaluate((element) => Number(getComputedStyle(element).opacity)),
@@ -196,7 +202,10 @@ test('manual mode: select Pokémon, guard, dodge, cast, and return to auto', asy
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileCanvas = await frame.locator('canvas').boundingBox();
   const mobileControls = await controls.boundingBox();
-  expect(mobileControls!.y).toBeGreaterThanOrEqual(mobileCanvas!.y + mobileCanvas!.height - 1);
+  expect(mobileControls!.y).toBeGreaterThanOrEqual(mobileCanvas!.y);
+  expect(mobileControls!.y + mobileControls!.height).toBeLessThanOrEqual(
+    mobileCanvas!.y + mobileCanvas!.height + 1,
+  );
   await page.getByRole('button', { name: 'Manual mode' }).click();
   await expect(page.getByRole('region', { name: 'Manual battle controls' })).toHaveCount(0);
   expect(errors).toEqual([]);

@@ -3081,3 +3081,107 @@ select option {
     flex: 1 1 auto;
   }
 }
+
+/* The battle opens as a viewport-sized arena. Match details remain below it. */
+.battle-page {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  padding: 0;
+  overflow-y: auto;
+  background: #14251f;
+}
+.battle-page .arena-frame {
+  min-height: 100vh;
+  min-height: 100dvh;
+  border: 0;
+  border-radius: 0;
+}
+.battle-page .battle-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+}
+.arena-toolbar {
+  position: absolute;
+  z-index: 10;
+  top: 0;
+  left: 0;
+  right: 0;
+  min-height: 54px;
+  padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 8px
+    max(12px, env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: linear-gradient(#12261ee8, #12261e99);
+}
+.arena-toolbar > .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 9px;
+  white-space: nowrap;
+}
+.arena-toolbar > .eyebrow i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #b2c09f;
+}
+.arena-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.battle-page .arena-hud {
+  top: 54px;
+  padding-top: 10px;
+}
+.battle-page .battle-bottom {
+  padding: 20px 4% 30px;
+  margin-top: 0;
+}
+@media (max-width: 760px) {
+  .arena-toolbar {
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  .arena-toolbar > .eyebrow {
+    display: none;
+  }
+  .arena-toolbar-actions {
+    gap: 4px;
+  }
+  .arena-toolbar .button {
+    padding-inline: 7px;
+    font-size: 10px;
+  }
+  .battle-page .arena-hud {
+    position: absolute;
+    top: 54px;
+    height: auto;
+    background: linear-gradient(#192b26cc, transparent);
+  }
+  .battle-page .battle-canvas {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .battle-page .manual-controls {
+    position: absolute;
+    inset: auto max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+    width: auto;
+    max-width: none;
+    max-height: 42dvh;
+    overflow-y: auto;
+    border: 1px solid #647858a6;
+    border-radius: 10px;
+    background: #172b25e8;
+    box-shadow: 0 5px 18px #0c191575;
+  }
+}

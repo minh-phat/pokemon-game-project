@@ -109,6 +109,8 @@ export class BattleSession {
           this.seed,
         );
         this.engine.startBattle();
+        this.engine.setManualMode(a.id, true);
+        this.engine.setManualMode(b.id, true);
         this.lobby.phase = 'battle';
       }
     }

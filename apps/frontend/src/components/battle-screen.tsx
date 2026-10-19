@@ -116,7 +116,7 @@ export function BattleScreen() {
   const [ready, setReady] = useState(false);
   const [countdown, setCountdown] = useState(3);
   const [loadError, setLoadError] = useState('');
-  const [offlineManual, setOfflineManual] = useState(false);
+  const [offlineManual, setOfflineManual] = useState(true);
   const online = state.mode === 'online';
   const snapshot = state.snapshot;
   const arena = ARENAS.find((a) => a.id === state.rules.arena)!;
@@ -147,6 +147,7 @@ export function BattleScreen() {
       seed,
     );
     engine.startBattle();
+    engine.setManualMode('you', true);
     battleFeed.engine = engine;
     battleFeed.push(engine.getBattleSnapshot());
     return () => {
@@ -218,53 +219,53 @@ export function BattleScreen() {
         : countdown;
   return (
     <div className="battle-page">
-      <div className="battle-heading">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            if (online) leaveRoom();
-            else state.go('roster');
-          }}
-        >
-          <ArrowLeft size={15} />
-          {online ? 'Leave room' : 'Change team'}
-        </Button>
-        <span className="eyebrow">
-          {arena.name.toUpperCase()} <i /> {online ? 'ONLINE 1V1' : 'VS AI'}
-        </span>
-        <div>
-          <Button
-            variant={manual ? 'default' : 'outline'}
-            size="sm"
-            disabled={!ready || !snapshot || finished || disconnected || displayCountdown > 0}
-            aria-pressed={manual}
-            onClick={changeMode}
-          >
-            {manual ? 'Manual mode' : 'Auto mode'}
-          </Button>
-          {!online && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!ready || countdown > 0 || finished}
-              onClick={() => state.set({ paused: !state.paused })}
-            >
-              {state.paused ? <Play size={14} /> : <Pause size={14} />}{' '}
-              {state.paused ? 'Resume' : 'Pause'}
-            </Button>
-          )}
-          <Button
-            size="icon"
-            variant="ghost"
-            aria-label="Battle settings"
-            onClick={() => state.set({ settingsOpen: true })}
-          >
-            <Settings2 size={18} />
-          </Button>
-        </div>
-      </div>
       <section className="arena-frame">
+        <div className="arena-toolbar">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (online) leaveRoom();
+              else state.go('roster');
+            }}
+          >
+            <ArrowLeft size={15} />
+            {online ? 'Leave room' : 'Change team'}
+          </Button>
+          <span className="eyebrow">
+            {arena.name.toUpperCase()} <i /> {online ? 'ONLINE 1V1' : 'VS AI'}
+          </span>
+          <div className="arena-toolbar-actions">
+            <Button
+              variant={manual ? 'default' : 'outline'}
+              size="sm"
+              disabled={!ready || !snapshot || finished || disconnected || displayCountdown > 0}
+              aria-pressed={manual}
+              onClick={changeMode}
+            >
+              {manual ? 'Manual mode' : 'Auto mode'}
+            </Button>
+            {!online && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!ready || countdown > 0 || finished}
+                onClick={() => state.set({ paused: !state.paused })}
+              >
+                {state.paused ? <Play size={14} /> : <Pause size={14} />}{' '}
+                {state.paused ? 'Resume' : 'Pause'}
+              </Button>
+            )}
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label="Battle settings"
+              onClick={() => state.set({ settingsOpen: true })}
+            >
+              <Settings2 size={18} />
+            </Button>
+          </div>
+        </div>
         <div className="arena-hud">
           <div className="hud-team">
             <span className="team-color" />

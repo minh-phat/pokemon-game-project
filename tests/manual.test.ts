@@ -273,9 +273,10 @@ describe('online manual authorization', () => {
   }
   it('accepts only the owner’s manual commands and preserves each mode in snapshots', () => {
     const s = session();
+    expect(s.engine!.getBattleSnapshot().manualTeams).toEqual([true, true]);
     expect(() => s.manualMode('stranger', true)).toThrow();
     expect(() => s.manualMode('a', 'true')).toThrow();
-    s.manualMode('a', true);
+    s.manualMode('b', false);
     const a = s.engine!.state.fighters.find((f) => f.team === 0)!;
     const b = s.engine!.state.fighters.find((f) => f.team === 1)!;
     expect(s.engine!.getBattleSnapshot().manualTeams).toEqual([true, false]);
