@@ -2995,6 +2995,14 @@ select option {
 .manual-controls:focus-within {
   opacity: 1;
 }
+.manual-target {
+  color: #d7e1c8;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.manual-target strong {
+  color: #ff7777;
+}
 .manual-picker {
   display: flex;
   align-items: center;

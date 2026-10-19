@@ -195,6 +195,12 @@ export class BattleEngine {
     const f = this.state.fighters.find((v) => v.id === command.fighterId);
     if (!f || f.team !== team || !f.active || f.hp <= 0 || !this.isManuallyControlled(f))
       return false;
+    if (command.type === 'target') {
+      const target = this.state.fighters.find((v) => v.id === command.targetId);
+      if (!target || target.team === team || !target.active || target.hp <= 0) return false;
+      f.targetId = target.id;
+      return true;
+    }
     if (command.type === 'guard') return this.setGuard(f, command.active);
     if (command.type === 'dodge') {
       const x = command.mode === 'dash' ? (command.direction ?? f.facing) : f.facing;
@@ -307,9 +313,10 @@ export class BattleEngine {
       if (f.actionTime === 0) {
         f.crouched = false;
       }
-      const target = this.state.fighters
-        .filter((v) => v.team !== f.team && v.hp > 0 && v.active)
-        .sort(
+      const enemies = this.state.fighters.filter((v) => v.team !== f.team && v.hp > 0 && v.active);
+      const target =
+        (this.isManuallyControlled(f) && enemies.find((v) => v.id === f.targetId)) ||
+        enemies.sort(
           (a, b) =>
             Math.hypot(a.x - f.x, a.depth - f.depth) - Math.hypot(b.x - f.x, b.depth - f.depth),
         )[0];

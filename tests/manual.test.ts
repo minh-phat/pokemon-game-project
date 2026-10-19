@@ -29,6 +29,46 @@ function step(e: ReturnType<typeof engine>, count = 60) {
 }
 
 describe('manual battle commands', () => {
+  it('locks the controlled Pokémon onto its target until switched or the target leaves', () => {
+    const e = initializeBattle(
+      {
+        rules: { ...DEFAULT_RULES, teamSize: 2, activeSize: 2, duration: 0 },
+        players: ['alice', 'bob'],
+        teams: [
+          ['pikachu', 'charmander'],
+          ['squirtle', 'bulbasaur'],
+        ],
+      },
+      5,
+    );
+    e.startBattle();
+    e.setManualMode('alice', true);
+    const [pikachu, ally, squirtle, bulbasaur] = e.state.fighters;
+    pikachu.x = 100;
+    squirtle.x = 200;
+    bulbasaur.x = 900;
+    e.updateBattle(FIXED_DELTA);
+    expect(pikachu.targetId).toBe(squirtle.id);
+    squirtle.x = 900;
+    bulbasaur.x = 200;
+    e.updateBattle(FIXED_DELTA);
+    expect(pikachu.targetId).toBe(squirtle.id);
+    expect(e.command('alice', { type: 'target', fighterId: ally.id, targetId: bulbasaur.id })).toBe(
+      false,
+    );
+    expect(e.command('alice', { type: 'target', fighterId: pikachu.id, targetId: ally.id })).toBe(
+      false,
+    );
+    expect(
+      e.command('alice', { type: 'target', fighterId: pikachu.id, targetId: bulbasaur.id }),
+    ).toBe(true);
+    e.updateBattle(FIXED_DELTA);
+    expect(pikachu.targetId).toBe(bulbasaur.id);
+    bulbasaur.hp = 0;
+    bulbasaur.active = false;
+    e.updateBattle(FIXED_DELTA);
+    expect(pikachu.targetId).toBe(squirtle.id);
+  });
   it('switches one team to manual while the other AI keeps acting', () => {
     const e = engine(),
       [a, b] = e.state.fighters;

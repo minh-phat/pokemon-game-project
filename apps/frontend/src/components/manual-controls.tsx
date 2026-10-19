@@ -58,16 +58,25 @@ export function ManualControls({
   const controlHeld = useRef(false);
   const controlUsed = useRef(false);
   const active = snapshot.fighters.filter((f) => f.team === team && f.active && f.hp > 0);
+  const enemies = snapshot.fighters.filter((f) => f.team !== team && f.active && f.hp > 0);
   const selected =
     active.find((f) => f.id === selectedId) ??
     active.find((f) => f.id === snapshot.controlledFighterIds[team]) ??
     active[0];
+  const target = snapshot.fighters.find(
+    (f) => f.id === selected?.targetId && f.active && f.hp > 0 && f.team !== team,
+  );
   useEffect(() => {
     if (selected && selected.id !== selectedId) onSelect(selected.id);
   }, [selected?.id, selectedId, onSelect]);
   const fighterId = selected?.id;
   const send = (value: ManualInput) => {
     if (fighterId && !disabled) command({ ...value, fighterId } as ManualBattleCommand);
+  };
+  const switchTarget = () => {
+    if (!selected || disabled || enemies.length < 2) return;
+    const index = enemies.findIndex((f) => f.id === selected.targetId);
+    send({ type: 'target', targetId: enemies[(index + 1) % enemies.length].id });
   };
   const canAct =
     !disabled &&
@@ -117,6 +126,11 @@ export function ManualControls({
         return;
       }
       if (event.repeat) return;
+      if (code === 'KeyT') {
+        event.preventDefault();
+        switchTarget();
+        return;
+      }
       const dodgeMode = code === 'Space' ? 'jump' : code === 'KeyC' ? 'crouch' : null;
       if (dodgeMode) {
         event.preventDefault();
@@ -187,10 +201,25 @@ export function ManualControls({
       window.removeEventListener('blur', onBlur);
       window.removeEventListener('pointerdown', onPointerDown);
     };
-  }, [active, selected, disabled, canAct, canDodge, command, onSelect]);
+  }, [active, enemies, selected, disabled, canAct, canDodge, command, onSelect]);
   if (!selected) return null;
   return (
     <section className="manual-controls panel" aria-label="Manual battle controls">
+      <span className="manual-target" aria-live="polite">
+        Target: <strong>{target ? POKEMON[target.species].name : 'None'}</strong>
+      </span>
+      {enemies.length > 1 && (
+        <Button
+          variant="outline"
+          size="sm"
+          type="button"
+          title="Switch to the next opponent · T"
+          disabled={disabled}
+          onClick={switchTarget}
+        >
+          Switch target <kbd aria-hidden="true">T</kbd>
+        </Button>
+      )}
       <div className="manual-picker" role="group" aria-label="Choose active Pokémon">
         {active.map((f) => (
           <button

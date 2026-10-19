@@ -13,6 +13,7 @@ type Visual = {
   bars: Phaser.GameObjects.Graphics;
   label: Phaser.GameObjects.Text;
   ring: Phaser.GameObjects.Ellipse;
+  targetMarker: Phaser.GameObjects.Text;
   lastAnimation: string;
 };
 export function createArenaScene(
@@ -121,6 +122,18 @@ export function createArenaScene(
           .ellipse(f.x, 521, 74, 17)
           .setStrokeStyle(2, f.team === 0 ? 0xf3d36e : 0xeeb4a2, 0.55)
           .setDepth(2),
+        targetMarker: this.add
+          .text(f.x, 400, '▼ TARGET', {
+            fontFamily: 'system-ui',
+            fontSize: '13px',
+            fontStyle: 'bold',
+            color: '#ff4949',
+            stroke: '#381414',
+            strokeThickness: 4,
+          })
+          .setOrigin(0.5)
+          .setDepth(18)
+          .setVisible(false),
         sprite: this.add
           .sprite(f.x, 520, f.species)
           .setOrigin(0.5, 0.84)
@@ -183,6 +196,15 @@ export function createArenaScene(
       const cameraTarget =
         snapshot.fighters.filter((f) => f.active).reduce((s, f) => s + f.x, 0) /
         Math.max(1, snapshot.fighters.filter((f) => f.active).length);
+      const myTeam =
+        settings.mode === 'online'
+          ? (settings.lobby?.players.findIndex((p) => p.id === settings.sessionId) ?? -1)
+          : 0;
+      const controlledId = settings.selectedFighterId || snapshot.controlledFighterIds[myTeam];
+      const controlled = snapshot.fighters.find(
+        (f) => f.id === controlledId && f.team === myTeam && f.active && f.hp > 0,
+      );
+      const targetId = controlled && snapshot.manualTeams[myTeam] ? controlled.targetId : null;
       if (!settings.reducedMotion)
         this.layers.slice(0, 3).forEach((layer, i) => {
           layer.x = 600 + (cameraTarget - 600) * (0.004 + i * 0.003);
@@ -194,6 +216,7 @@ export function createArenaScene(
             v.sprite.setVisible(false);
             v.shadow.setVisible(false);
             v.ring.setVisible(false);
+            v.targetMarker.setVisible(false);
             v.label.setVisible(false);
             v.bars.clear();
           }
@@ -240,22 +263,19 @@ export function createArenaScene(
           .setVisible(!faint)
           .setPosition(x, ground + 2)
           .setScale(Math.max(0.45, 1 - y / 300));
-        const myTeam =
-          settings.mode === 'online'
-            ? (settings.lobby?.players.findIndex((p) => p.id === settings.sessionId) ?? -1)
-            : 0;
-        const selected =
-          f.team === myTeam && snapshot.manualTeams[f.team] && settings.selectedFighterId === f.id;
+        const selected = f.team === myTeam && snapshot.manualTeams[f.team] && controlledId === f.id;
+        const targeted = !faint && f.id === targetId;
         v.ring
           .setVisible(!faint)
           .setPosition(x, ground + 1)
           .setStrokeStyle(
-            selected ? 3 : 2,
-            selected ? 0xffe88c : f.team === 0 ? 0xf3d36e : 0xeeb4a2,
-            selected ? 0.95 : 0.55,
+            selected || targeted ? 3 : 2,
+            targeted ? 0xff4949 : selected ? 0xffe88c : f.team === 0 ? 0xf3d36e : 0xeeb4a2,
+            selected || targeted ? 0.95 : 0.55,
           )
-          .setScale(selected ? 1.35 : 1);
+          .setScale(selected || targeted ? 1.35 : 1);
         v.label.setVisible(!faint).setPosition(x, ground - 96 - y);
+        v.targetMarker.setVisible(targeted).setPosition(x, ground - 119 - y);
         const def = POKEMON[f.species];
         v.bars.clear();
         if (!faint) {

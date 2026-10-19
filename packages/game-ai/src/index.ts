@@ -41,10 +41,12 @@ export function decideMovement(
   f: Fighter,
   state: BattleSnapshot,
   preferredDistance = POKEMON[f.species].ai.preferredDistance,
+  targetId?: string | null,
 ): Extract<AIAction, { type: 'move' }> {
-  const target = state.fighters
-    .filter((v) => v.active && v.hp > 0 && v.team !== f.team)
-    .sort(
+  const enemies = state.fighters.filter((v) => v.active && v.hp > 0 && v.team !== f.team);
+  const target =
+    enemies.find((v) => v.id === targetId) ??
+    enemies.sort(
       (a, b) =>
         Math.hypot(a.x - f.x, a.depth - f.depth) - Math.hypot(b.x - f.x, b.depth - f.depth) ||
         a.id.localeCompare(b.id),
@@ -88,9 +90,10 @@ export function decideMovement(
 /** In manual mode AI handles positioning and the free basic attack only. */
 export function decideManualAction(f: Fighter, state: BattleSnapshot): AIAction {
   const basic = POKEMON[f.species].skills[0];
-  const target = state.fighters
-    .filter((v) => v.active && v.hp > 0 && v.team !== f.team)
-    .sort(
+  const enemies = state.fighters.filter((v) => v.active && v.hp > 0 && v.team !== f.team);
+  const target =
+    enemies.find((v) => v.id === f.targetId) ??
+    enemies.sort(
       (a, b) =>
         Math.hypot(a.x - f.x, a.depth - f.depth) - Math.hypot(b.x - f.x, b.depth - f.depth) ||
         a.id.localeCompare(b.id),
@@ -104,6 +107,7 @@ export function decideManualAction(f: Fighter, state: BattleSnapshot): AIAction 
     f,
     state,
     basic ? Math.min(POKEMON[f.species].ai.preferredDistance, basic.range * 0.8) : undefined,
+    f.targetId,
   );
 }
 
