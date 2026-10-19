@@ -244,7 +244,7 @@ export function RulesScreen() {
           <div className="form-divider" />
           <Toggle
             label="Elemental matchups"
-            description="Fire, water, grass, and electric types affect damage."
+            description="Fire, water, grass, electric, and poison types affect damage."
             checked={draft.elements}
             onChange={(elements) => update({ elements })}
           />

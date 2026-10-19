@@ -59,6 +59,30 @@ describe('manual battle commands', () => {
     expect(b.moveIntent).toBe(0);
     expect(b.cast).toBeNull();
   });
+  it('accepts Bulbasaur’s fifth skill through the manual command path', () => {
+    const e = initializeBattle(
+      {
+        rules: { ...DEFAULT_RULES, teamSize: 1, activeSize: 1, duration: 0 },
+        players: ['alice', 'bob'],
+        teams: [['bulbasaur'], ['charmander']],
+      },
+      5,
+    );
+    e.startBattle();
+    const [a, b] = e.state.fighters;
+    a.x = 400;
+    b.x = 620;
+    a.depth = b.depth = 0;
+    a.thinkIn = b.thinkIn = 100;
+    a.invulnerable = b.invulnerable = 0;
+    e.setManualMode('alice', true);
+    expect(e.command('alice', { type: 'skill', fighterId: a.id, skillId: 'sludge-bomb' })).toBe(
+      true,
+    );
+    expect(a.cast?.skillId).toBe('sludge-bomb');
+    step(e, 65);
+    expect(e.getBattleSnapshot().groundHazards).toHaveLength(1);
+  });
   it('moves automatically in manual mode and pauses movement while guarding', () => {
     const e = engine(),
       [a, b] = e.state.fighters;

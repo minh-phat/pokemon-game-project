@@ -80,8 +80,9 @@ test('API publishes configuration, detailed roster, arenas, and temporary identi
   const cfg = await (await request.get('http://localhost:3001/config')).json();
   expect(cfg.tickRate).toBe(60);
   const detail = await (await request.get('http://localhost:3001/pokemon/bulbasaur')).json();
-  expect(detail.skills).toHaveLength(4);
+  expect(detail.skills).toHaveLength(5);
   expect(detail.skills[3].id).toBe('solar-beam');
+  expect(detail.skills[4].id).toBe('sludge-bomb');
   expect((await request.get('http://localhost:3001/pokemon/missing')).status()).toBe(404);
   expect(await (await request.get('http://localhost:3001/arenas')).json()).toHaveLength(3);
   const a = await (await request.post('http://localhost:3001/identity')).json(),

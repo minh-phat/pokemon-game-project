@@ -35,6 +35,7 @@ export class BattleEngine {
   private accumulator = 0;
   private eventId = 0;
   private projectileId = 0;
+  private groundHazardId = 0;
   private selections = new Map<string, SpeciesId[]>();
   constructor(
     config: BattleConfig,
@@ -57,6 +58,7 @@ export class BattleEngine {
       rules: this.config.rules,
       fighters: [],
       projectiles: [],
+      groundHazards: [],
       events: [],
       result: null,
     };
@@ -211,6 +213,7 @@ export class BattleEngine {
     this.accumulator = 0;
     this.eventId = 0;
     this.projectileId = 0;
+    this.groundHazardId = 0;
   }
   private animate(f: Fighter, animation: AnimationName) {
     if (f.animation !== animation) {
@@ -316,6 +319,7 @@ export class BattleEngine {
       this.trySwitch(f);
     }
     this.resolveBodies();
+    this.groundHazardTick(dt);
     this.projectileTick(dt);
     this.deployReserves();
     const result = this.determineWinner();
@@ -323,6 +327,7 @@ export class BattleEngine {
       this.state.result = result;
       this.state.phase = 'finished';
       this.state.projectiles = [];
+      this.state.groundHazards = [];
       for (const f of this.state.fighters)
         if (f.hp > 0 && f.active) {
           f.cast = null;
@@ -667,15 +672,20 @@ export class BattleEngine {
       const targets = this.state.fighters
         .filter((f) => f.active && f.hp > 0 && f.team !== p.team)
         .sort((a, b) => Math.abs(a.x - p.previousX) - Math.abs(b.x - p.previousX));
+      const skill = SKILL_BY_ID[p.skillId];
+      let landed = false;
       for (const f of targets)
         if (overlaps(box, fighterBox(f)) && this.projectileCrosses(p, f)) {
           if (f.invulnerable <= 0) {
-            this.hit(owner, f, SKILL_BY_ID[p.skillId]);
+            this.hit(owner, f, skill);
+            if (skill.groundHazard) this.createGroundHazard(p, f.x, f.depth);
             p.life = 0;
+            landed = true;
             break;
           }
         }
-      const skill = SKILL_BY_ID[p.skillId];
+      if (!landed && skill.groundHazard && (p.life <= 0 || p.x <= -50 || p.x >= 1250))
+        this.createGroundHazard(p, p.x, p.depth ?? owner.depth);
       if (p.life > 0 && skill.electricAura) {
         const { reach, damageScale } = skill.electricAura;
         const aura = { ...p, width: p.width + reach * 2, height: p.height + reach * 2 };
@@ -696,6 +706,71 @@ export class BattleEngine {
     this.state.projectiles = this.state.projectiles.filter(
       (p) => p.life > 0 && p.x > -50 && p.x < 1250,
     );
+  }
+  private createGroundHazard(p: BattleSnapshot['projectiles'][number], x: number, depth: number) {
+    const config = SKILL_BY_ID[p.skillId].groundHazard;
+    if (!config) return;
+    const arena = ARENAS.find((value) => value.id === this.state.rules.arena)!;
+    this.state.groundHazards.push({
+      id: `h${++this.groundHazardId}`,
+      ownerId: p.ownerId,
+      team: p.team,
+      skillId: p.skillId,
+      x: Math.max(arena.bounds[0], Math.min(arena.bounds[1], x)),
+      depth: Math.max(arena.depthBounds[0], Math.min(arena.depthBounds[1], depth)),
+      radius: config.radius,
+      duration: config.duration,
+      pulse: 0,
+    });
+  }
+  private groundHazardTick(dt: number) {
+    for (const hazard of this.state.groundHazards) {
+      const skill = SKILL_BY_ID[hazard.skillId];
+      const config = skill.groundHazard!;
+      hazard.duration = Math.max(0, hazard.duration - dt);
+      hazard.pulse += dt;
+      if (hazard.pulse + 1e-9 < config.interval) continue;
+      hazard.pulse -= config.interval;
+      const source = this.state.fighters.find((fighter) => fighter.id === hazard.ownerId);
+      if (!source) continue;
+      for (const target of this.state.fighters) {
+        if (
+          !target.active ||
+          target.hp <= 0 ||
+          target.team === hazard.team ||
+          target.invulnerable > 0 ||
+          target.y > 8 ||
+          Math.hypot(target.x - hazard.x, target.depth - hazard.depth) >
+            hazard.radius + POKEMON[target.species].collision.width * 0.25
+        )
+          continue;
+        const shield = target.effects
+          .filter((effect) => effect.kind === 'shield')
+          .reduce((value, effect) => Math.max(value, effect.strength), 0);
+        const guard = Math.max(target.guarded ? BASIC_GUARD_REDUCTION : 0, shield);
+        const damage = Math.min(
+          target.hp,
+          calculateDamage(
+            config.damage,
+            POKEMON[source.species].attack,
+            POKEMON[target.species].defense,
+            skill.element,
+            POKEMON[target.species].element,
+            this.state.rules.elements,
+            guard,
+          ),
+        );
+        target.hp -= damage;
+        source.damageDealt += damage;
+        this.event('damage', target, `${skill.name} · pool`, {
+          value: damage,
+          targetId: source.id,
+          element: skill.element,
+        });
+        this.faint(target);
+      }
+    }
+    this.state.groundHazards = this.state.groundHazards.filter((hazard) => hazard.duration > 0);
   }
   private projectileCrosses(p: BattleSnapshot['projectiles'][number], f: Fighter) {
     // Slab intersection of the swept projectile with the ground-plane hitbox.

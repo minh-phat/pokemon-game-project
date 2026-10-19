@@ -172,6 +172,15 @@ export const SKILLS = {
     knockback: 200,
     usage: { minRange: 200, priority: 1.8 },
   }),
+  sludgeBomb: skill('sludge-bomb', 'Sludge Bomb', 'poison', 'projectile', 24, 30, 7, 440, {
+    description:
+      'Lob a toxic sludge bomb. The hit deals damage and leaves a wide poison pool for 5 seconds; a miss leaves the same pool where it lands.',
+    projectileSpeed: 430,
+    hitbox: { width: 34, height: 30, altitude: 27 },
+    knockback: 0,
+    groundHazard: { radius: 108, duration: 5, interval: 0.5, damage: 4 },
+    usage: { minRange: 100, priority: 1.55 },
+  }),
 };
 const animations = Object.fromEntries(
   ANIMATIONS.map((name, i) => [
@@ -293,7 +302,13 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
     dodgeCooldown: 2.3,
     attackRange: 170,
     collision: { width: 55, height: 45 },
-    skills: [SKILLS.vineWhip, SKILLS.razorLeaf, SKILLS.leechSeed, SKILLS.solarBeam],
+    skills: [
+      SKILLS.vineWhip,
+      SKILLS.razorLeaf,
+      SKILLS.leechSeed,
+      SKILLS.solarBeam,
+      SKILLS.sludgeBomb,
+    ],
     animations,
     ai: { aggression: 0.55, dodge: 0.7, guard: 0.25, preferredDistance: 330, retreat: 0.9 },
   },
@@ -306,12 +321,14 @@ export const ELEMENTS: Record<Element, { label: string; color: string; symbol: s
   fire: { label: 'Fire', color: '#f2966d', symbol: '♨' },
   water: { label: 'Water', color: '#79c8e8', symbol: '◉' },
   grass: { label: 'Grass', color: '#91cda3', symbol: '❧' },
+  poison: { label: 'Poison', color: '#bd7be7', symbol: '◈' },
 };
 export const EFFECTIVENESS: Partial<Record<Element, Partial<Record<Element, number>>>> = {
   electric: { water: 1.4, grass: 0.75, electric: 0.75 },
   fire: { grass: 1.4, water: 0.75, fire: 0.75 },
   water: { fire: 1.4, grass: 0.75, water: 0.75 },
   grass: { water: 1.4, fire: 0.75, grass: 0.75 },
+  poison: { grass: 1.4 },
 };
 export const ARENAS: ArenaDefinition[] = [
   {

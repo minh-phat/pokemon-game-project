@@ -324,7 +324,7 @@ export function createArenaScene(
           });
         }
         if (event.kind === 'skill') {
-          this.ambience.play(event.element ?? 'normal');
+          this.ambience.play(event.element === 'poison' ? 'water' : (event.element ?? 'normal'));
           const label = this.add
             .text(event.x, 407 + (event.depth ?? 0) - event.y, event.text, {
               fontFamily: 'system-ui',

@@ -8,6 +8,7 @@ type Effect = { sprite: Phaser.GameObjects.Sprite; key: string };
 export class SkillVfx {
   private attached = new Map<string, Effect>();
   private impacts: { sprite: Phaser.GameObjects.Sprite; remaining: number }[] = [];
+  private seenHazards = new Set<string>();
   private emitters = new Map<Element, Phaser.GameObjects.Particles.ParticleEmitter>();
   private particleClock = 0;
   private paused = false;
@@ -88,6 +89,39 @@ export class SkillVfx {
     const emit = !paused && !reduced && this.particleClock >= 35;
     if (emit) this.particleClock %= 35;
     const live = new Set<string>();
+    for (const hazard of snapshot.groundHazards ?? []) {
+      const id = `hazard-${hazard.id}`;
+      const age = SKILL_BY_ID[hazard.skillId].groundHazard!.duration - hazard.duration;
+      const appear = Math.max(0.25, Math.min(1, age / 0.18));
+      const fade = Math.min(1, hazard.duration / 0.55);
+      const y = 520 + hazard.depth + 4;
+      this.place(
+        id,
+        'skill-vfx-sludge-puddle',
+        hazard.x,
+        y,
+        hazard.radius * 2.3 * appear,
+        hazard.radius * 1.2 * appear,
+        0,
+      );
+      this.attached
+        .get(id)!
+        .sprite.setDepth(3)
+        .setAlpha((reduced ? 0.7 : 0.88) * fade);
+      live.add(id);
+      if (!this.seenHazards.has(hazard.id)) {
+        this.seenHazards.add(hazard.id);
+        if (!reduced) {
+          const splash = this.sprite('skill-vfx-sludge-impact')
+            .setPosition(hazard.x, y - 12)
+            .setDisplaySize(160, 92)
+            .setDepth(12);
+          if (paused) splash.anims.pause();
+          this.impacts.push({ sprite: splash, remaining: 400 });
+        }
+      }
+      if (emit) this.emitters.get('poison')!.emitParticleAt(hazard.x, y - 12, 2);
+    }
     for (const f of snapshot.fighters) {
       if (!f.active || f.hp <= 0) continue;
       const old = previous?.fighters.find((v) => v.id === f.id && v.active === f.active);
@@ -170,9 +204,11 @@ export class SkillVfx {
       const width =
         skill.id === 'solar-beam'
           ? 160
-          : skill.id === 'flame-burst'
-            ? 100
-            : Math.max(76, p.width * 2);
+          : skill.id === 'sludge-bomb'
+            ? 104
+            : skill.id === 'flame-burst'
+              ? 100
+              : Math.max(76, p.width * 2);
       const auraSize = skill.electricAura
         ? ((p.width + skill.electricAura.reach * 2) * 128) / 116
         : null;
@@ -182,9 +218,29 @@ export class SkillVfx {
         x,
         y,
         auraSize ?? width,
-        auraSize ?? Math.max(60, p.height * 2.3),
+        auraSize ?? (skill.id === 'sludge-bomb' ? 104 : Math.max(60, p.height * 2.3)),
         angle,
       );
+      if (skill.id === 'sludge-bomb' && !reduced) {
+        const speed = Math.hypot(p.vx, p.vDepth ?? 0) || 1;
+        for (let i = 1; i <= 2; i++) {
+          const trailId = `${id}-trail-${i}`;
+          this.place(
+            trailId,
+            'skill-vfx-sludge-trail',
+            x - (p.vx / speed) * i * 20,
+            y - ((p.vDepth ?? 0) / speed) * i * 20,
+            48 - i * 10,
+            48 - i * 10,
+            0,
+          );
+          this.attached
+            .get(trailId)!
+            .sprite.setAlpha(0.5 - i * 0.12)
+            .setDepth(11);
+          live.add(trailId);
+        }
+      }
       if (skill.id === 'electro-ball') {
         const orb = this.attached.get(id)!.sprite;
         orb.setRotation(this.reduced ? 0 : snapshot.elapsed * 0.8).setDepth(12);
@@ -252,17 +308,23 @@ export class SkillVfx {
 
   event(event: BattleEvent) {
     if (event.kind !== 'damage' && event.kind !== 'heal') return;
+    if (event.text.endsWith('· pool')) return;
     const element = event.kind === 'heal' ? 'grass' : (event.element ?? 'normal');
     const x = event.x,
       y = 492 + (event.depth ?? 0) - event.y;
     const electroBall = event.text.startsWith('Electro Ball');
+    const sludgeBomb = event.text.startsWith('Sludge Bomb');
     const sprite = this.sprite(
-      electroBall ? 'skill-vfx-electro-impact' : `skill-vfx-impact-${element}`,
+      electroBall
+        ? 'skill-vfx-electro-impact'
+        : sludgeBomb
+          ? 'skill-vfx-sludge-impact'
+          : `skill-vfx-impact-${element}`,
     )
       .setPosition(x, y)
       .setDisplaySize(
-        this.reduced ? 62 : electroBall ? 150 : 110,
-        this.reduced ? 62 : electroBall ? 150 : 110,
+        this.reduced ? 62 : electroBall ? 150 : sludgeBomb ? 128 : 110,
+        this.reduced ? 62 : electroBall ? 150 : sludgeBomb ? 128 : 110,
       );
     if (this.paused || this.reduced) sprite.anims.pause();
     if (this.reduced) sprite.setFrame(4).setAlpha(0.6);
@@ -276,6 +338,7 @@ export class SkillVfx {
     for (const impact of this.impacts) impact.sprite.destroy();
     for (const emitter of this.emitters.values()) emitter.destroy();
     this.attached.clear();
+    this.seenHazards.clear();
     this.impacts = [];
     this.emitters.clear();
   }

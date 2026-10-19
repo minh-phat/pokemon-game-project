@@ -49,6 +49,19 @@ new Phaser.Game({
         ],
         events: [],
         result: null,
+        groundHazards: [
+          {
+            id: 'preview-pool',
+            ownerId: 'preview',
+            team: 0,
+            skillId: 'sludge-bomb',
+            x: 855,
+            depth: 220,
+            radius: SKILL_BY_ID['sludge-bomb'].groundHazard!.radius,
+            duration: 4,
+            pulse: 0,
+          },
+        ],
         projectiles: skills.map((s, i) => ({
           id: s.id,
           ownerId: 'preview',
@@ -91,6 +104,20 @@ new Phaser.Game({
             frames: skills.map((s) => this.anims.get(`skill-vfx-${s.id}`).frames.length),
             sprites: this.children.list.filter((o) => o instanceof Phaser.GameObjects.Sprite)
               .length,
+            puddles: this.children.list.filter(
+              (o) =>
+                o instanceof Phaser.GameObjects.Sprite &&
+                o.texture.key === 'skill-vfx-sludge-puddle',
+            ).length,
+            sludgeBombs: this.children.list.filter(
+              (o) =>
+                o instanceof Phaser.GameObjects.Sprite && o.texture.key === 'skill-vfx-sludge-bomb',
+            ).length,
+            sludgeTrails: this.children.list.filter(
+              (o) =>
+                o instanceof Phaser.GameObjects.Sprite &&
+                o.texture.key === 'skill-vfx-sludge-trail',
+            ).length,
             particles: this.children.list
               .filter((o) => o instanceof Phaser.GameObjects.Particles.ParticleEmitter)
               .reduce(
@@ -118,7 +145,9 @@ new Phaser.Game({
         snapshot.fighters[0].aimX = Math.cos(controls.angle);
         snapshot.fighters[0].aimDepth = Math.sin(controls.angle);
         vfx.update(
-          controls.clear ? { ...snapshot, fighters: [], projectiles: [] } : snapshot,
+          controls.clear
+            ? { ...snapshot, fighters: [], projectiles: [], groundHazards: [] }
+            : snapshot,
           null,
           1,
           delta,

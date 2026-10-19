@@ -178,7 +178,119 @@ function pixelFire(c: Context, id: 'inferno-stream' | 'burning', frame: number) 
   }
 }
 
+function pixelSludge(
+  c: Context,
+  id: 'sludge-bomb' | 'sludge-trail' | 'sludge-impact' | 'sludge-puddle',
+  frame: number,
+) {
+  const cell = 4;
+  const block = (x: number, y: number, color: string, size = cell) => {
+    c.fillStyle = color;
+    c.fillRect(Math.round(x / cell) * cell, Math.round(y / cell) * cell, size, size);
+  };
+  const phase = (frame / FRAMES) * TAU;
+  c.imageSmoothingEnabled = false;
+  if (id === 'sludge-puddle') {
+    for (let y = 39; y <= 100; y += cell)
+      for (let x = 4; x <= 124; x += cell) {
+        const dx = (x - 64) / 55;
+        const dy = (y - 70) / 27;
+        const distance = Math.hypot(dx, dy);
+        const edge = 1 + Math.sin(x * 0.22 + y * 0.47) * 0.045;
+        if (distance > edge) continue;
+        block(
+          x,
+          y,
+          distance > 0.88
+            ? '#5f248c'
+            : distance > 0.71
+              ? '#a449d1'
+              : distance > 0.48
+                ? '#552276'
+                : '#291633',
+        );
+        if (distance < 0.78 && (x * 13 + y * 7) % 17 < 3) block(x, y, '#79329a');
+      }
+    for (let i = 0; i < 5; i++) {
+      const x = 31 + i * 17 + Math.sin(phase + i) * 2;
+      const y = 58 + ((i * 13) % 26) - Math.sin(phase * 2 + i) * 3;
+      const size = i % 2 ? 8 : 4;
+      block(x, y, '#a5d969', size);
+      block(x + cell, y + cell, '#4f8e62');
+    }
+    return;
+  }
+  if (id === 'sludge-impact') {
+    const radius = 12 + frame * 3.2;
+    for (let y = 4; y < 124; y += cell)
+      for (let x = 4; x < 124; x += cell) {
+        const d = Math.hypot(x - 64, (y - 64) * 1.35);
+        if (Math.abs(d - radius) < 5 && (x * 7 + y * 11 + frame) % 13 < 10)
+          block(x, y, frame < 5 ? '#d580ef' : '#773297');
+      }
+    for (let i = 0; i < 11; i++) {
+      const angle = (i / 11) * TAU;
+      const distance = 13 + frame * (1.5 + (i % 3) * 0.5);
+      block(
+        64 + Math.cos(angle) * distance,
+        64 + Math.sin(angle) * distance * 0.75,
+        i % 4 ? '#ae4bd4' : '#b2d976',
+        i % 3 ? 4 : 8,
+      );
+    }
+    return;
+  }
+  const trail = id === 'sludge-trail';
+  if (!trail) {
+    const radius = 28 + Math.sin(phase * 2) * 2;
+    for (let y = 30; y <= 98; y += cell)
+      for (let x = 28; x <= 100; x += cell) {
+        const d = Math.hypot(x - 64, y - 64);
+        const edge = radius + Math.sin(x * 0.45 + y * 0.31) * 2.5;
+        if (d > edge) continue;
+        block(
+          x,
+          y,
+          d > edge - 6
+            ? '#33153f'
+            : d > edge - 11
+              ? '#bc55dc'
+              : y < 55 && x < 71
+                ? '#a34ac8'
+                : '#57216e',
+        );
+      }
+    for (const [x, y] of [
+      [49, 45],
+      [53, 45],
+      [57, 49],
+      [48, 51],
+    ])
+      block(x, y, '#e59df1');
+    for (const [x, y] of [
+      [78, 49],
+      [82, 52],
+      [78, 55],
+    ])
+      block(x, y, '#b7dc70');
+  }
+  for (let i = 0; i < (trail ? 8 : 5); i++) {
+    const x = trail ? 33 + i * 9 : 20 + ((i * 17) % 90);
+    const y = trail ? 58 + Math.sin(i * 2 + phase) * 12 : 30 + ((i * 23) % 64);
+    block(x, y, i % 3 === 0 ? '#b0d76e' : '#a743ce', i % 4 === 0 ? 8 : 4);
+  }
+}
+
 function paint(c: Context, id: string, element: Element, frame: number) {
+  if (
+    id === 'sludge-bomb' ||
+    id === 'sludge-trail' ||
+    id === 'sludge-impact' ||
+    id === 'sludge-puddle'
+  ) {
+    pixelSludge(c, id, frame);
+    return;
+  }
   if (id === 'inferno-stream' || id === 'burning') {
     pixelFire(c, id, frame);
     return;
@@ -361,6 +473,8 @@ export function createSkillTextures(scene: Phaser.Scene) {
   for (const id of ['paralyzed', 'electro-charge', 'electro-trail', 'electro-impact'])
     definitions.push({ id, element: 'electric' });
   definitions.push({ id: 'burning', element: 'fire' });
+  for (const id of ['sludge-trail', 'sludge-impact', 'sludge-puddle'])
+    definitions.push({ id, element: 'poison' });
   for (const element of Object.keys(ELEMENTS) as Element[]) {
     definitions.push({ id: `charge-${element}`, element }, { id: `impact-${element}`, element });
   }
@@ -386,7 +500,7 @@ export function createSkillTextures(scene: Phaser.Scene) {
         c.restore();
       }
       const texture = scene.textures.addCanvas(key, canvas)!;
-      if (id === 'inferno-stream' || id === 'burning')
+      if (id === 'inferno-stream' || id === 'burning' || id.startsWith('sludge-'))
         texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
       for (let frame = 0; frame < FRAMES; frame++)
         texture.add(frame, 0, frame * SIZE, 0, SIZE, SIZE);
@@ -396,7 +510,8 @@ export function createSkillTextures(scene: Phaser.Scene) {
         key,
         frames: scene.anims.generateFrameNames(key, { start: 0, end: FRAMES - 1 }),
         frameRate: 30,
-        repeat: id.startsWith('impact-') || id === 'electro-impact' ? 0 : -1,
+        repeat:
+          id.startsWith('impact-') || id === 'electro-impact' || id === 'sludge-impact' ? 0 : -1,
       });
   }
   for (const element of Object.keys(ELEMENTS) as Element[]) {
@@ -409,7 +524,13 @@ export function createSkillTextures(scene: Phaser.Scene) {
     c.shadowColor = ELEMENTS[element].color;
     c.shadowBlur = 4;
     if (element === 'grass') leaf(c, 16, 16, -0.5, 10);
-    else if (element === 'water') {
+    else if (element === 'poison') {
+      c.imageSmoothingEnabled = false;
+      c.fillStyle = '#a44aca';
+      c.fillRect(8, 10, 12, 12);
+      c.fillStyle = '#c1dd7b';
+      c.fillRect(12, 10, 4, 4);
+    } else if (element === 'water') {
       glow(c, 16, 16, 11, '#69d7ff85');
       ring(c, 16, 16, 8, '#cafaff', 2);
     } else if (element === 'electric')

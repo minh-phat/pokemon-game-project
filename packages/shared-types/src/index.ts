@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const speciesIds = ['pikachu', 'charmander', 'squirtle', 'bulbasaur'] as const;
 export const SpeciesSchema = z.enum(speciesIds);
 export type SpeciesId = z.infer<typeof SpeciesSchema>;
-export type Element = 'normal' | 'electric' | 'fire' | 'water' | 'grass';
+export type Element = 'normal' | 'electric' | 'fire' | 'water' | 'grass' | 'poison';
 export const RulesSchema = z
   .object({
     teamSize: z.number().int().min(1).max(4),
@@ -113,6 +113,7 @@ export interface SkillDefinition {
   channel?: { interval: number; halfAngle: number };
   electricAura?: { reach: number; damageScale: number };
   movement?: { speed: number; duration: number };
+  groundHazard?: { radius: number; duration: number; interval: number; damage: number };
 }
 export interface PokemonDefinition {
   id: SpeciesId;
@@ -224,6 +225,17 @@ export interface Projectile {
   life: number;
   auraHitIds?: string[];
 }
+export interface GroundHazard {
+  id: string;
+  ownerId: string;
+  team: 0 | 1;
+  skillId: string;
+  x: number;
+  depth: number;
+  radius: number;
+  duration: number;
+  pulse: number;
+}
 export interface BattleEvent {
   id: number;
   tick: number;
@@ -257,6 +269,7 @@ export interface BattleSnapshot {
   manualTeams: [boolean, boolean];
   fighters: Fighter[];
   projectiles: Projectile[];
+  groundHazards: GroundHazard[];
   events: BattleEvent[];
   result: BattleResult | null;
 }

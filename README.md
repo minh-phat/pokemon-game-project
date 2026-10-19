@@ -36,7 +36,7 @@ npm start
 
 **Online:** choose Online 1v1, enter a trainer name, create a private room, configure rules, and confirm a team. Share the invitation link/code with a second browser or browser profile. The guest selects their own team. Both players click **Ready for battle**. Both teams run on the server's AI. Two rematch votes reopen the lobby after the result.
 
-**Rules:** 1–4 Pokémon per roster, 1–4 active fighters subject to roster size, 60/120/180 seconds or unlimited, three arenas, optional duplicates, optional elemental multipliers, and optional strategic reserve switching. Offline opponents have Easy/Normal/Hard reaction and decision modifiers. Online AI uses the same Normal tuning on both sides when they are in auto mode. Either trainer can switch to manual mode during a battle, select an active Pokémon, guard, dodge, jump, crouch, and use its four skills while AI keeps moving it and using its basic attack. Keyboard shortcuts for the selected Pokémon are Shift+WASD or Shift+arrow keys (directional dash, including diagonals), Shift alone (dash facing forward), Space (jump), C (crouch), G (toggle guard), and 1–4 (skills).
+**Rules:** 1–4 Pokémon per roster, 1–4 active fighters subject to roster size, 60/120/180 seconds or unlimited, three arenas, optional duplicates, optional elemental multipliers, and optional strategic reserve switching. Offline opponents have Easy/Normal/Hard reaction and decision modifiers. Online AI uses the same Normal tuning on both sides when they are in auto mode. Either trainer can switch to manual mode during a battle, select an active Pokémon, guard, dodge, jump, crouch, and use up to five skills while AI keeps moving it and using its basic attack. Keyboard shortcuts for the selected Pokémon are Shift+WASD or Shift+arrow keys (directional dash, including diagonals), Shift alone (dash facing forward), Space (jump), C (crouch), G (toggle guard), and 1–5 (skills).
 
 When a fighter faints, a reserve always enters if available. Strategic switching additionally permits a weakened fighter to retreat into reserve; it does not directly heal them. Elimination wins immediately. At the time limit, compare the sum of each surviving fighter's HP/maxHP, including reserves; surviving count breaks ties, then a draw. Thus a high-base-HP species has no automatic advantage in timer scoring.
 
@@ -45,8 +45,8 @@ An unexpected online disconnection pauses simulation for up to **30 seconds**. T
 ## Implemented
 
 - Home, mode selection, rule configuration, illustrated Pokédex/team builder, lobby, loading/countdown, live battle, results, and settings.
-- Four configured species, 16 working abilities, distinct combat preferences, 15 animation states per species, and 360 generated sprite frames.
-- Acceleration, gravity, jumping, body collision, dash/backstep, crouch/slide, Squirtle shell rolling, attack lunges, swept projectile collision, melee windows, knockback, stun, slows, shield, burn, and Leech Seed recovery.
+- Four configured species, 19 working abilities, distinct combat preferences, 15 animation states per species, and 360 generated sprite frames.
+- Acceleration, gravity, jumping, body collision, dash/backstep, crouch/slide, Squirtle shell rolling, attack lunges, swept projectile collision, melee windows, knockback, stun, slows, shield, burn, Leech Seed recovery, and Bulbasaur's five-second Sludge Bomb poison pool.
 - Utility decisions and finite states with reaction delays, imperfect projectile prediction, boundary checks, target selection, defensive actions, and seeded randomness.
 - Health, energy, cooldowns, reserve status, timer, floating damage, skill labels, an event feed, elemental VFX, ambient particles, optional audio, and reduced-motion settings.
 - Server-validated rules/teams/readiness, host authority, private invitation rooms, countdown, authoritative damage and results, 20 Hz snapshots, interpolation, reconnection, forfeit, expiry, and rematch.
