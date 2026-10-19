@@ -55,6 +55,7 @@ export class BattleEngine {
       elapsed: 0,
       phase: 'selection',
       manualTeams: [false, false],
+      controlledFighterIds: [null, null],
       rules: this.config.rules,
       fighters: [],
       projectiles: [],
@@ -117,6 +118,7 @@ export class BattleEngine {
       }),
     );
     this.state.phase = 'battle';
+    this.ensureControlledFighters();
     this.state.fighters
       .filter((f) => f.active)
       .forEach((f) => this.event('deploy', f, `${POKEMON[f.species].name} enters the arena`));
@@ -137,6 +139,7 @@ export class BattleEngine {
     const team = this.config.players.indexOf(playerId);
     if (team < 0 || this.state.phase !== 'battle') return false;
     this.state.manualTeams[team] = enabled;
+    this.ensureControlledFighters();
     for (const f of this.state.fighters.filter((v) => v.team === team)) {
       f.moveIntent = 0;
       f.moveDepth = 0;
@@ -146,6 +149,43 @@ export class BattleEngine {
     }
     return true;
   }
+  selectControlledFighter(playerId: string, fighterId: unknown): boolean {
+    const team = this.config.players.indexOf(playerId);
+    if (
+      team < 0 ||
+      this.state.phase !== 'battle' ||
+      !this.state.manualTeams[team] ||
+      typeof fighterId !== 'string'
+    )
+      return false;
+    const next = this.state.fighters.find((f) => f.id === fighterId);
+    if (!next || next.team !== team || !next.active || next.hp <= 0) return false;
+    if (this.state.controlledFighterIds[team] === fighterId) return true;
+    const previous = this.state.fighters.find(
+      (f) => f.id === this.state.controlledFighterIds[team],
+    );
+    if (previous) {
+      this.setGuard(previous, false);
+      previous.thinkIn = 0;
+    }
+    this.state.controlledFighterIds[team] = fighterId;
+    this.setGuard(next, false);
+    next.thinkIn = 0;
+    return true;
+  }
+  private ensureControlledFighters() {
+    for (const team of [0, 1] as const) {
+      const selected = this.state.fighters.find(
+        (f) => f.id === this.state.controlledFighterIds[team],
+      );
+      if (selected?.active && selected.hp > 0) continue;
+      this.state.controlledFighterIds[team] =
+        this.state.fighters.find((f) => f.team === team && f.active && f.hp > 0)?.id ?? null;
+    }
+  }
+  private isManuallyControlled(f: Fighter) {
+    return this.state.manualTeams[f.team] && this.state.controlledFighterIds[f.team] === f.id;
+  }
   command(playerId: string, value: unknown): boolean {
     const parsed = ManualBattleCommandSchema.safeParse(value);
     if (!parsed.success || this.state.phase !== 'battle') return false;
@@ -153,7 +193,8 @@ export class BattleEngine {
     if (team < 0 || !this.state.manualTeams[team]) return false;
     const command = parsed.data;
     const f = this.state.fighters.find((v) => v.id === command.fighterId);
-    if (!f || f.team !== team || !f.active || f.hp <= 0) return false;
+    if (!f || f.team !== team || !f.active || f.hp <= 0 || !this.isManuallyControlled(f))
+      return false;
     if (command.type === 'guard') return this.setGuard(f, command.active);
     if (command.type === 'dodge') {
       const x = command.mode === 'dash' ? (command.direction ?? f.facing) : f.facing;
@@ -244,6 +285,7 @@ export class BattleEngine {
     const dt = FIXED_DELTA;
     this.state.tick++;
     this.state.elapsed = this.state.tick * dt;
+    this.ensureControlledFighters();
     for (const f of this.state.fighters) {
       f.animationTime += dt;
       if (f.hp <= 0) continue;
@@ -296,7 +338,7 @@ export class BattleEngine {
         f.state = 'Stunned';
         this.animate(f, 'hit');
       } else if (f.cast) this.castTick(f, dt);
-      else if (f.actionTime === 0 && (!this.state.manualTeams[f.team] || !f.guarded)) {
+      else if (f.actionTime === 0 && (!this.isManuallyControlled(f) || !f.guarded)) {
         f.thinkIn -= dt;
         if (f.thinkIn <= 0) {
           const difficulty = this.config.aiTeams?.includes(f.team)
@@ -304,7 +346,7 @@ export class BattleEngine {
             : 'normal';
           this.act(
             f,
-            this.state.manualTeams[f.team]
+            this.isManuallyControlled(f)
               ? decideManualAction(f, this.state)
               : decideAction(f, this.state, this.rng, difficulty),
           );
@@ -322,6 +364,7 @@ export class BattleEngine {
     this.groundHazardTick(dt);
     this.projectileTick(dt);
     this.deployReserves();
+    this.ensureControlledFighters();
     const result = this.determineWinner();
     if (result) {
       this.state.result = result;
@@ -362,7 +405,7 @@ export class BattleEngine {
         f.guarded = false;
         f.state = 'Idle';
         this.animate(f, 'idle');
-        if (this.state.manualTeams[f.team]) f.thinkIn = 0;
+        if (this.isManuallyControlled(f)) f.thinkIn = 0;
       }
       return true;
     }
@@ -406,7 +449,7 @@ export class BattleEngine {
         Boolean(action.sprint) && f.stamina >= f.maxStamina * STAMINA_RULES.lowThreshold;
       f.state = action.state;
     }
-    if (action.type === 'skill') this.beginSkill(f, action.skillId, this.state.manualTeams[f.team]);
+    if (action.type === 'skill') this.beginSkill(f, action.skillId, this.isManuallyControlled(f));
     if (action.type === 'dodge' && action.mode !== 'guard')
       this.beginDodge(f, action.mode, action.direction, action.depthDirection);
   }
@@ -420,10 +463,10 @@ export class BattleEngine {
       this.state.phase !== 'battle' ||
       !f.active ||
       f.hp <= 0 ||
-      (f.cast && (!this.state.manualTeams[f.team] || !f.cast.autoBasic)) ||
+      (f.cast && (!this.isManuallyControlled(f) || !f.cast.autoBasic)) ||
       f.actionTime > 0 ||
       f.effects.some((e) => e.kind === 'stun') ||
-      (!this.state.manualTeams[f.team] && f.dodgeCooldown > 0) ||
+      (!this.isManuallyControlled(f) && f.dodgeCooldown > 0) ||
       f.y > 1 ||
       f.stamina < STAMINA_RULES.dodgeCost
     )
@@ -437,7 +480,7 @@ export class BattleEngine {
     f.moveIntent = 0;
     f.moveDepth = 0;
     f.vDepth = depthDirection * speed * (mode === 'dash' ? 2.8 : mode === 'jump' ? 1 : 0);
-    f.dodgeCooldown = this.state.manualTeams[f.team] ? 0 : def.dodgeCooldown;
+    f.dodgeCooldown = this.isManuallyControlled(f) ? 0 : def.dodgeCooldown;
     if (mode === 'jump') {
       f.vy = def.jumpStrength;
       f.vx = direction * speed;

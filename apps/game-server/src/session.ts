@@ -94,6 +94,11 @@ export class BattleSession {
     if (typeof value !== 'boolean' || !this.engine?.setManualMode(id, value))
       throw new Error('Manual mode is unavailable');
   }
+  selectFighter(id: string, value: unknown) {
+    this.player(id);
+    if (!this.engine?.selectControlledFighter(id, value))
+      throw new Error('Pokémon selection is unavailable');
+  }
   command(id: string, value: unknown) {
     this.player(id);
     if (!this.engine?.command(id, value)) throw new Error('Battle command is unavailable');

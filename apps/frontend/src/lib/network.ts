@@ -121,6 +121,20 @@ export function sendRoom(type: 'rules' | 'team' | 'ready' | 'rematch', value: un
 export function sendManualMode(enabled: boolean) {
   room?.send('manual-mode', enabled);
 }
+export function selectManualFighter(fighterId: string) {
+  const game = useGame.getState();
+  const team =
+    game.mode === 'online'
+      ? (game.lobby?.players.findIndex((p) => p.id === game.sessionId) ?? -1)
+      : 0;
+  const fighter = battleFeed.latest?.fighters.find((f) => f.id === fighterId);
+  if (!fighter || fighter.team !== team || !fighter.active || fighter.hp <= 0) return;
+  if (game.mode === 'online') {
+    if (!room) return;
+    room.send('select-fighter', fighterId);
+  } else if (!battleFeed.engine?.selectControlledFighter('you', fighterId)) return;
+  game.set({ selectedFighterId: fighterId });
+}
 export function sendBattleCommand(command: ManualBattleCommand) {
   room?.send('battle-command', command);
 }

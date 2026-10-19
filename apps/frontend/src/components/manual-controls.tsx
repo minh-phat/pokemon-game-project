@@ -55,8 +55,13 @@ export function ManualControls({
 }) {
   const heldDirections = useRef(new Set<string>());
   const shiftUsed = useRef(false);
+  const controlHeld = useRef(false);
+  const controlUsed = useRef(false);
   const active = snapshot.fighters.filter((f) => f.team === team && f.active && f.hp > 0);
-  const selected = active.find((f) => f.id === selectedId) ?? active[0];
+  const selected =
+    active.find((f) => f.id === selectedId) ??
+    active.find((f) => f.id === snapshot.controlledFighterIds[team]) ??
+    active[0];
   useEffect(() => {
     if (selected && selected.id !== selectedId) onSelect(selected.id);
   }, [selected?.id, selectedId, onSelect]);
@@ -80,9 +85,18 @@ export function ManualControls({
     selected.stamina >= STAMINA_RULES.dodgeCost;
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      const code = event.code;
+      if (code === 'ControlLeft' || code === 'ControlRight') {
+        if (!event.repeat) {
+          controlHeld.current = true;
+          controlUsed.current =
+            isTypingTarget(event.target) || event.altKey || event.metaKey || event.shiftKey;
+        }
+        return;
+      }
+      if (event.ctrlKey && controlHeld.current) controlUsed.current = true;
       if (!selected || disabled || event.altKey || event.ctrlKey || event.metaKey) return;
       if (isTypingTarget(event.target)) return;
-      const code = event.code;
       if (directionCodes.has(code)) {
         if (code.startsWith('Arrow')) event.preventDefault();
         heldDirections.current.add(code);
@@ -131,6 +145,22 @@ export function ManualControls({
         send({ type: 'skill', skillId: skill.id });
     };
     const onKeyUp = (event: KeyboardEvent) => {
+      if (event.code === 'ControlLeft' || event.code === 'ControlRight') {
+        const switchFighter =
+          controlHeld.current &&
+          !controlUsed.current &&
+          !disabled &&
+          !!selected &&
+          active.length > 1 &&
+          !isTypingTarget(event.target);
+        controlHeld.current = false;
+        controlUsed.current = false;
+        if (switchFighter) {
+          const index = active.findIndex((fighter) => fighter.id === selected.id);
+          onSelect(active[(index + 1) % active.length].id);
+        }
+        return;
+      }
       if (directionCodes.has(event.code)) heldDirections.current.delete(event.code);
       if (event.code !== 'ShiftLeft' && event.code !== 'ShiftRight') return;
       const wasUsed = shiftUsed.current;
@@ -141,16 +171,23 @@ export function ManualControls({
     const onBlur = () => {
       heldDirections.current.clear();
       shiftUsed.current = true;
+      controlHeld.current = false;
+      controlUsed.current = true;
+    };
+    const onPointerDown = () => {
+      if (controlHeld.current) controlUsed.current = true;
     };
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     window.addEventListener('blur', onBlur);
+    window.addEventListener('pointerdown', onPointerDown);
     return () => {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', onBlur);
+      window.removeEventListener('pointerdown', onPointerDown);
     };
-  }, [selected, disabled, canAct, canDodge, command]);
+  }, [active, selected, disabled, canAct, canDodge, command, onSelect]);
   if (!selected) return null;
   return (
     <section className="manual-controls panel" aria-label="Manual battle controls">
@@ -171,6 +208,11 @@ export function ManualControls({
             </span>
           </button>
         ))}
+        {active.length > 1 && (
+          <kbd className="manual-switch-hint" title="Press Ctrl to control the next Pokémon">
+            Ctrl
+          </kbd>
+        )}
       </div>
       <div className="manual-actions">
         <div className="manual-defense" role="group" aria-label="Defense controls">

@@ -21,6 +21,7 @@ new Phaser.Game({
         phase: 'battle',
         rules: DEFAULT_RULES,
         manualTeams: [false, false],
+        controlledFighterIds: [null, null],
         fighters: [
           {
             id: 'stream-preview',

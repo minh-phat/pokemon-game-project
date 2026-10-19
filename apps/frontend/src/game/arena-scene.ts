@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { ANIMATIONS, type Fighter, type MatchRules } from '@arena/shared-types';
 import { ARENAS, ASSETS, ELEMENTS, POKEMON, SKILL_BY_ID } from '@arena/game-data';
 import { battleFeed } from '@/lib/battle-feed';
+import { selectManualFighter } from '@/lib/network';
 import { useGame } from '@/lib/store';
 import { BattleAudio } from './audio';
 import { SkillVfx } from './skill-vfx';
@@ -152,7 +153,7 @@ export function createArenaScene(
           current?.active &&
           current.hp > 0
         )
-          game.set({ selectedFighterId: f.id });
+          selectManualFighter(f.id);
       });
       return visual;
     }

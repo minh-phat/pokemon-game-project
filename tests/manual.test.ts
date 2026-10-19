@@ -45,6 +45,78 @@ describe('manual battle commands', () => {
     step(e, 1);
     expect(a.thinkIn).toBeGreaterThan(0);
   });
+  it('lets unselected allies use the full AI and switches manual control between active Pokémon', () => {
+    const e = initializeBattle(
+      {
+        rules: { ...DEFAULT_RULES, teamSize: 2, activeSize: 2, duration: 0 },
+        players: ['alice', 'bob'],
+        teams: [
+          ['pikachu', 'charmander'],
+          ['squirtle', 'bulbasaur'],
+        ],
+      },
+      5,
+    );
+    e.startBattle();
+    const [pikachu, charmander, squirtle, bulbasaur] = e.state.fighters;
+    e.setManualMode('alice', true);
+    expect(e.state.controlledFighterIds[0]).toBe(pikachu.id);
+    expect(e.command('alice', guard(charmander.id))).toBe(false);
+    pikachu.x = 100;
+    charmander.x = 500;
+    squirtle.x = 650;
+    bulbasaur.x = 1100;
+    charmander.depth = squirtle.depth = 0;
+    pikachu.thinkIn = 100;
+    squirtle.thinkIn = bulbasaur.thinkIn = 100;
+    e.state.tick = 60;
+    step(e, 180);
+    expect(
+      e.state.events.some(
+        (event) =>
+          event.fighterId === charmander.id &&
+          event.kind === 'skill' &&
+          event.text !== POKEMON[charmander.species].skills[0].name,
+      ),
+    ).toBe(true);
+    expect(
+      e.state.events.some((event) => event.fighterId === pikachu.id && event.kind === 'skill'),
+    ).toBe(false);
+    expect(e.selectControlledFighter('bob', charmander.id)).toBe(false);
+    expect(e.selectControlledFighter('alice', squirtle.id)).toBe(false);
+    expect(e.selectControlledFighter('alice', 'missing')).toBe(false);
+    expect(e.selectControlledFighter('alice', charmander.id)).toBe(true);
+    expect(e.state.controlledFighterIds[0]).toBe(charmander.id);
+    expect(e.command('alice', guard(pikachu.id))).toBe(false);
+    charmander.cast = null;
+    charmander.actionTime = 0;
+    charmander.y = 0;
+    charmander.effects = [];
+    expect(e.command('alice', guard(charmander.id))).toBe(true);
+    expect(e.selectControlledFighter('alice', pikachu.id)).toBe(true);
+    expect(charmander.guarded).toBe(false);
+    expect(e.command('alice', guard(pikachu.id))).toBe(true);
+  });
+  it('hands manual control to another active Pokémon when the selected one faints', () => {
+    const e = initializeBattle(
+      {
+        rules: { ...DEFAULT_RULES, teamSize: 2, activeSize: 2, duration: 0 },
+        players: ['alice', 'bob'],
+        teams: [
+          ['pikachu', 'charmander'],
+          ['squirtle', 'bulbasaur'],
+        ],
+      },
+      5,
+    );
+    e.startBattle();
+    e.setManualMode('alice', true);
+    const [pikachu, charmander] = e.state.fighters;
+    pikachu.hp = 0;
+    step(e, 1);
+    expect(e.getBattleSnapshot().controlledFighterIds[0]).toBe(charmander.id);
+    expect(e.command('alice', guard(charmander.id))).toBe(true);
+  });
   it('rejects unknown players, opposing fighters, auto mode, and malformed commands', () => {
     const e = engine(),
       [a, b] = e.state.fighters;
@@ -312,5 +384,33 @@ describe('online manual authorization', () => {
     s.disconnected('a');
     expect(a.moveIntent).toBe(0);
     expect(s.engine!.state.manualTeams[0]).toBe(true);
+  });
+  it('authorizes control changes only for the owner and active allies', () => {
+    const s = session();
+    const a = s.engine!.state.fighters.find((f) => f.team === 0)!;
+    const b = s.engine!.state.fighters.find((f) => f.team === 1)!;
+    expect(() => s.selectFighter('stranger', a.id)).toThrow();
+    expect(() => s.selectFighter('a', b.id)).toThrow();
+    expect(() => s.selectFighter('a', 42)).toThrow();
+    expect(() => s.selectFighter('a', a.id)).not.toThrow();
+  });
+  it('applies online control changes to the next battle snapshot and command', () => {
+    const s = new BattleSession(
+      'ABCDEF',
+      { ...DEFAULT_RULES, teamSize: 2, activeSize: 2, duration: 60 },
+      7,
+    );
+    s.join('a', 'Alice');
+    s.join('b', 'Bob');
+    s.select('a', ['pikachu', 'charmander']);
+    s.select('b', ['squirtle', 'bulbasaur']);
+    s.ready('a', true);
+    s.ready('b', true);
+    for (let i = 0; i < 182; i++) s.tick(FIXED_DELTA);
+    const [first, second] = s.engine!.state.fighters;
+    s.selectFighter('a', second.id);
+    expect(s.engine!.getBattleSnapshot().controlledFighterIds[0]).toBe(second.id);
+    expect(() => s.command('a', guard(first.id))).toThrow();
+    expect(() => s.command('a', guard(second.id))).not.toThrow();
   });
 });

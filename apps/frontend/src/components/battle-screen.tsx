@@ -16,7 +16,7 @@ import { ARENAS, POKEMON, ROSTER } from '@arena/game-data';
 import type { Fighter, ManualBattleCommand, SpeciesId } from '@arena/shared-types';
 import { useGame } from '@/lib/store';
 import { battleFeed } from '@/lib/battle-feed';
-import { leaveRoom, sendBattleCommand, sendManualMode } from '@/lib/network';
+import { leaveRoom, selectManualFighter, sendBattleCommand, sendManualMode } from '@/lib/network';
 import { ManualControls } from './manual-controls';
 import { Button } from './ui/button';
 import { Portrait } from './common';
@@ -176,10 +176,6 @@ export function BattleScreen() {
   const manual = online ? Boolean(snapshot?.manualTeams[myTeam]) : offlineManual;
   const changeMode = () => {
     const enabled = !manual;
-    if (enabled && snapshot) {
-      const first = snapshot.fighters.find((f) => f.team === myTeam && f.active && f.hp > 0);
-      if (first) state.set({ selectedFighterId: first.id });
-    }
     if (online) sendManualMode(enabled);
     else if (battleFeed.engine?.setManualMode('you', enabled)) setOfflineManual(enabled);
   };
@@ -314,7 +310,7 @@ export function BattleScreen() {
             disabled={controlsDisabled}
             command={sendCommand}
             selectedId={state.selectedFighterId}
-            onSelect={(fighterId) => state.set({ selectedFighterId: fighterId })}
+            onSelect={selectManualFighter}
           />
         )}
         {!ready && (

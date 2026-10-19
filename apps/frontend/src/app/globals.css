@@ -2997,7 +2997,17 @@ select option {
 }
 .manual-picker {
   display: flex;
+  align-items: center;
   gap: 4px;
+}
+.manual-switch-hint {
+  padding: 3px 4px;
+  border: 1px solid #7d9276;
+  border-radius: 5px;
+  color: #c6d7bd;
+  font-family: inherit;
+  font-size: 9px;
+  line-height: 1;
 }
 .manual-pokemon {
   display: flex;

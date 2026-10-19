@@ -169,6 +169,15 @@ test('manual mode: select Pokémon, guard, dodge, cast, and return to auto', asy
   );
   const picker = page.getByRole('group', { name: 'Choose active Pokémon' });
   await expect(picker.getByRole('button')).toHaveCount(2);
+  const pikachu = picker.getByRole('button', { name: /Pikachu/ });
+  const charmander = picker.getByRole('button', { name: /Charmander/ });
+  await expect(pikachu).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Control');
+  await expect(charmander).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Control+c');
+  await expect(charmander).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Control');
+  await expect(pikachu).toHaveAttribute('aria-pressed', 'true');
   await picker.getByRole('button', { name: /Charmander/ }).click();
   await expect(page.getByRole('button', { name: /Flamethrower/ })).toBeVisible();
   await picker.getByRole('button', { name: /Pikachu/ }).click();

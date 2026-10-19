@@ -267,6 +267,7 @@ export interface BattleSnapshot {
   phase: 'selection' | 'battle' | 'finished';
   rules: MatchRules;
   manualTeams: [boolean, boolean];
+  controlledFighterIds: [string | null, string | null];
   fighters: Fighter[];
   projectiles: Projectile[];
   groundHazards: GroundHazard[];
