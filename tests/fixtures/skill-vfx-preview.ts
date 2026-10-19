@@ -2,12 +2,12 @@ import Phaser from 'phaser';
 import { SKILL_BY_ID } from '@arena/game-data';
 import { createSkillTextures } from '../../apps/frontend/src/game/skill-textures';
 import { SkillVfx } from '../../apps/frontend/src/game/skill-vfx';
-import { DEFAULT_RULES, type BattleSnapshot } from '@arena/shared-types';
+import { DEFAULT_RULES, type BattleSnapshot, type Fighter } from '@arena/shared-types';
 
 new Phaser.Game({
   type: Phaser.CANVAS,
   width: 1000,
-  height: 660,
+  height: 1000,
   backgroundColor: '#172d30',
   scene: {
     create() {
@@ -21,7 +21,32 @@ new Phaser.Game({
         phase: 'battle',
         rules: DEFAULT_RULES,
         manualTeams: [false, false],
-        fighters: [],
+        fighters: [
+          {
+            id: 'stream-preview',
+            active: true,
+            hp: 180,
+            x: 280,
+            depth: 338,
+            y: 0,
+            aimX: 1,
+            aimDepth: 0,
+            cast: { skillId: 'inferno-stream', elapsed: 1.2, fired: 1, hitIds: [] },
+            effects: [],
+          } as unknown as Fighter,
+          {
+            id: 'burn-preview',
+            active: true,
+            hp: 180,
+            x: 720,
+            depth: 338,
+            y: 0,
+            aimX: -1,
+            aimDepth: 0,
+            cast: null,
+            effects: [{ kind: 'burn', duration: 4, strength: 3 }],
+          } as unknown as Fighter,
+        ],
         events: [],
         result: null,
         projectiles: skills.map((s, i) => ({
@@ -48,7 +73,17 @@ new Phaser.Game({
           })
           .setOrigin(0.5),
       );
-      const controls = { paused: false, reduced: false, clear: false };
+      this.add.text(35, 965, 'INFERNO STREAM · FULL CAST', {
+        fontFamily: 'sans-serif',
+        fontSize: '18px',
+        color: '#fff0c2',
+      });
+      this.add.text(655, 900, 'BURN STATUS', {
+        fontFamily: 'sans-serif',
+        fontSize: '18px',
+        color: '#fff0c2',
+      });
+      const controls = { paused: false, reduced: false, clear: false, angle: 0 };
       Object.assign(window, {
         vfxPreview: {
           controls,
@@ -68,12 +103,22 @@ new Phaser.Game({
                 (o) => o instanceof Phaser.GameObjects.Sprite,
               ) as Phaser.GameObjects.Sprite
             )?.frame.name,
+            streamRotation: (
+              this.children.list.find(
+                (o) =>
+                  o instanceof Phaser.GameObjects.Sprite &&
+                  o.texture.key === 'skill-vfx-inferno-stream' &&
+                  o.displayWidth > 200,
+              ) as Phaser.GameObjects.Sprite | undefined
+            )?.rotation,
           }),
         },
       });
       this.events.on('update', (_time: number, delta: number) => {
+        snapshot.fighters[0].aimX = Math.cos(controls.angle);
+        snapshot.fighters[0].aimDepth = Math.sin(controls.angle);
         vfx.update(
-          controls.clear ? { ...snapshot, projectiles: [] } : snapshot,
+          controls.clear ? { ...snapshot, fighters: [], projectiles: [] } : snapshot,
           null,
           1,
           delta,

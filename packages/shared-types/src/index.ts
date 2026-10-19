@@ -110,6 +110,7 @@ export interface SkillDefinition {
   sfx: string;
   usage: { minRange: number; priority: number; belowHP?: number };
   events: { at: number; kind: 'hit' | 'projectile' | 'buff' }[];
+  channel?: { interval: number; halfAngle: number };
   electricAura?: { reach: number; damageScale: number };
   movement?: { speed: number; duration: number };
 }
@@ -164,6 +165,7 @@ export interface Cast {
   elapsed: number;
   fired: number;
   hitIds: string[];
+  channelTicks?: number;
   autoBasic?: boolean;
 }
 export interface Fighter {

@@ -26,10 +26,14 @@ test('all skill sprites animate, emit particles, pause, reduce motion, and clean
       content: await readFile(join(output, 'skill-vfx-preview.global.js'), 'utf8'),
     });
     const inspect = () => page.evaluate(() => (window as any).vfxPreview.inspect());
-    await expect.poll(async () => (await inspect())?.sprites).toBe(16);
-    expect((await inspect()).frames).toEqual(Array(16).fill(12));
+    await expect.poll(async () => (await inspect())?.sprites).toBe(24);
+    expect((await inspect()).frames).toEqual(Array(18).fill(12));
     await expect.poll(async () => (await inspect()).particles).toBeGreaterThan(0);
     await page.screenshot({ path: 'test-results/skill-vfx-preview.png' });
+    await page.evaluate(() => {
+      (window as any).vfxPreview.controls.angle = Math.PI / 2;
+    });
+    await expect.poll(async () => (await inspect()).streamRotation).toBeGreaterThan(1.4);
     await page.evaluate(() => {
       (window as any).vfxPreview.controls.paused = true;
     });

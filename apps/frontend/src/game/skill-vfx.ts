@@ -103,6 +103,16 @@ export class SkillVfx {
         live.add(statusId);
         if (emit) this.emitters.get('electric')!.emitParticleAt(x, y, 2);
       }
+      if (f.effects.some((effect) => effect.kind === 'burn')) {
+        const statusId = `burning-${f.id}`;
+        this.place(statusId, 'skill-vfx-burning', x, y - 22, 78, 94, 0);
+        this.attached
+          .get(statusId)!
+          .sprite.setAlpha(this.reduced ? 0.55 : 0.8)
+          .setDepth(11);
+        live.add(statusId);
+        if (emit) this.emitters.get('fire')!.emitParticleAt(x, y - 30, 2);
+      }
       if (!f.cast) continue;
       const skill = SKILL_BY_ID[f.cast.skillId];
       const charge = f.cast.elapsed < skill.startup;
@@ -112,19 +122,34 @@ export class SkillVfx {
       const id = `cast-${f.id}`;
       const electroCharge = charge && skill.id === 'electro-ball';
       const directional = !charge && skill.behavior !== 'buff';
-      const angle = Math.atan2(f.aimDepth, f.aimX);
+      const stream = skill.id === 'inferno-stream' && !charge;
+      const targetAngle = Math.atan2(f.aimDepth, f.aimX);
+      const oldAngle = old ? Math.atan2(old.aimDepth, old.aimX) : targetAngle;
+      const angle = stream
+        ? oldAngle +
+          Math.atan2(Math.sin(targetAngle - oldAngle), Math.cos(targetAngle - oldAngle)) * alpha
+        : targetAngle;
       const length = directional ? skill.range : 76;
-      const center = directional ? length * 0.45 : 0;
+      const center = directional ? length * (stream ? 0.54 : 0.45) : 0;
       this.place(
         id,
         `skill-vfx-${electroCharge ? 'electro-charge' : charge ? `charge-${skill.element}` : skill.id}`,
         x + Math.cos(angle) * center,
         y + Math.sin(angle) * center,
-        electroCharge ? 112 : length * (directional ? 1.2 : 1),
-        electroCharge ? 112 : skill.behavior === 'area' && !charge ? 100 : 80,
+        electroCharge ? 112 : length * (directional ? (stream ? 1.08 : 1.2) : 1),
+        electroCharge ? 112 : stream ? 310 : skill.behavior === 'area' && !charge ? 100 : 80,
         directional ? angle : 0,
       );
       live.add(id);
+      if (stream && emit)
+        for (const distance of [0.28, 0.55, 0.82])
+          this.emitters
+            .get('fire')!
+            .emitParticleAt(
+              x + Math.cos(angle) * skill.range * distance,
+              y + Math.sin(angle) * skill.range * distance,
+              3,
+            );
       if (emit)
         this.emitters
           .get(skill.element)!

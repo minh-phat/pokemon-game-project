@@ -269,10 +269,19 @@ export class BattleEngine {
             Math.hypot(a.x - f.x, a.depth - f.depth) - Math.hypot(b.x - f.x, b.depth - f.depth),
         )[0];
       f.targetId = target?.id ?? null;
-      if (target && !f.cast && f.actionTime === 0) {
+      if (target && f.actionTime === 0 && (!f.cast || SKILL_BY_ID[f.cast.skillId].channel)) {
         const distance = Math.hypot(target.x - f.x, target.depth - f.depth) || 1;
-        f.aimX = (target.x - f.x) / distance;
-        f.aimDepth = (target.depth - f.depth) / distance;
+        const angle = Math.atan2(target.depth - f.depth, target.x - f.x);
+        if (f.cast) {
+          const current = Math.atan2(f.aimDepth, f.aimX);
+          const difference = Math.atan2(Math.sin(angle - current), Math.cos(angle - current));
+          const turn = Math.max(-7.5 * dt, Math.min(7.5 * dt, difference));
+          f.aimX = Math.cos(current + turn);
+          f.aimDepth = Math.sin(current + turn);
+        } else {
+          f.aimX = (target.x - f.x) / distance;
+          f.aimDepth = (target.depth - f.depth) / distance;
+        }
         if (Math.abs(f.aimX) > 0.01) f.facing = f.aimX >= 0 ? 1 : -1;
       }
       if (stunned) {
@@ -507,9 +516,29 @@ export class BattleEngine {
           f.effects.push(...s.effects.map((e) => ({ ...e, sourceId: f.id })));
       }
     });
-    // Melee active windows are sampled each fixed tick and hit each target once.
+    if (s.channel) {
+      // A channel samples the cone at a fixed cadence, so targets can enter or leave it.
+      while (
+        (cast.channelTicks ?? 0) * s.channel.interval < s.active - 1e-9 &&
+        cast.elapsed + 1e-9 >= s.startup + (cast.channelTicks ?? 0) * s.channel.interval
+      ) {
+        cast.channelTicks = (cast.channelTicks ?? 0) + 1;
+        for (const target of this.state.fighters)
+          if (
+            target.active &&
+            target.hp > 0 &&
+            target.team !== f.team &&
+            this.coneHits(f, target, s)
+          )
+            this.hit(f, target, s);
+      }
+    }
+    // Ordinary melee active windows hit each target once.
     const hitEvents = s.events.filter((e) => e.kind === 'hit');
-    if (hitEvents.some((e) => cast.elapsed >= e.at && cast.elapsed <= e.at + s.active)) {
+    if (
+      !s.channel &&
+      hitEvents.some((e) => cast.elapsed >= e.at && cast.elapsed <= e.at + s.active)
+    ) {
       for (const target of this.state.fighters)
         if (
           target.active &&
@@ -538,6 +567,20 @@ export class BattleEngine {
       forward >= -radius &&
       forward <= skill.range + radius &&
       side <= skill.hitbox.width / 2 + radius &&
+      overlaps(meleeBox({ ...f, x: 0, facing: 1 }, skill), fighterBox({ ...target, x: forward }))
+    );
+  }
+  private coneHits(f: Fighter, target: Fighter, skill: SkillDefinition) {
+    const dx = target.x - f.x,
+      dz = target.depth - f.depth;
+    const forward = dx * f.aimX + dz * f.aimDepth;
+    const side = Math.abs(dx * f.aimDepth - dz * f.aimX);
+    const radius = POKEMON[target.species].collision.width / 2;
+    return (
+      forward >= -radius &&
+      forward <= skill.range + radius &&
+      side <=
+        Math.max(0, forward) * Math.tan((skill.channel!.halfAngle * Math.PI) / 180) + radius &&
       overlaps(meleeBox({ ...f, x: 0, facing: 1 }, skill), fighterBox({ ...target, x: forward }))
     );
   }

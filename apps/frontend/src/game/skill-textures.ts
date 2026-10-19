@@ -1,4 +1,4 @@
-import type * as Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { ELEMENTS, SKILL_BY_ID } from '@arena/game-data';
 import type { Element } from '@arena/shared-types';
 
@@ -119,7 +119,70 @@ function electricArt(c: Context, id: string, frame: number) {
   }
 }
 
+function pixelFire(c: Context, id: 'inferno-stream' | 'burning', frame: number) {
+  const cell = 4;
+  const stream = id === 'inferno-stream';
+  const colors = ['#571b2e', '#9e2731', '#e54827', '#ff8728', '#ffc447', '#fff3b0'];
+  const hash = (x: number, y: number) => ((x * 37 + y * 71 + frame * 19) % 23) / 23;
+  c.imageSmoothingEnabled = false;
+  if (stream) {
+    for (let px = 1; px < 32; px++) {
+      const reach = px / 31;
+      const center =
+        16 +
+        Math.sin(px * 0.39 - frame * 0.52) * reach * 1.15 +
+        Math.sin(px * 0.83 + frame * 0.31) * reach * 0.5;
+      const radius = 0.8 + reach * 10.2;
+      const coreCenter = center + Math.sin(px * 0.64 + frame * 0.7) * reach * 0.85;
+      for (let py = 1; py < 31; py++) {
+        const edge = Math.abs(py - center) / radius;
+        const grain = hash(px, py);
+        if (edge < 1.18 && grain > 0.32) {
+          c.fillStyle = '#4e192980';
+          c.fillRect(px * cell, (py + 1) * cell, cell, cell);
+        }
+        if (edge > 1 + (grain - 0.5) * 0.18) continue;
+        const shade = edge > 0.88 ? 1 : edge > 0.7 ? 2 : edge > 0.47 ? 3 : edge > 0.25 ? 4 : 5;
+        c.fillStyle = colors[shade]!;
+        c.fillRect(px * cell, py * cell, cell, cell);
+        // A separate hot ribbon travels inside the darker outer plume.
+        if (Math.abs(py - coreCenter) < radius * 0.24 && grain > 0.18) {
+          c.fillStyle = grain > 0.64 ? '#ffffff' : '#fff8c6';
+          c.fillRect(px * cell, py * cell, cell, cell);
+        }
+      }
+    }
+  } else {
+    for (let px = 8; px < 24; px++) {
+      const distance = Math.abs(px - 15.5);
+      const tip = 5 + distance * 2.2 + Math.sin(px * 1.1 - frame * 0.65) * 2.5;
+      for (let py = Math.max(1, Math.ceil(tip)); py < 29; py++) {
+        const grain = hash(px, py);
+        const edge = distance / 8;
+        const shade = edge > 0.78 ? 1 : edge > 0.58 ? 2 : edge > 0.34 ? 3 : 4;
+        c.fillStyle = colors[shade + (grain > 0.82 && shade < 5 ? 1 : 0)]!;
+        c.fillRect(px * cell, py * cell, cell, cell);
+      }
+    }
+  }
+  // Detached square embers preserve the silhouette and give the flame depth in motion.
+  for (let i = 0; i < (stream ? 32 : 18); i++) {
+    const px = stream ? 5 + ((i * 23 + frame * 5) % 27) : 8 + ((i * 11 + frame * 3) % 16);
+    const spread = stream ? 2 + (px / 31) * 11 : 9 + ((i * 3) % 8);
+    const py = stream
+      ? 16 + (i % 2 ? 1 : -1) * (spread + 1 + ((i * 7 + frame) % 5))
+      : 2 + ((i * 13 + frame * 2) % 17);
+    if (py < 1 || py > 30) continue;
+    c.fillStyle = i % 4 === 0 ? '#fff4bc' : i % 3 === 0 ? '#ffb43b' : '#e9512b';
+    c.fillRect(px * cell, py * cell, i % 6 === 0 ? 8 : cell, cell);
+  }
+}
+
 function paint(c: Context, id: string, element: Element, frame: number) {
+  if (id === 'inferno-stream' || id === 'burning') {
+    pixelFire(c, id, frame);
+    return;
+  }
   const t = frame / FRAMES,
     phase = t * TAU;
   const color = ELEMENTS[element].color;
@@ -297,6 +360,7 @@ export function createSkillTextures(scene: Phaser.Scene) {
   const definitions = Object.values(SKILL_BY_ID).map((s) => ({ id: s.id, element: s.element }));
   for (const id of ['paralyzed', 'electro-charge', 'electro-trail', 'electro-impact'])
     definitions.push({ id, element: 'electric' });
+  definitions.push({ id: 'burning', element: 'fire' });
   for (const element of Object.keys(ELEMENTS) as Element[]) {
     definitions.push({ id: `charge-${element}`, element }, { id: `impact-${element}`, element });
   }
@@ -322,6 +386,8 @@ export function createSkillTextures(scene: Phaser.Scene) {
         c.restore();
       }
       const texture = scene.textures.addCanvas(key, canvas)!;
+      if (id === 'inferno-stream' || id === 'burning')
+        texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
       for (let frame = 0; frame < FRAMES; frame++)
         texture.add(frame, 0, frame * SIZE, 0, SIZE, SIZE);
     }
