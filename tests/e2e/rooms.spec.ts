@@ -74,6 +74,24 @@ test('expired reconnection grace produces a server-authoritative forfeit', async
   expect(second.battle!.result!.winner).toBe(1);
   await b.leave();
 });
+test('continuous PvP movement does not exhaust the room operation limit', async () => {
+  const { a, b, first } = await pair();
+  a.send('team', ['pikachu']);
+  b.send('team', ['squirtle']);
+  a.send('ready', true);
+  b.send('ready', true);
+  await expect.poll(() => first.battle?.phase).toBe('battle');
+  const fighterId = first.battle!.controlledFighterIds[0]!;
+  for (let i = 0; i < 40; i++) {
+    a.send('battle-command', { type: 'move', fighterId, direction: 1, depthDirection: 0 });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  a.send('battle-command', { type: 'move', fighterId, direction: 0, depthDirection: 0 });
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  expect(first.errors).toEqual([]);
+  await a.leave();
+  await b.leave();
+});
 test('API publishes configuration, detailed roster, arenas, and temporary identities', async ({
   request,
 }) => {

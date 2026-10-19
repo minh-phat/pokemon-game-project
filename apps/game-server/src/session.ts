@@ -14,6 +14,7 @@ export class BattleSession {
   engine: BattleEngine | null = null;
   lastActivity = Date.now();
   private operations = new Map<string, { tokens: number; time: number }>();
+  private movements = new Map<string, { tokens: number; time: number }>();
   constructor(
     code: string,
     rules: unknown = DEFAULT_RULES,
@@ -58,6 +59,19 @@ export class BattleSession {
     p.tokens--;
     this.operations.set(id, p);
     this.lastActivity = now;
+  }
+  allowMovement(id: string, now = Date.now()) {
+    const p = this.movements.get(id) ?? { tokens: 20, time: now };
+    p.tokens = Math.min(20, p.tokens + ((now - p.time) / 1000) * 20);
+    p.time = now;
+    if (p.tokens < 1) {
+      this.movements.set(id, p);
+      return false;
+    }
+    p.tokens--;
+    this.movements.set(id, p);
+    this.lastActivity = now;
+    return true;
   }
   rules(id: string, value: unknown) {
     this.player(id);
@@ -154,6 +168,7 @@ export class BattleSession {
       });
     }
     this.operations.delete(id);
+    this.movements.delete(id);
     this.lastActivity = Date.now();
   }
   rematch(id: string) {

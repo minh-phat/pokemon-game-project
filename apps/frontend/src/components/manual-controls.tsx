@@ -133,6 +133,9 @@ export function ManualControls({
   const controlHeld = useRef(false);
   const controlUsed = useRef(false);
   const stick = useRef({ direction: 0, depthDirection: 0 });
+  const lastMovementSent = useRef(-Infinity);
+  const commandRef = useRef(command);
+  commandRef.current = command;
   const [stickPosition, setStickPosition] = useState({ direction: 0, depthDirection: 0 });
   const active = snapshot.fighters.filter((f) => f.team === team && f.active && f.hp > 0);
   const enemies = snapshot.fighters.filter((f) => f.team !== team && f.active && f.hp > 0);
@@ -148,7 +151,17 @@ export function ManualControls({
   }, [selected?.id, selectedId, onSelect]);
   const fighterId = selected?.id;
   const send = (value: ManualInput) => {
-    if (fighterId && !disabled) command({ ...value, fighterId } as ManualBattleCommand);
+    if (fighterId && !disabled) commandRef.current({ ...value, fighterId } as ManualBattleCommand);
+  };
+  const movementDirection = () =>
+    Math.hypot(stick.current.direction, stick.current.depthDirection) > 0.08
+      ? stick.current
+      : dodgeDirection(heldDirections.current);
+  const sendMovement = (force = false) => {
+    const now = performance.now();
+    if (!force && now - lastMovementSent.current < 90) return;
+    lastMovementSent.current = now;
+    send({ type: 'move', ...movementDirection() });
   };
   const moveStick = (event: ReactPointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -159,23 +172,23 @@ export function ManualControls({
     const next = { direction: x / length, depthDirection: y / length };
     stick.current = next;
     setStickPosition(next);
-    send({ type: 'move', ...next });
+    sendMovement();
   };
   const releaseStick = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.currentTarget.hasPointerCapture(event.pointerId))
       event.currentTarget.releasePointerCapture(event.pointerId);
     stick.current = { direction: 0, depthDirection: 0 };
     setStickPosition(stick.current);
-    send({ type: 'move', direction: 0, depthDirection: 0 });
+    sendMovement(true);
   };
   useEffect(() => {
     if (disabled) return;
     const timer = window.setInterval(() => {
-      if (Math.hypot(stick.current.direction, stick.current.depthDirection) > 0.08 && fighterId)
-        command({ type: 'move', fighterId, ...stick.current });
+      const direction = movementDirection();
+      if (Math.hypot(direction.direction, direction.depthDirection) > 0.08) sendMovement();
     }, 100);
     return () => window.clearInterval(timer);
-  }, [command, disabled, fighterId]);
+  }, [disabled, fighterId]);
   const switchTarget = () => {
     if (!selected || disabled || enemies.length < 2) return;
     const index = enemies.findIndex((f) => f.id === selected.targetId);
@@ -212,6 +225,7 @@ export function ManualControls({
       if (directionCodes.has(code)) {
         if (code.startsWith('Arrow')) event.preventDefault();
         heldDirections.current.add(code);
+        if (!event.repeat) sendMovement(true);
         if (event.shiftKey) {
           event.preventDefault();
           shiftUsed.current = true;
@@ -278,7 +292,10 @@ export function ManualControls({
         }
         return;
       }
-      if (directionCodes.has(event.code)) heldDirections.current.delete(event.code);
+      if (directionCodes.has(event.code)) {
+        heldDirections.current.delete(event.code);
+        sendMovement(true);
+      }
       if (event.code !== 'ShiftLeft' && event.code !== 'ShiftRight') return;
       const wasUsed = shiftUsed.current;
       shiftUsed.current = false;
@@ -287,6 +304,9 @@ export function ManualControls({
     };
     const onBlur = () => {
       heldDirections.current.clear();
+      stick.current = { direction: 0, depthDirection: 0 };
+      setStickPosition(stick.current);
+      sendMovement(true);
       shiftUsed.current = true;
       controlHeld.current = false;
       controlUsed.current = true;
@@ -308,6 +328,7 @@ export function ManualControls({
   if (!selected) return null;
   return (
     <section className="manual-controls panel" aria-label="Manual battle controls">
+      <span className="manual-move-hint">Move: WASD / arrow keys</span>
       <span className="manual-target" aria-live="polite">
         Target: <strong>{target ? POKEMON[target.species].name : 'None'}</strong>
       </span>

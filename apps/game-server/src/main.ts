@@ -22,9 +22,17 @@ class ArenaRoom extends Room {
     const operation = (type: string, fn: (client: Client, value: unknown) => void) =>
       this.onMessage(type, (client, value: unknown) => {
         try {
-          this.session.rateLimit(client.sessionId);
+          const movement =
+            type === 'battle-command' &&
+            typeof value === 'object' &&
+            value !== null &&
+            'type' in value &&
+            value.type === 'move';
+          if (movement) {
+            if (!this.session.allowMovement(client.sessionId)) return;
+          } else this.session.rateLimit(client.sessionId);
           fn(client, value);
-          this.publish();
+          if (!movement) this.publish();
         } catch (error) {
           client.send('error', error instanceof Error ? error.message : 'Invalid operation');
         }

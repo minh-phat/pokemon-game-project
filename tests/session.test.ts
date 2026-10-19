@@ -95,6 +95,10 @@ describe('authoritative room policy', () => {
     for (let i = 0; i < 20; i++) s.rateLimit('a', 1000);
     expect(() => s.rateLimit('a', 1000)).toThrow(/Too many/);
     expect(() => s.rateLimit('a', 2000)).not.toThrow();
+    for (let i = 0; i < 40; i++) expect(s.allowMovement('a', 1000 + i * 100)).toBe(true);
+    expect(() => s.rateLimit('a', 2000)).not.toThrow();
+    for (let i = 0; i < 30; i++) s.allowMovement('b', 1000);
+    expect(s.allowMovement('b', 1000)).toBe(false);
     s.lastActivity = 1000;
     expect(s.expired(600999)).toBe(false);
     expect(s.expired(601001)).toBe(true);

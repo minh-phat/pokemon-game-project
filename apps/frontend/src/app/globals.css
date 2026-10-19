@@ -3004,6 +3004,11 @@ select option {
   font-size: 12px;
   white-space: nowrap;
 }
+.manual-move-hint {
+  color: #d7e1c8;
+  font-size: 10px;
+  white-space: nowrap;
+}
 .manual-target strong {
   color: #ff7777;
 }
@@ -3217,7 +3222,8 @@ select option {
     -webkit-tap-highlight-color: transparent;
   }
   .manual-controls kbd,
-  .manual-desktop-label {
+  .manual-desktop-label,
+  .manual-move-hint {
     display: none;
   }
   .manual-touch-icon {
