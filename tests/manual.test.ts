@@ -171,6 +171,22 @@ describe('manual battle commands', () => {
     expect(b.moveIntent).toBe(0);
     expect(b.cast).toBeNull();
   });
+  it('moves with a manual stick command, then stops when the stick is released', () => {
+    const e = engine();
+    e.setManualMode('alice', true);
+    const fighter = e.state.fighters[0];
+    fighter.thinkIn = 100;
+    const start = fighter.x;
+    expect(
+      e.command('alice', { type: 'move', fighterId: fighter.id, direction: 1, depthDirection: 0 }),
+    ).toBe(true);
+    step(e, 12);
+    expect(fighter.x).toBeGreaterThan(start);
+    expect(
+      e.command('alice', { type: 'move', fighterId: fighter.id, direction: 0, depthDirection: 0 }),
+    ).toBe(true);
+    expect(fighter.moveIntent).toBe(0);
+  });
   it('accepts Bulbasaur’s fifth skill through the manual command path', () => {
     const e = initializeBattle(
       {

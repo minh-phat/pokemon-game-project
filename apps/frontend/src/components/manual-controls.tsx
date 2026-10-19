@@ -1,9 +1,84 @@
 'use client';
-import { useEffect, useRef } from 'react';
-import { POKEMON } from '@arena/game-data';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
+import {
+  ArrowDownToLine,
+  ArrowUp,
+  Bomb,
+  CircleDot,
+  Crosshair,
+  Droplets,
+  Flame,
+  Footprints,
+  Leaf,
+  Orbit,
+  PawPrint,
+  Shield,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  Sun,
+  Swords,
+  Waves,
+  Wind,
+  Zap,
+  type LucideIcon,
+} from 'lucide-react';
+import { ELEMENTS, POKEMON } from '@arena/game-data';
 import { STAMINA_RULES, type BattleSnapshot, type ManualBattleCommand } from '@arena/shared-types';
 import { Portrait } from './common';
-import { Button } from './ui/button';
+import { Button, type ButtonProps } from './ui/button';
+
+const skillControls: Record<string, { icon: LucideIcon; label: string }> = {
+  'quick-attack': { icon: Swords, label: 'Quick' },
+  thunderbolt: { icon: Zap, label: 'Bolt' },
+  'electro-ball': { icon: CircleDot, label: 'Orb' },
+  'thunder-wave': { icon: Waves, label: 'Wave' },
+  'volt-tackle': { icon: Footprints, label: 'Volt' },
+  scratch: { icon: Swords, label: 'Scratch' },
+  ember: { icon: Flame, label: 'Ember' },
+  flamethrower: { icon: Wind, label: 'Flame' },
+  'flame-burst': { icon: Bomb, label: 'Burst' },
+  'inferno-stream': { icon: Flame, label: 'Inferno' },
+  tackle: { icon: Swords, label: 'Tackle' },
+  'water-gun': { icon: Droplets, label: 'Water' },
+  'bubble-beam': { icon: Waves, label: 'Bubble' },
+  'rapid-spin': { icon: Orbit, label: 'Spin' },
+  'vine-whip': { icon: Leaf, label: 'Vine' },
+  'razor-leaf': { icon: Leaf, label: 'Razor' },
+  'leech-seed': { icon: Sparkles, label: 'Seed' },
+  'solar-beam': { icon: Sun, label: 'Solar' },
+  'sludge-bomb': { icon: Bomb, label: 'Sludge' },
+  'eevee-strike': { icon: PawPrint, label: 'Paw' },
+  swift: { icon: Star, label: 'Swift' },
+  'shadow-step': { icon: Footprints, label: 'Step' },
+  'counter-pounce': { icon: ShieldCheck, label: 'Counter' },
+  'starfall-rush': { icon: Sparkles, label: 'Starfall' },
+};
+
+// Fire on contact so a second finger can act while the first holds the joystick.
+function ControlButton({ onClick, ...props }: ButtonProps) {
+  const touchedAt = useRef(-Infinity);
+  return (
+    <Button
+      {...props}
+      onPointerDown={(event) => {
+        if (event.pointerType === 'mouse' || props.disabled) return;
+        event.preventDefault();
+        touchedAt.current = performance.now();
+        onClick?.(event);
+      }}
+      onClick={(event) => {
+        if (event.detail === 0 || performance.now() - touchedAt.current > 750) onClick?.(event);
+      }}
+    />
+  );
+}
 
 type ManualInput = ManualBattleCommand extends infer T
   ? T extends ManualBattleCommand
@@ -57,6 +132,8 @@ export function ManualControls({
   const shiftUsed = useRef(false);
   const controlHeld = useRef(false);
   const controlUsed = useRef(false);
+  const stick = useRef({ direction: 0, depthDirection: 0 });
+  const [stickPosition, setStickPosition] = useState({ direction: 0, depthDirection: 0 });
   const active = snapshot.fighters.filter((f) => f.team === team && f.active && f.hp > 0);
   const enemies = snapshot.fighters.filter((f) => f.team !== team && f.active && f.hp > 0);
   const selected =
@@ -73,6 +150,32 @@ export function ManualControls({
   const send = (value: ManualInput) => {
     if (fighterId && !disabled) command({ ...value, fighterId } as ManualBattleCommand);
   };
+  const moveStick = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const radius = bounds.width / 2;
+    const x = (event.clientX - bounds.left - radius) / radius;
+    const y = (event.clientY - bounds.top - radius) / radius;
+    const length = Math.max(1, Math.hypot(x, y));
+    const next = { direction: x / length, depthDirection: y / length };
+    stick.current = next;
+    setStickPosition(next);
+    send({ type: 'move', ...next });
+  };
+  const releaseStick = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    stick.current = { direction: 0, depthDirection: 0 };
+    setStickPosition(stick.current);
+    send({ type: 'move', direction: 0, depthDirection: 0 });
+  };
+  useEffect(() => {
+    if (disabled) return;
+    const timer = window.setInterval(() => {
+      if (Math.hypot(stick.current.direction, stick.current.depthDirection) > 0.08 && fighterId)
+        command({ type: 'move', fighterId, ...stick.current });
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [command, disabled, fighterId]);
   const switchTarget = () => {
     if (!selected || disabled || enemies.length < 2) return;
     const index = enemies.findIndex((f) => f.id === selected.targetId);
@@ -209,7 +312,9 @@ export function ManualControls({
         Target: <strong>{target ? POKEMON[target.species].name : 'None'}</strong>
       </span>
       {enemies.length > 1 && (
-        <Button
+        <ControlButton
+          className="manual-target-switch"
+          aria-label="Switch target"
           variant="outline"
           size="sm"
           type="button"
@@ -217,8 +322,13 @@ export function ManualControls({
           disabled={disabled}
           onClick={switchTarget}
         >
-          Switch target <kbd aria-hidden="true">T</kbd>
-        </Button>
+          <Crosshair className="manual-touch-icon" aria-hidden="true" />
+          <span className="manual-desktop-label">Switch target</span>
+          <span className="manual-touch-label" aria-hidden="true">
+            Target
+          </span>
+          <kbd aria-hidden="true">T</kbd>
+        </ControlButton>
       )}
       <div className="manual-picker" role="group" aria-label="Choose active Pokémon">
         {active.map((f) => (
@@ -244,19 +354,47 @@ export function ManualControls({
         )}
       </div>
       <div className="manual-actions">
+        <div className="manual-joystick" role="group" aria-label="Movement joystick">
+          <div
+            className="manual-stick-area"
+            role="img"
+            aria-label="Drag to move; hold a direction and tap Dash to dodge that way"
+            onPointerDown={(event) => {
+              if (disabled) return;
+              event.currentTarget.setPointerCapture(event.pointerId);
+              moveStick(event);
+            }}
+            onPointerMove={(event) => {
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) moveStick(event);
+            }}
+            onPointerUp={releaseStick}
+            onPointerCancel={releaseStick}
+          >
+            <span
+              className="manual-stick-knob"
+              style={{
+                transform: `translate(${stickPosition.direction * 30}px, ${stickPosition.depthDirection * 30}px)`,
+              }}
+            />
+          </div>
+          <span>Move + Dash</span>
+        </div>
         <div className="manual-defense" role="group" aria-label="Defense controls">
-          <Button
+          <ControlButton
+            className="manual-dash"
             variant="outline"
             size="sm"
             type="button"
             aria-label="Dash · 15"
             title="Dash · 15 stamina · Shift + WASD or arrow keys to choose a direction"
             disabled={!canDodge}
-            onClick={() => send({ type: 'dodge', mode: 'dash' })}
+            onClick={() => send({ type: 'dodge', mode: 'dash', ...stick.current })}
           >
-            Dash <kbd aria-hidden="true">Shift+WASD/↑↓←→</kbd>
-          </Button>
-          <Button
+            <Wind className="manual-touch-icon" aria-hidden="true" />
+            <span>Dash</span> <kbd aria-hidden="true">Shift+WASD/↑↓←→</kbd>
+          </ControlButton>
+          <ControlButton
+            className="manual-jump"
             variant="outline"
             size="sm"
             type="button"
@@ -265,9 +403,11 @@ export function ManualControls({
             disabled={!canDodge}
             onClick={() => send({ type: 'dodge', mode: 'jump' })}
           >
-            Jump <kbd aria-hidden="true">Space</kbd>
-          </Button>
-          <Button
+            <ArrowUp className="manual-touch-icon" aria-hidden="true" />
+            <span>Jump</span> <kbd aria-hidden="true">Space</kbd>
+          </ControlButton>
+          <ControlButton
+            className="manual-crouch"
             variant="outline"
             size="sm"
             type="button"
@@ -276,9 +416,11 @@ export function ManualControls({
             disabled={!canDodge}
             onClick={() => send({ type: 'dodge', mode: 'crouch' })}
           >
-            Crouch <kbd aria-hidden="true">C</kbd>
-          </Button>
-          <Button
+            <ArrowDownToLine className="manual-touch-icon" aria-hidden="true" />
+            <span>Crouch</span> <kbd aria-hidden="true">C</kbd>
+          </ControlButton>
+          <ControlButton
+            className="manual-guard"
             variant={selected.guarded ? 'default' : 'outline'}
             size="sm"
             type="button"
@@ -288,14 +430,24 @@ export function ManualControls({
             disabled={disabled || (!canAct && !selected.guarded)}
             onClick={() => send({ type: 'guard', active: !selected.guarded })}
           >
-            {selected.guarded ? 'Release' : 'Guard'} <kbd aria-hidden="true">G</kbd>
-          </Button>
+            <Shield className="manual-touch-icon" aria-hidden="true" />
+            <span>{selected.guarded ? 'Release' : 'Guard'}</span> <kbd aria-hidden="true">G</kbd>
+          </ControlButton>
         </div>
         <div className="manual-skills" role="group" aria-label="Skill controls">
           {POKEMON[selected.species].skills.map((skill, index) => {
             const remaining = selected.cooldowns[skill.id] ?? 0;
+            const control = skillControls[skill.id] ?? { icon: Sparkles, label: skill.name };
+            const Icon = control.icon;
             return (
-              <Button
+              <ControlButton
+                className={`manual-skill manual-skill-${index + 1} ${remaining > 0 ? 'is-cooling' : ''}`}
+                style={
+                  {
+                    '--skill-color': ELEMENTS[skill.element].color,
+                    '--cooldown-angle': `${Math.min(1, remaining / skill.cooldown) * 360}deg`,
+                  } as CSSProperties
+                }
                 key={skill.id}
                 variant="outline"
                 size="sm"
@@ -305,10 +457,16 @@ export function ManualControls({
                 title={`${skill.name}: ${skill.energy} energy · ${skill.cooldown}s cooldown · ${index + 1}`}
                 onClick={() => send({ type: 'skill', skillId: skill.id })}
               >
-                <span>{skill.name}</span>
-                {remaining > 0 && <small>{remaining.toFixed(1)}s</small>}
+                <Icon className="manual-touch-icon" aria-hidden="true" />
+                <span className="manual-desktop-label">{skill.name}</span>
+                <span className="manual-touch-label" aria-hidden="true">
+                  {control.label}
+                </span>
+                {remaining > 0 && (
+                  <small className="manual-cooldown">{remaining.toFixed(1)}s</small>
+                )}
                 <kbd aria-hidden="true">{index + 1}</kbd>
-              </Button>
+              </ControlButton>
             );
           })}
         </div>

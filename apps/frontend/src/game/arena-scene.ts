@@ -231,6 +231,24 @@ export function createArenaScene(
         (f) => f.id === controlledId && f.team === myTeam && f.active && f.hp > 0,
       );
       const targetId = controlled && snapshot.manualTeams[myTeam] ? controlled.targetId : null;
+      const canvasParent = this.game.canvas.parentElement;
+      if (canvasParent && canvasParent.clientWidth / canvasParent.clientHeight < 1200 / 760) {
+        const visibleWidth = (760 * canvasParent.clientWidth) / canvasParent.clientHeight;
+        const target = snapshot.fighters.find((f) => f.id === controlled?.targetId && f.active);
+        const center = controlled
+          ? target && Math.abs(target.x - controlled.x) < visibleWidth * 0.65
+            ? (controlled.x + target.x) / 2
+            : controlled.x
+          : cameraTarget;
+        const clamped = Phaser.Math.Clamp(center, visibleWidth / 2, 1200 - visibleWidth / 2);
+        this.cameras.main.scrollX = Phaser.Math.Linear(
+          this.cameras.main.scrollX,
+          clamped - 600,
+          settings.reducedMotion ? 1 : 0.12,
+        );
+      } else {
+        this.cameras.main.scrollX = 0;
+      }
       if (!settings.reducedMotion)
         this.layers.slice(0, 3).forEach((layer, i) => {
           layer.x = 600 + (cameraTarget - 600) * (0.004 + i * 0.003);

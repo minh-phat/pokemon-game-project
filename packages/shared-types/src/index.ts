@@ -320,6 +320,14 @@ export const STAMINA_RULES = {
 export const ManualBattleCommandSchema = z.discriminatedUnion('type', [
   z
     .object({
+      type: z.literal('move'),
+      fighterId: z.string().min(1),
+      direction: z.number().finite().min(-1).max(1),
+      depthDirection: z.number().finite().min(-1).max(1),
+    })
+    .strict(),
+  z
+    .object({
       type: z.literal('target'),
       fighterId: z.string().min(1),
       targetId: z.string().min(1),

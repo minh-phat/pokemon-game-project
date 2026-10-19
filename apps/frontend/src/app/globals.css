@@ -3051,6 +3051,11 @@ select option {
   flex-wrap: wrap;
   gap: 4px;
 }
+.manual-joystick,
+.manual-touch-icon,
+.manual-touch-label {
+  display: none;
+}
 .manual-actions .button {
   min-height: 34px;
   padding: 6px 8px;
@@ -3079,27 +3084,6 @@ select option {
   font-size: 9px;
   opacity: 0.8;
 }
-@media (max-width: 760px) {
-  .manual-controls {
-    position: relative;
-    inset: auto;
-    width: 100%;
-    max-width: none;
-    border: 0;
-    border-top: 1px solid #647858;
-    border-radius: 0;
-    box-shadow: none;
-    backdrop-filter: none;
-    background: #1d3029;
-    opacity: 1;
-  }
-}
-@media (max-width: 600px) {
-  .manual-defense .button {
-    flex: 1 1 auto;
-  }
-}
-
 /* The battle opens as a viewport-sized arena. Match details remain below it. */
 .battle-page {
   position: fixed;
@@ -3118,9 +3102,17 @@ select option {
 .battle-page .battle-canvas {
   position: absolute;
   inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
   width: 100%;
   height: 100%;
   aspect-ratio: auto;
+}
+.battle-page .battle-canvas canvas {
+  max-width: none !important;
+  flex: none;
 }
 .arena-toolbar {
   position: absolute;
@@ -3189,17 +3181,226 @@ select option {
     align-items: center;
     justify-content: center;
   }
+}
+
+/* Touch controls sit in thumb reach; the space between them stays playable. */
+@media (any-pointer: coarse), (max-width: 1024px) {
   .battle-page .manual-controls {
     position: absolute;
-    inset: auto max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom))
-      max(8px, env(safe-area-inset-left));
+    inset: auto max(12px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom))
+      max(12px, env(safe-area-inset-left));
+    display: block;
     width: auto;
+    height: 234px;
     max-width: none;
-    max-height: 42dvh;
-    overflow-y: auto;
-    border: 1px solid #647858a6;
-    border-radius: 10px;
-    background: #172b25e8;
-    box-shadow: 0 5px 18px #0c191575;
+    max-height: none;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    opacity: 1;
+    overflow: visible;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .manual-controls button,
+  .manual-stick-area {
+    pointer-events: auto;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .manual-controls kbd,
+  .manual-desktop-label {
+    display: none;
+  }
+  .manual-touch-icon {
+    display: block;
+    width: 20px;
+    height: 20px;
+    flex: none;
+  }
+  .manual-touch-label {
+    display: block;
+  }
+  .manual-actions,
+  .manual-defense,
+  .manual-skills {
+    display: contents;
+  }
+  .manual-target {
+    position: absolute;
+    left: 0;
+    bottom: 120px;
+    width: 104px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 10px;
+    text-shadow: 0 1px 3px #000;
+  }
+  .manual-picker {
+    position: absolute;
+    left: 0;
+    bottom: 144px;
+    width: 104px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .manual-controls .manual-pokemon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #142b27e8;
+  }
+  .manual-controls .manual-pokemon img {
+    width: 34px;
+    height: 34px;
+  }
+  .manual-joystick {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: #edf4e3;
+    font-size: 9px;
+    text-shadow: 0 1px 3px #000;
+  }
+  .manual-stick-area {
+    display: grid;
+    place-items: center;
+    width: 104px;
+    height: 104px;
+    border: 2px solid #c3d4b77a;
+    border-radius: 50%;
+    background: #152a2466;
+    box-shadow: inset 0 0 0 16px #d2dfbe0f;
+  }
+  .manual-stick-knob {
+    width: 40px;
+    height: 40px;
+    border: 2px solid #e7e6bb;
+    border-radius: 50%;
+    background: #d1dfb9b3;
+    box-shadow: 0 2px 8px #08171180;
+    pointer-events: none;
+  }
+  .manual-controls .manual-actions .button,
+  .manual-controls .manual-target-switch {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    min-height: 50px;
+    min-width: 50px;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border: 1px solid #c2d5c29e;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 20%, #456457ed, #142b27ed);
+    box-shadow:
+      0 2px 8px #07191070,
+      inset 0 0 0 2px #e3ecd510;
+    color: #f5f5e7;
+    font-size: 9px;
+    line-height: 1.1;
+    white-space: nowrap;
+    transition:
+      transform 100ms,
+      box-shadow 100ms,
+      opacity 100ms;
+  }
+  .manual-controls .manual-actions .button:active:not(:disabled),
+  .manual-controls .manual-target-switch:active:not(:disabled) {
+    transform: scale(0.93);
+    box-shadow: 0 0 0 3px #f5df8c80;
+  }
+  .manual-controls .manual-actions .button:disabled {
+    opacity: 0.55;
+  }
+  .manual-controls .manual-actions .button[aria-pressed='true'] {
+    border-color: #ffe58c;
+    background: #5d5729ed;
+    box-shadow: 0 0 0 2px #ffe58c70;
+  }
+  .manual-controls .manual-actions .manual-dash {
+    right: 0;
+    bottom: 0;
+    width: 58px;
+    height: 58px;
+    border: 2px solid #efd888;
+    background: radial-gradient(circle at 35% 20%, #76704bed, #353e2bed);
+  }
+  .manual-guard {
+    right: 64px;
+    bottom: 0;
+  }
+  .manual-jump {
+    right: 124px;
+    bottom: 0;
+  }
+  .manual-crouch {
+    right: 124px;
+    bottom: 58px;
+  }
+  .manual-controls .manual-actions .manual-skill-1 {
+    right: 0;
+    bottom: 64px;
+    width: 58px;
+    height: 58px;
+  }
+  .manual-skill-2 {
+    right: 64px;
+    bottom: 64px;
+  }
+  .manual-skill-3 {
+    right: 124px;
+    bottom: 122px;
+  }
+  .manual-skill-4 {
+    right: 64px;
+    bottom: 180px;
+  }
+  .manual-skill-5 {
+    right: 0;
+    bottom: 122px;
+  }
+  .manual-target-switch {
+    right: 124px;
+    bottom: 180px;
+  }
+  .manual-controls .manual-actions .manual-skill {
+    border-color: var(--skill-color);
+  }
+  .manual-skill .manual-touch-icon {
+    color: var(--skill-color);
+  }
+  .manual-controls .manual-actions .is-cooling {
+    opacity: 0.85;
+    background: conic-gradient(#071c20eb var(--cooldown-angle), #486158ed 0);
+  }
+  .manual-skill.is-cooling .manual-touch-icon {
+    visibility: hidden;
+  }
+  .manual-skills .manual-cooldown {
+    position: absolute;
+    top: 9px;
+    margin: 0;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    color: white;
+    opacity: 1;
+  }
+}
+@media (min-width: 768px) and (any-pointer: coarse) {
+  .battle-page .manual-controls {
+    left: max(28px, env(safe-area-inset-left));
+    right: max(28px, env(safe-area-inset-right));
+    bottom: max(24px, env(safe-area-inset-bottom));
   }
 }

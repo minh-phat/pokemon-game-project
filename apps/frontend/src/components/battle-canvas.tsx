@@ -33,7 +33,8 @@ export function BattleCanvas({
           height: 760,
           backgroundColor: '#28443c',
           scene: Scene,
-          scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+          // Cover the viewport on narrow screens while keeping the arena's aspect ratio.
+          scale: { mode: Phaser.Scale.ENVELOP, autoCenter: Phaser.Scale.CENTER_BOTH },
           render: { antialias: true, pixelArt: false },
           audio: { noAudio: true },
           banner: false,

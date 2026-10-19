@@ -37,6 +37,10 @@ export class BattleEngine {
   private projectileId = 0;
   private groundHazardId = 0;
   private selections = new Map<string, SpeciesId[]>();
+  private manualMovement = new Map<
+    string,
+    { direction: number; depthDirection: number; until: number }
+  >();
   constructor(
     config: BattleConfig,
     readonly seed: number,
@@ -139,6 +143,8 @@ export class BattleEngine {
     const team = this.config.players.indexOf(playerId);
     if (team < 0 || this.state.phase !== 'battle') return false;
     this.state.manualTeams[team] = enabled;
+    for (const f of this.state.fighters.filter((v) => v.team === team))
+      this.manualMovement.delete(f.id);
     this.ensureControlledFighters();
     for (const f of this.state.fighters.filter((v) => v.team === team)) {
       f.moveIntent = 0;
@@ -165,6 +171,7 @@ export class BattleEngine {
       (f) => f.id === this.state.controlledFighterIds[team],
     );
     if (previous) {
+      this.manualMovement.delete(previous.id);
       this.setGuard(previous, false);
       previous.thinkIn = 0;
     }
@@ -195,6 +202,28 @@ export class BattleEngine {
     const f = this.state.fighters.find((v) => v.id === command.fighterId);
     if (!f || f.team !== team || !f.active || f.hp <= 0 || !this.isManuallyControlled(f))
       return false;
+    if (command.type === 'move') {
+      const length = Math.max(1, Math.hypot(command.direction, command.depthDirection));
+      const direction = command.direction / length;
+      const depthDirection = command.depthDirection / length;
+      if (Math.hypot(direction, depthDirection) < 0.08) {
+        this.manualMovement.delete(f.id);
+        f.moveIntent = 0;
+        f.moveDepth = 0;
+      } else {
+        this.manualMovement.set(f.id, {
+          direction,
+          depthDirection,
+          until: this.state.elapsed + 0.3,
+        });
+        this.setGuard(f, false);
+        f.moveIntent = direction;
+        f.moveDepth = depthDirection;
+        f.sprinting = false;
+        f.state = 'Chase';
+      }
+      return true;
+    }
     if (command.type === 'target') {
       const target = this.state.fighters.find((v) => v.id === command.targetId);
       if (!target || target.team === team || !target.active || target.hp <= 0) return false;
@@ -353,12 +382,23 @@ export class BattleEngine {
           const difficulty = this.config.aiTeams?.includes(f.team)
             ? this.config.rules.difficulty
             : 'normal';
-          this.act(
-            f,
-            this.isManuallyControlled(f)
-              ? decideManualAction(f, this.state)
-              : decideAction(f, this.state, this.rng, difficulty),
-          );
+          const movement = this.isManuallyControlled(f) ? this.manualMovement.get(f.id) : undefined;
+          if (movement && movement.until > this.state.elapsed)
+            this.act(f, {
+              type: 'move',
+              direction: movement.direction,
+              depthDirection: movement.depthDirection,
+              state: 'Chase',
+            });
+          else {
+            if (movement) this.manualMovement.delete(f.id);
+            this.act(
+              f,
+              this.isManuallyControlled(f)
+                ? decideManualAction(f, this.state)
+                : decideAction(f, this.state, this.rng, difficulty),
+            );
+          }
           f.thinkIn = DIFFICULTY[difficulty].reaction * (0.8 + this.rng() * 0.4);
         }
       }
