@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const speciesIds = ['pikachu', 'charmander', 'squirtle', 'bulbasaur'] as const;
+export const speciesIds = ['pikachu', 'charmander', 'squirtle', 'bulbasaur', 'eevee'] as const;
 export const SpeciesSchema = z.enum(speciesIds);
 export type SpeciesId = z.infer<typeof SpeciesSchema>;
 export type Element = 'normal' | 'electric' | 'fire' | 'water' | 'grass' | 'poison';
@@ -114,6 +114,7 @@ export interface SkillDefinition {
   electricAura?: { reach: number; damageScale: number };
   movement?: { speed: number; duration: number };
   groundHazard?: { radius: number; duration: number; interval: number; damage: number };
+  homing?: { turnRate: number; duration: number };
 }
 export interface PokemonDefinition {
   id: SpeciesId;
@@ -122,6 +123,7 @@ export interface PokemonDefinition {
   element: Element;
   role: string;
   description: string;
+  passive?: { name: string; description: string };
   color: string;
   hp: number;
   energy: number;
@@ -168,6 +170,13 @@ export interface Cast {
   hitIds: string[];
   channelTicks?: number;
   autoBasic?: boolean;
+  targetId?: string;
+  counterAt?: number;
+  counterTargetId?: string;
+  originX?: number;
+  originDepth?: number;
+  lockX?: number;
+  lockDepth?: number;
 }
 export interface Fighter {
   id: string;
@@ -207,6 +216,11 @@ export interface Fighter {
   moveIntent: number;
   swapCooldown: number;
   damageDealt: number;
+  adaptiveCharge?: number;
+  dodgeOriginX?: number;
+  dodgeOriginDepth?: number;
+  dodgeWindow?: number;
+  dodgeEarned?: boolean;
 }
 export interface Projectile {
   id: string;
@@ -224,6 +238,8 @@ export interface Projectile {
   height: number;
   life: number;
   auraHitIds?: string[];
+  targetId?: string;
+  age?: number;
 }
 export interface GroundHazard {
   id: string;

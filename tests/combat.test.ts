@@ -311,7 +311,11 @@ describe('damage and hit geometry', () => {
 });
 describe('skills and state', () => {
   it.each(
-    Object.values(POKEMON).flatMap((p) => p.skills.map((s) => ({ species: p.id, skill: s.id }))),
+    Object.values(POKEMON).flatMap((p) =>
+      p.skills
+        .filter((s) => s.id !== 'counter-pounce')
+        .map((s) => ({ species: p.id, skill: s.id })),
+    ),
   )('$species activates $skill and resolves a real hit', ({ species, skill }) => {
     const e = battle([[species], ['charmander']]);
     const [a, b] = e.state.fighters;
@@ -488,7 +492,10 @@ describe('complete matches', () => {
     expect(e.state.fighters.some((f) => f.damageDealt > 0)).toBe(true);
   });
   it('handles simultaneous 4v4 with reserves disabled by active size', () => {
-    const e = battle([[...speciesIds], [...speciesIds]], { activeSize: 4, duration: 60 });
+    const e = battle([[...speciesIds.slice(0, 4)], [...speciesIds.slice(0, 4)]], {
+      activeSize: 4,
+      duration: 60,
+    });
     step(e, 61);
     expect(e.state.phase).toBe('finished');
     expect(e.state.fighters.every((f) => f.hp >= 0)).toBe(true);

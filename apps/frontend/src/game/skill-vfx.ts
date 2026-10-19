@@ -147,8 +147,75 @@ export class SkillVfx {
         live.add(statusId);
         if (emit) this.emitters.get('fire')!.emitParticleAt(x, y - 30, 2);
       }
+      if (f.species === 'eevee' && (f.adaptiveCharge ?? 0) > 0) {
+        const id = `adaptive-${f.id}`;
+        this.place(id, 'skill-vfx-eevee-adaptive', x, y - 20, 105, 105, 0);
+        this.attached.get(id)!.sprite.setAlpha(0.62);
+        live.add(id);
+      }
       if (!f.cast) continue;
       const skill = SKILL_BY_ID[f.cast.skillId];
+      if (f.species === 'eevee' && skill.id === 'counter-pounce') {
+        const triggered = f.cast.counterAt !== undefined;
+        const id = `cast-${f.id}`;
+        this.place(
+          id,
+          triggered ? 'skill-vfx-counter-pounce' : 'skill-vfx-eevee-guard',
+          x,
+          y - 12,
+          triggered ? 150 : 104,
+          triggered ? 138 : 104,
+          0,
+        );
+        live.add(id);
+        continue;
+      }
+      if (f.species === 'eevee' && skill.id === 'shadow-step') {
+        const p = Math.max(0, Math.min(1, (f.cast.elapsed - skill.startup) / 1));
+        if (p > 0 && p < 1) {
+          for (let i = 1; i <= 3; i++) {
+            const id = `shadow-${f.id}-${i}`;
+            const back = i * 28;
+            const fade = Math.max(0, 1 - (p - (3 - i) * 0.12) / 0.7);
+            if (fade <= 0.03) continue;
+            this.place(
+              id,
+              'skill-vfx-shadow-step',
+              x - f.aimX * back,
+              y - f.aimDepth * back,
+              104 - i * 8,
+              92 - i * 6,
+              0,
+            );
+            this.attached.get(id)!.sprite.setAlpha((0.47 - i * 0.1) * fade);
+            live.add(id);
+          }
+        }
+        continue;
+      }
+      if (f.species === 'eevee' && skill.id === 'starfall-rush') {
+        if (f.cast.elapsed >= skill.startup) {
+          const id = `cast-${f.id}`;
+          this.place(
+            id,
+            'skill-vfx-starfall-rush',
+            x,
+            y - 20,
+            f.cast.elapsed > 1.48 ? 220 : 130,
+            f.cast.elapsed > 1.48 ? 180 : 110,
+            0,
+          );
+          live.add(id);
+          if (!reduced)
+            for (let i = 1; i <= 2; i++) {
+              const trailId = `${id}-trail-${i}`;
+              this.place(trailId, 'skill-vfx-shadow-step', x - f.aimX * i * 25, y, 110, 90, 0);
+              this.attached.get(trailId)!.sprite.setAlpha(0.35 - i * 0.1);
+              live.add(trailId);
+            }
+        }
+        continue;
+      }
       const charge = f.cast.elapsed < skill.startup;
       const active = f.cast.elapsed <= skill.startup + skill.active + 0.1;
       if (!charge && (!active || skill.behavior === 'projectile' || skill.behavior === 'debuff'))
@@ -167,7 +234,7 @@ export class SkillVfx {
       const center = directional ? length * (stream ? 0.54 : 0.45) : 0;
       this.place(
         id,
-        `skill-vfx-${electroCharge ? 'electro-charge' : charge ? `charge-${skill.element}` : skill.id}`,
+        `skill-vfx-${electroCharge ? 'electro-charge' : charge && f.species === 'eevee' ? 'eevee-adaptive' : charge ? `charge-${skill.element}` : skill.id}`,
         x + Math.cos(angle) * center,
         y + Math.sin(angle) * center,
         electroCharge ? 112 : length * (directional ? (stream ? 1.08 : 1.2) : 1),
@@ -202,13 +269,15 @@ export class SkillVfx {
       const angle = Math.atan2(p.vDepth ?? 0, p.vx);
       const id = `projectile-${p.id}`;
       const width =
-        skill.id === 'solar-beam'
-          ? 160
-          : skill.id === 'sludge-bomb'
-            ? 104
-            : skill.id === 'flame-burst'
-              ? 100
-              : Math.max(76, p.width * 2);
+        skill.id === 'swift'
+          ? 48
+          : skill.id === 'solar-beam'
+            ? 160
+            : skill.id === 'sludge-bomb'
+              ? 104
+              : skill.id === 'flame-burst'
+                ? 100
+                : Math.max(76, p.width * 2);
       const auraSize = skill.electricAura
         ? ((p.width + skill.electricAura.reach * 2) * 128) / 116
         : null;
@@ -221,6 +290,11 @@ export class SkillVfx {
         auraSize ?? (skill.id === 'sludge-bomb' ? 104 : Math.max(60, p.height * 2.3)),
         angle,
       );
+      if (skill.id === 'swift')
+        this.attached
+          .get(id)!
+          .sprite.setRotation(snapshot.elapsed * 8)
+          .setDepth(13);
       if (skill.id === 'sludge-bomb' && !reduced) {
         const speed = Math.hypot(p.vx, p.vDepth ?? 0) || 1;
         for (let i = 1; i <= 2; i++) {
@@ -314,17 +388,53 @@ export class SkillVfx {
       y = 492 + (event.depth ?? 0) - event.y;
     const electroBall = event.text.startsWith('Electro Ball');
     const sludgeBomb = event.text.startsWith('Sludge Bomb');
+    const finale = event.text.startsWith('Starfall Rush · finale');
+    const eeveeImpact = finale
+      ? 'starfall-impact'
+      : event.text.startsWith('Swift')
+        ? 'swift'
+        : event.text.startsWith('Counter Pounce')
+          ? 'counter-pounce'
+          : event.text.startsWith('Starfall Rush')
+            ? 'swift'
+            : event.text.startsWith('Shadow Step')
+              ? 'shadow-step'
+              : event.text.startsWith('Quick Paw')
+                ? 'eevee-strike'
+                : null;
     const sprite = this.sprite(
-      electroBall
-        ? 'skill-vfx-electro-impact'
-        : sludgeBomb
-          ? 'skill-vfx-sludge-impact'
-          : `skill-vfx-impact-${element}`,
+      eeveeImpact
+        ? `skill-vfx-${eeveeImpact}`
+        : electroBall
+          ? 'skill-vfx-electro-impact'
+          : sludgeBomb
+            ? 'skill-vfx-sludge-impact'
+            : `skill-vfx-impact-${element}`,
     )
       .setPosition(x, y)
       .setDisplaySize(
-        this.reduced ? 62 : electroBall ? 150 : sludgeBomb ? 128 : 110,
-        this.reduced ? 62 : electroBall ? 150 : sludgeBomb ? 128 : 110,
+        this.reduced
+          ? 62
+          : finale
+            ? 190
+            : eeveeImpact === 'swift'
+              ? 66
+              : electroBall
+                ? 150
+                : sludgeBomb
+                  ? 128
+                  : 110,
+        this.reduced
+          ? 62
+          : finale
+            ? 170
+            : eeveeImpact === 'swift'
+              ? 66
+              : electroBall
+                ? 150
+                : sludgeBomb
+                  ? 128
+                  : 110,
       );
     if (this.paused || this.reduced) sprite.anims.pause();
     if (this.reduced) sprite.setFrame(4).setAlpha(0.6);

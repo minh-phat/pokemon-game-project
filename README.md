@@ -1,8 +1,8 @@
 # Pokémon Arena
 
-A runnable, account-free 2D Pokémon arena game. Build a team of Pikachu, Charmander, Squirtle, and Bulbasaur, then watch their AI fight or switch to manual controls during the match. Play locally against AI or invite a second browser into a private online room.
+A runnable, account-free 2D Pokémon arena game. Build a team of Pikachu, Charmander, Squirtle, Bulbasaur, and Eevee, then watch their AI fight or switch to manual controls during the match. Play locally against AI or invite a second browser into a private online room.
 
-This is an unofficial fan project with custom, bundled vector artwork and synthesized audio. The graphics are a consistent prototype art set, not licensed official Pokémon artwork or finished commercial animation.
+This is an unofficial fan project with custom, bundled vector and raster artwork and synthesized audio. The graphics are a consistent prototype art set, not licensed official Pokémon artwork or finished commercial animation.
 
 ## Quick start
 
@@ -32,7 +32,7 @@ npm start
 
 ## Play
 
-**VS AI:** choose VS AI, configure rules, inspect the four fighters, add a complete team, and enter the arena. A three-second countdown precedes automatic combat. Pause and resume are available offline. Results offer another match or a return home.
+**VS AI:** choose VS AI, configure rules, inspect the five fighters, add a complete team, and enter the arena. A three-second countdown precedes automatic combat. Pause and resume are available offline. Results offer another match or a return home.
 
 **Online:** choose Online 1v1, enter a trainer name, create a private room, configure rules, and confirm a team. Share the invitation link/code with a second browser or browser profile. The guest selects their own team. Both players click **Ready for battle**. Both teams run on the server's AI. Two rematch votes reopen the lobby after the result.
 
@@ -45,7 +45,8 @@ An unexpected online disconnection pauses simulation for up to **30 seconds**. T
 ## Implemented
 
 - Home, mode selection, rule configuration, illustrated Pokédex/team builder, lobby, loading/countdown, live battle, results, and settings.
-- Four configured species, 19 working abilities, distinct combat preferences, 15 animation states per species, and 360 generated sprite frames.
+- Five configured species, 24 working abilities, distinct combat preferences, 15 animation states per species, and 450 generated sprite frames.
+- Eevee's dodge-powered next hit, five separate Swift stars with limited steering, invulnerable Shadow Step dash, timed Counter Pounce, and five-hit Starfall Rush use PNG character and effect sprite sheets.
 - Acceleration, gravity, jumping, body collision, dash/backstep, crouch/slide, Squirtle shell rolling, attack lunges, swept projectile collision, melee windows, knockback, stun, slows, shield, burn, Leech Seed recovery, and Bulbasaur's five-second Sludge Bomb poison pool.
 - Utility decisions and finite states with reaction delays, imperfect projectile prediction, boundary checks, target selection, defensive actions, and seeded randomness.
 - Health, energy, cooldowns, reserve status, timer, floating damage, skill labels, an event feed, elemental VFX, ambient particles, optional audio, and reduced-motion settings.
@@ -60,7 +61,7 @@ apps/
     src/components/ Separate screens, HUD, selection, and UI primitives
     src/game/       Phaser scene and audio lifecycle
     src/lib/        Store, snapshot feed, and Colyseus client
-    public/assets/  32 bundled SVG/WAV assets
+    public/assets/  Bundled SVG, PNG, and WAV assets
   backend/           NestJS read API and temporary identity endpoint
   game-server/       Colyseus transport and independently testable room policy
 packages/

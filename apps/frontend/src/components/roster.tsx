@@ -22,11 +22,11 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
     <div className="page-wrap roster-page">
       {!inspectOnly && <Steps step={3} />}
       <PageTitle
-        eyebrow={inspectOnly ? 'THE ORIGINAL FOUR' : 'YOUR ADVENTURE. YOUR TEAM.'}
+        eyebrow={inspectOnly ? 'THE POKÉMON' : 'YOUR ADVENTURE. YOUR TEAM.'}
         title={inspectOnly ? 'Little legends.' : 'Choose your companions.'}
         description={
           inspectOnly
-            ? 'Four personalities. Four elements. Find your kind of fighter.'
+            ? 'Five personalities. Find your kind of fighter.'
             : `Pick ${state.rules.teamSize} Pokémon. Their instincts will take it from here.`
         }
         back={() => state.go(inspectOnly ? 'home' : state.sessionId ? 'lobby' : 'rules')}
@@ -104,6 +104,15 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
           <h2>{selected.name}</h2>
           <span className="detail-role">{selected.role}</span>
           <p className="detail-description">{selected.description}</p>
+          {selected.passive && (
+            <div className="skill-row" style={{ marginBottom: 16 }}>
+              <span className={`skill-number element-${selected.element}`}>✦</span>
+              <div>
+                <strong>Nội tại · {selected.passive.name}</strong>
+                <p>{selected.passive.description}</p>
+              </div>
+            </div>
+          )}
           <div className="stats-grid">
             {[
               { label: 'Health', value: selected.hp, max: 240, Icon: Heart },

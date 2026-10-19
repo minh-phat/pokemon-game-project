@@ -473,6 +473,11 @@ export function createSkillTextures(scene: Phaser.Scene) {
   for (const id of ['paralyzed', 'electro-charge', 'electro-trail', 'electro-impact'])
     definitions.push({ id, element: 'electric' });
   definitions.push({ id: 'burning', element: 'fire' });
+  definitions.push(
+    { id: 'eevee-guard', element: 'normal' },
+    { id: 'eevee-adaptive', element: 'normal' },
+    { id: 'starfall-impact', element: 'normal' },
+  );
   for (const id of ['sludge-trail', 'sludge-impact', 'sludge-puddle'])
     definitions.push({ id, element: 'poison' });
   for (const element of Object.keys(ELEMENTS) as Element[]) {

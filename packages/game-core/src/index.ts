@@ -300,6 +300,8 @@ export class BattleEngine {
       }
       f.dodgeCooldown = Math.max(0, f.dodgeCooldown - dt);
       f.invulnerable = Math.max(0, f.invulnerable - dt);
+      f.adaptiveCharge = Math.max(0, (f.adaptiveCharge ?? 0) - dt);
+      f.dodgeWindow = Math.max(0, (f.dodgeWindow ?? 0) - dt);
       f.swapCooldown = Math.max(0, f.swapCooldown - dt);
       f.energy = Math.min(POKEMON[f.species].energy, f.energy + dt * (f.active ? 6.5 : 9));
       if (!f.active) {
@@ -479,6 +481,12 @@ export class BattleEngine {
     )
       return false;
     f.cast = null;
+    if (f.species === 'eevee') {
+      f.dodgeOriginX = f.x;
+      f.dodgeOriginDepth = f.depth;
+      f.dodgeWindow = mode === 'dash' ? 0.25 : mode === 'jump' ? 0.4 : 0.48;
+      f.dodgeEarned = false;
+    }
     f.stamina -= STAMINA_RULES.dodgeCost;
     f.sprinting = false;
     this.setGuard(f, false);
@@ -533,7 +541,25 @@ export class BattleEngine {
     f.sprinting = false;
     f.energy -= s.energy;
     f.cooldowns[s.id] = s.cooldown;
-    f.cast = { skillId, elapsed: 0, fired: 0, hitIds: [], ...(autoBasic && { autoBasic: true }) };
+    const target = this.state.fighters
+      .filter((v) => v.active && v.hp > 0 && v.team !== f.team)
+      .sort(
+        (a, b) =>
+          Math.hypot(a.x - f.x, a.depth - f.depth) - Math.hypot(b.x - f.x, b.depth - f.depth),
+      )[0];
+    f.cast = {
+      skillId,
+      elapsed: 0,
+      fired: 0,
+      hitIds: [],
+      targetId: f.targetId ?? target?.id,
+      originX: f.x,
+      originDepth: f.depth,
+      ...(autoBasic && { autoBasic: true }),
+      lockX: target?.x,
+      lockDepth: target?.depth,
+    };
+    if (s.id === 'shadow-step') f.dodgeEarned = false;
     f.moveIntent = 0;
     f.moveDepth = 0;
     f.vx *= 0.25;
@@ -547,6 +573,7 @@ export class BattleEngine {
     const cast = f.cast!,
       s = SKILL_BY_ID[cast.skillId];
     cast.elapsed += dt;
+    if (f.species === 'eevee' && this.eeveeCastTick(f, cast, s)) return;
     s.events.forEach((event, index) => {
       if (cast.elapsed + 1e-9 >= event.at && !(cast.fired & (1 << index))) {
         cast.fired |= 1 << index;
@@ -566,6 +593,8 @@ export class BattleEngine {
             width: s.hitbox.width,
             height: s.hitbox.height,
             life: s.range / s.projectileSpeed,
+            targetId: s.homing ? cast.targetId : undefined,
+            age: 0,
           });
         if (event.kind === 'buff')
           f.effects.push(...s.effects.map((e) => ({ ...e, sourceId: f.id })));
@@ -594,23 +623,143 @@ export class BattleEngine {
       !s.channel &&
       hitEvents.some((e) => cast.elapsed >= e.at && cast.elapsed <= e.at + s.active)
     ) {
-      for (const target of this.state.fighters)
+      for (const target of this.state.fighters) {
         if (
-          target.active &&
-          target.hp > 0 &&
-          target.team !== f.team &&
-          !cast.hitIds.includes(target.id) &&
-          this.meleeHits(f, target, s)
-        ) {
+          !target.active ||
+          target.hp <= 0 ||
+          target.team === f.team ||
+          cast.hitIds.includes(target.id)
+        )
+          continue;
+        if (this.meleeHits(f, target, s)) {
           cast.hitIds.push(target.id);
           this.hit(f, target, s);
-        }
+        } else if (
+          (target.dodgeWindow ?? 0) > 0 &&
+          target.dodgeOriginX !== undefined &&
+          this.meleeHits(
+            f,
+            {
+              ...target,
+              x: target.dodgeOriginX,
+              depth: target.dodgeOriginDepth ?? target.depth,
+              y: 0,
+              crouched: false,
+            },
+            s,
+          )
+        )
+          this.grantAdaptiveDodge(target);
+      }
     }
     if (cast.elapsed >= s.startup + s.active + s.recovery) {
       f.cast = null;
       f.state = 'Recover';
       f.thinkIn = 0.06;
     }
+  }
+  private eeveeCastTick(f: Fighter, cast: NonNullable<Fighter['cast']>, s: SkillDefinition) {
+    if (s.id === 'shadow-step') {
+      const target = this.state.fighters.find(
+        (v) => v.id === cast.targetId && v.active && v.hp > 0,
+      );
+      if (cast.elapsed >= s.startup && cast.elapsed < s.startup + 1) {
+        const p = Math.min(1, (cast.elapsed - s.startup) / 1);
+        const fromX = cast.originX ?? f.x,
+          fromDepth = cast.originDepth ?? f.depth;
+        const sign = Math.sign((target?.x ?? fromX + f.facing) - fromX) || f.facing;
+        const desiredX = target ? target.x + sign * 48 : fromX + f.aimX * 220;
+        const desiredDepth = target ? target.depth : fromDepth + f.aimDepth * 220;
+        const length = Math.hypot(desiredX - fromX, desiredDepth - fromDepth) || 1;
+        const travel = Math.min(1, s.range / length);
+        const endX = fromX + (desiredX - fromX) * travel;
+        const endDepth = fromDepth + (desiredDepth - fromDepth) * travel;
+        const curve = Math.sin(Math.PI * p) * 76 * (f.team === 0 ? 1 : -1);
+        f.x = fromX + (endX - fromX) * p;
+        f.depth = fromDepth + (endDepth - fromDepth) * p + curve;
+        f.vx = f.vDepth = 0;
+        f.invulnerable = Math.max(f.invulnerable, 2 * FIXED_DELTA);
+        this.animate(f, 'dash');
+      }
+      if (cast.elapsed >= s.startup + 1 && !(cast.fired & 1)) {
+        cast.fired |= 1;
+        f.invulnerable = 0;
+        if (target && target.y <= 42 && Math.hypot(target.x - f.x, target.depth - f.depth) <= 105) {
+          f.aimX = Math.sign(target.x - f.x) || f.facing;
+          f.aimDepth = 0;
+          this.hit(f, target, s);
+        }
+        this.animate(f, 'attack');
+      }
+      if (cast.elapsed >= s.startup + s.active + s.recovery) f.cast = null;
+    } else if (s.id === 'counter-pounce') {
+      if (cast.counterAt !== undefined) {
+        const age = cast.elapsed - cast.counterAt;
+        if (age >= 0.55 && !(cast.fired & 1)) {
+          cast.fired |= 1;
+          const target = this.state.fighters.find(
+            (v) => v.id === cast.counterTargetId && v.active && v.hp > 0,
+          );
+          if (
+            target &&
+            target.y <= 42 &&
+            Math.hypot(target.x - f.x, target.depth - f.depth) <= s.range + 20
+          )
+            this.hit(f, target, s, 28);
+          this.animate(f, 'land');
+        }
+        if (age >= 0.8) f.cast = null;
+      } else if (cast.elapsed >= 3) f.cast = null;
+    } else if (s.id === 'starfall-rush') {
+      const times = [0.46, 0.7, 0.94, 1.18, 1.56];
+      const target = this.state.fighters.find(
+        (v) => v.id === cast.targetId && v.active && v.hp > 0,
+      );
+      for (let i = 0; i < times.length; i++) {
+        if (cast.elapsed < times[i] || cast.fired & (1 << i)) continue;
+        cast.fired |= 1 << i;
+        if (!target) continue;
+        const offsets = [-42, 38, -36, 32, -24];
+        const depthOffsets = [-35, 38, 34, -32, 0];
+        const arena = ARENAS.find((a) => a.id === this.state.rules.arena)!;
+        const centerX =
+          (cast.lockX ?? target.x) +
+          Math.max(-30, Math.min(30, target.x - (cast.lockX ?? target.x)));
+        const centerDepth =
+          (cast.lockDepth ?? target.depth) +
+          Math.max(-30, Math.min(30, target.depth - (cast.lockDepth ?? target.depth)));
+        f.x = Math.max(arena.bounds[0], Math.min(arena.bounds[1], centerX + offsets[i]));
+        f.depth = Math.max(
+          arena.depthBounds[0],
+          Math.min(arena.depthBounds[1], centerDepth + depthOffsets[i]),
+        );
+        if (i === 3) {
+          f.y = 82;
+          f.vy = 0;
+        }
+        if (i === 4) {
+          f.y = 0;
+          f.vy = 0;
+        }
+        f.vx = f.vDepth = 0;
+        f.aimX = Math.sign(target.x - f.x) || f.facing;
+        f.aimDepth = 0;
+        this.animate(f, i === 4 ? 'land' : 'dash');
+        if (target.y <= 42 && Math.hypot(target.x - f.x, target.depth - f.depth) <= 80)
+          this.hit(
+            f,
+            target,
+            {
+              ...s,
+              name: i === 4 ? 'Starfall Rush · finale' : s.name,
+              knockback: i === 4 ? 220 : 0,
+            },
+            i === 4 ? 18 : 8,
+          );
+      }
+      if (cast.elapsed >= s.startup + s.active + s.recovery) f.cast = null;
+    } else return false;
+    return true;
   }
   private meleeHits(f: Fighter, target: Fighter, skill: SkillDefinition) {
     const dx = target.x - f.x,
@@ -706,6 +855,23 @@ export class BattleEngine {
   }
   private projectileTick(dt: number) {
     for (const p of this.state.projectiles) {
+      const skill = SKILL_BY_ID[p.skillId];
+      p.age = (p.age ?? 0) + dt;
+      if (skill.homing && p.age <= skill.homing.duration) {
+        const target = this.state.fighters.find((f) => f.id === p.targetId && f.active && f.hp > 0);
+        if (target) {
+          const current = Math.atan2(p.vDepth ?? 0, p.vx);
+          const wanted = Math.atan2(target.depth - (p.depth ?? 0), target.x - p.x);
+          const difference = Math.atan2(Math.sin(wanted - current), Math.cos(wanted - current));
+          const turn = Math.max(
+            -skill.homing.turnRate * dt,
+            Math.min(skill.homing.turnRate * dt, difference),
+          );
+          const speed = Math.hypot(p.vx, p.vDepth ?? 0);
+          p.vx = Math.cos(current + turn) * speed;
+          p.vDepth = Math.sin(current + turn) * speed;
+        }
+      }
       p.previousDepth = p.depth ?? ownerDepth(this.state, p);
       p.depth = p.previousDepth + (p.vDepth ?? 0) * dt;
       p.previousX = p.x;
@@ -722,17 +888,31 @@ export class BattleEngine {
       const targets = this.state.fighters
         .filter((f) => f.active && f.hp > 0 && f.team !== p.team)
         .sort((a, b) => Math.abs(a.x - p.previousX) - Math.abs(b.x - p.previousX));
-      const skill = SKILL_BY_ID[p.skillId];
       let landed = false;
       for (const f of targets)
-        if (overlaps(box, fighterBox(f)) && this.projectileCrosses(p, f)) {
+        if (this.projectileCrosses(p, f)) {
+          const body = fighterBox(f);
+          if (!overlaps(box, body)) {
+            if (
+              (f.dodgeWindow ?? 0) > 0 &&
+              f.dodgeOriginX !== undefined &&
+              overlaps(box, fighterBox({ ...f, x: f.dodgeOriginX, y: 0, crouched: false })) &&
+              this.projectileCrosses(p, {
+                ...f,
+                x: f.dodgeOriginX,
+                depth: f.dodgeOriginDepth ?? f.depth,
+              })
+            )
+              this.grantAdaptiveDodge(f);
+            continue;
+          }
           if (f.invulnerable <= 0) {
             this.hit(owner, f, skill);
             if (skill.groundHazard) this.createGroundHazard(p, f.x, f.depth);
             p.life = 0;
             landed = true;
             break;
-          }
+          } else this.grantAdaptiveDodge(f);
         }
       if (!landed && skill.groundHazard && (p.life <= 0 || p.x <= -50 || p.x >= 1250))
         this.createGroundHazard(p, p.x, p.depth ?? owner.depth);
@@ -843,33 +1023,72 @@ export class BattleEngine {
     }
     return enter <= exit;
   }
-  private hit(source: Fighter, target: Fighter, s: SkillDefinition) {
-    if (target.invulnerable > 0) return;
+  private grantAdaptiveDodge(f: Fighter) {
+    if (
+      f.species === 'eevee' &&
+      !f.dodgeEarned &&
+      ((f.dodgeWindow ?? 0) > 0 || f.cast?.skillId === 'shadow-step')
+    ) {
+      f.adaptiveCharge = 2;
+      f.dodgeEarned = true;
+    }
+  }
+  private hit(source: Fighter, target: Fighter, s: SkillDefinition, flatDamage?: number) {
+    if (target.invulnerable > 0) {
+      this.grantAdaptiveDodge(target);
+      return;
+    }
+    const counter =
+      target.species === 'eevee' &&
+      target.cast?.skillId === 'counter-pounce' &&
+      target.cast.elapsed <= 3 &&
+      target.cast.counterAt === undefined;
     const shield = target.effects
       .filter((e) => e.kind === 'shield')
       .reduce((v, e) => Math.max(v, e.strength), 0);
-    const guard = Math.max(target.guarded ? BASIC_GUARD_REDUCTION : 0, shield);
-    const amount = calculateDamage(
-      s.damage,
-      POKEMON[source.species].attack,
-      POKEMON[target.species].defense,
-      s.element,
-      POKEMON[target.species].element,
-      this.state.rules.elements,
-      guard,
+    const guard = Math.max(counter ? 0.7 : target.guarded ? BASIC_GUARD_REDUCTION : 0, shield);
+    const amount = Math.round(
+      (flatDamage === undefined
+        ? calculateDamage(
+            s.damage,
+            POKEMON[source.species].attack,
+            POKEMON[target.species].defense,
+            s.element,
+            POKEMON[target.species].element,
+            this.state.rules.elements,
+            guard,
+          )
+        : flatDamage * (1 - guard)) *
+        (source.species === 'eevee' && (source.adaptiveCharge ?? 0) > 0 ? 1.15 : 1),
     );
+    if (source.species === 'eevee' && (source.adaptiveCharge ?? 0) > 0) source.adaptiveCharge = 0;
     target.hp = Math.max(0, target.hp - amount);
     source.damageDealt += amount;
     const distance = Math.hypot(target.x - source.x, target.depth - source.depth) || 1;
-    target.vx = ((target.x - source.x) / distance) * s.knockback * (1 - guard);
-    target.vDepth = ((target.depth - source.depth) / distance) * s.knockback * (1 - guard);
-    if (!target.guarded) target.actionTime = Math.max(target.actionTime, 0.14);
+    if (!counter) {
+      target.vx = ((target.x - source.x) / distance) * s.knockback * (1 - guard);
+      target.vDepth = ((target.depth - source.depth) / distance) * s.knockback * (1 - guard);
+    }
+    if (!target.guarded && !counter) target.actionTime = Math.max(target.actionTime, 0.14);
     target.sprinting = false;
-    target.cast = null;
+    if (counter) {
+      target.cast!.counterAt = target.cast!.elapsed;
+      target.cast!.counterTargetId = source.id;
+      target.vy = 320;
+      this.animate(target, 'jump');
+    } else if (
+      !(
+        target.species === 'eevee' &&
+        target.cast?.skillId === 'starfall-rush' &&
+        target.cast.elapsed >= 0.46
+      )
+    )
+      target.cast = null;
     target.moveIntent = 0;
     target.moveDepth = 0;
-    target.state = target.guarded ? 'Guard' : 'Recover';
-    this.animate(target, target.guarded ? 'guard' : s.knockback > 170 ? 'knockback' : 'hit');
+    target.state = counter ? 'Attack' : target.guarded ? 'Guard' : 'Recover';
+    if (!counter)
+      this.animate(target, target.guarded ? 'guard' : s.knockback > 170 ? 'knockback' : 'hit');
     if (s.behavior !== 'buff')
       for (const effect of s.effects) {
         target.effects = target.effects.filter((e) => e.kind !== effect.kind);

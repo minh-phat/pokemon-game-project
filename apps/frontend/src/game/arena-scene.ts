@@ -35,6 +35,20 @@ export function createArenaScene(
     preload() {
       const arena = ARENAS.find((a) => a.id === arenaId)!;
       this.load.image('electro-ball-art', '/assets/electro-ball-art.png');
+      for (const id of [
+        'eevee-strike',
+        'swift',
+        'shadow-step',
+        'counter-pounce',
+        'starfall-rush',
+        'starfall-impact',
+        'eevee-guard',
+        'eevee-adaptive',
+      ])
+        this.load.spritesheet(`skill-vfx-${id}`, `/assets/eevee-vfx-${id}.png`, {
+          frameWidth: 128,
+          frameHeight: 128,
+        });
       arena.layers.forEach((url, i) => this.load.image(`layer-${i}`, url));
       for (const id of Object.keys(ASSETS.sprites) as (keyof typeof ASSETS.sprites)[])
         this.load.spritesheet(id, ASSETS.sprites[id], { frameWidth: 160, frameHeight: 160 });
@@ -86,6 +100,18 @@ export function createArenaScene(
             frameRate: a.frameRate,
             repeat: a.repeat,
           });
+          this.textures.get('eevee').setFilter(Phaser.Textures.FilterMode.NEAREST);
+          for (const id of [
+            'eevee-strike',
+            'swift',
+            'shadow-step',
+            'counter-pounce',
+            'starfall-rush',
+            'starfall-impact',
+            'eevee-guard',
+            'eevee-adaptive',
+          ])
+            this.textures.get(`skill-vfx-${id}`).setFilter(Phaser.Textures.FilterMode.NEAREST);
         }
       this.skillVfx = new SkillVfx(this);
       const particleColor =
@@ -137,7 +163,7 @@ export function createArenaScene(
         sprite: this.add
           .sprite(f.x, 520, f.species)
           .setOrigin(0.5, 0.84)
-          .setScale(0.82)
+          .setScale(f.species === 'eevee' ? 0.66 : 0.82)
           .setDepth(5),
         bars: this.add.graphics().setDepth(15),
         label: this.add

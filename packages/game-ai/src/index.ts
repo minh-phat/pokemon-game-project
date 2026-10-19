@@ -175,6 +175,15 @@ export function decideAction(
     target.cast &&
     SKILL_BY_ID[target.cast.skillId]?.behavior === 'melee' &&
     distance < SKILL_BY_ID[target.cast.skillId].range + 25;
+  if (
+    f.species === 'eevee' &&
+    threat &&
+    SKILL_BY_ID[threat.p.skillId]?.damage >= 25 &&
+    !f.cooldowns['shadow-step'] &&
+    f.energy >= SKILL_BY_ID['shadow-step'].energy &&
+    f.y < 2
+  )
+    return { type: 'skill', skillId: 'shadow-step' };
   if (f.guarded && (threat || meleeDanger) && f.y === 0) return { type: 'guard' };
   if (
     f.stamina >= STAMINA_RULES.dodgeCost &&
@@ -216,6 +225,7 @@ export function decideAction(
       f.energy >= s.energy &&
       distance <= s.range + 10 &&
       distance >= s.usage.minRange &&
+      (s.id !== 'counter-pounce' || Boolean(threat || meleeDanger)) &&
       (!s.usage.belowHP || hpRatio < s.usage.belowHP),
   );
   const chosen = available

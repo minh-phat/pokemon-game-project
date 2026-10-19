@@ -181,6 +181,59 @@ export const SKILLS = {
     groundHazard: { radius: 108, duration: 5, interval: 0.5, damage: 4 },
     usage: { minRange: 100, priority: 1.55 },
   }),
+  eeveeStrike: skill('eevee-strike', 'Quick Paw', 'normal', 'melee', 13, 0, 0.8, 82, {
+    description: 'A quick close-range front-paw strike.',
+    startup: 0.1,
+    active: 0.1,
+    recovery: 0.16,
+    knockback: 60,
+  }),
+  swift: skill('swift', 'Swift', 'normal', 'projectile', 7, 20, 3.6, 520, {
+    description: 'Five rotating stars launch in sequence and steer briefly toward the target.',
+    startup: 0.22,
+    active: 0.52,
+    recovery: 0.25,
+    projectileSpeed: 450,
+    hitbox: { width: 22, height: 22, altitude: 30 },
+    knockback: 15,
+    homing: { turnRate: 1.9, duration: 0.55 },
+    events: Array.from({ length: 5 }, (_, i) => ({
+      at: 0.22 + i * 0.115,
+      kind: 'projectile' as const,
+    })),
+    usage: { minRange: 90, priority: 1.25 },
+  }),
+  shadowStep: skill('shadow-step', 'Shadow Step', 'normal', 'melee', 20, 28, 6, 320, {
+    description:
+      'Curve around the target, ignore collision damage for one second, then strike from behind.',
+    startup: 0.18,
+    active: 1,
+    recovery: 0.18,
+    animation: 'dash',
+    events: [],
+    knockback: 95,
+    usage: { minRange: 0, priority: 1.4 },
+  }),
+  counterPounce: skill('counter-pounce', 'Counter Pounce', 'normal', 'buff', 28, 25, 8, 130, {
+    description:
+      'Guard for up to three seconds. Reduce the triggering hit by 70%, then pounce for 28 damage.',
+    startup: 0,
+    active: 3,
+    recovery: 0.1,
+    animation: 'guard',
+    events: [],
+    usage: { minRange: 0, priority: 1.25 },
+  }),
+  starfallRush: skill('starfall-rush', 'Starfall Rush', 'normal', 'melee', 8, 50, 12, 330, {
+    description: 'Four 8-damage zigzag strikes followed by an 18-damage knockback landing.',
+    startup: 0.38,
+    active: 1.28,
+    recovery: 0.28,
+    animation: 'dash',
+    events: [],
+    knockback: 0,
+    usage: { minRange: 0, priority: 1.65 },
+  }),
 };
 const animations = Object.fromEntries(
   ANIMATIONS.map((name, i) => [
@@ -311,6 +364,42 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
     ],
     animations,
     ai: { aggression: 0.55, dodge: 0.7, guard: 0.25, preferredDistance: 330, retreat: 0.9 },
+  },
+  eevee: {
+    id: 'eevee',
+    name: 'Eevee',
+    number: '133',
+    element: 'normal',
+    role: 'Adaptive skirmisher',
+    description:
+      'Agile at close range. Evades incoming attacks and answers with a stronger strike.',
+    passive: {
+      name: 'Bản năng thích nghi',
+      description:
+        'Sau mỗi lần né thành công, đòn gây sát thương tiếp theo trong 2 giây được tăng 15% sát thương.',
+    },
+    color: '#c98b4b',
+    hp: 165,
+    energy: 100,
+    maxStamina: 100,
+    attack: 27,
+    defense: 17,
+    speed: 190,
+    sprintSpeed: 285,
+    acceleration: 1150,
+    jumpStrength: 440,
+    dodgeCooldown: 1.7,
+    attackRange: 82,
+    collision: { width: 42, height: 48 },
+    skills: [
+      SKILLS.eeveeStrike,
+      SKILLS.swift,
+      SKILLS.shadowStep,
+      SKILLS.counterPounce,
+      SKILLS.starfallRush,
+    ],
+    animations,
+    ai: { aggression: 0.88, dodge: 0.92, guard: 0.18, preferredDistance: 105, retreat: 0.3 },
   },
 };
 export const ROSTER = Object.values(POKEMON);
