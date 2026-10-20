@@ -2,7 +2,6 @@
 import {
   useEffect,
   useRef,
-  useState,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
@@ -133,10 +132,16 @@ export function ManualControls({
   const controlHeld = useRef(false);
   const controlUsed = useRef(false);
   const stick = useRef({ direction: 0, depthDirection: 0 });
+  const stickKnob = useRef<HTMLSpanElement>(null);
+  const stickPointerId = useRef<number | null>(null);
   const lastMovementSent = useRef(-Infinity);
   const commandRef = useRef(command);
   commandRef.current = command;
-  const [stickPosition, setStickPosition] = useState({ direction: 0, depthDirection: 0 });
+  const updateStick = (direction: number, depthDirection: number) => {
+    stick.current = { direction, depthDirection };
+    if (stickKnob.current)
+      stickKnob.current.style.transform = `translate(${direction * 30}px, ${depthDirection * 30}px)`;
+  };
   const active = snapshot.fighters.filter((f) => f.team === team && f.active && f.hp > 0);
   const enemies = snapshot.fighters.filter((f) => f.team !== team && f.active && f.hp > 0);
   const selected =
@@ -169,16 +174,14 @@ export function ManualControls({
     const x = (event.clientX - bounds.left - radius) / radius;
     const y = (event.clientY - bounds.top - radius) / radius;
     const length = Math.max(1, Math.hypot(x, y));
-    const next = { direction: x / length, depthDirection: y / length };
-    stick.current = next;
-    setStickPosition(next);
-    sendMovement();
+    updateStick(x / length, y / length);
   };
   const releaseStick = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (stickPointerId.current !== event.pointerId) return;
+    stickPointerId.current = null;
     if (event.currentTarget.hasPointerCapture(event.pointerId))
       event.currentTarget.releasePointerCapture(event.pointerId);
-    stick.current = { direction: 0, depthDirection: 0 };
-    setStickPosition(stick.current);
+    updateStick(0, 0);
     sendMovement(true);
   };
   useEffect(() => {
@@ -304,8 +307,8 @@ export function ManualControls({
     };
     const onBlur = () => {
       heldDirections.current.clear();
-      stick.current = { direction: 0, depthDirection: 0 };
-      setStickPosition(stick.current);
+      stickPointerId.current = null;
+      updateStick(0, 0);
       sendMovement(true);
       shiftUsed.current = true;
       controlHeld.current = false;
@@ -381,22 +384,20 @@ export function ManualControls({
             role="img"
             aria-label="Drag to move; hold a direction and tap Dash to dodge that way"
             onPointerDown={(event) => {
-              if (disabled) return;
+              if (disabled || stickPointerId.current !== null) return;
+              stickPointerId.current = event.pointerId;
               event.currentTarget.setPointerCapture(event.pointerId);
               moveStick(event);
+              sendMovement(true);
             }}
             onPointerMove={(event) => {
-              if (event.currentTarget.hasPointerCapture(event.pointerId)) moveStick(event);
+              if (stickPointerId.current === event.pointerId) moveStick(event);
             }}
             onPointerUp={releaseStick}
             onPointerCancel={releaseStick}
+            onLostPointerCapture={releaseStick}
           >
-            <span
-              className="manual-stick-knob"
-              style={{
-                transform: `translate(${stickPosition.direction * 30}px, ${stickPosition.depthDirection * 30}px)`,
-              }}
-            />
+            <span ref={stickKnob} className="manual-stick-knob" />
           </div>
           <span>Move + Dash</span>
         </div>

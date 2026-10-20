@@ -193,6 +193,7 @@ export function BattleScreen() {
   const finished = snapshot?.phase === 'finished';
   const disconnected =
     online && (state.connection !== 'connected' || state.lobby?.players.some((p) => !p.connected));
+  const disconnectedPlayer = state.lobby?.players.find((p) => !p.connected);
   const controlsDisabled =
     !ready ||
     finished ||
@@ -343,12 +344,20 @@ export function BattleScreen() {
           <div className="arena-overlay">
             <WifiOff size={26} />
             <h2>
-              {state.connection === 'lost' ? 'Room unavailable' : 'Waiting for a connection…'}
+              {state.connection === 'lost'
+                ? 'Room unavailable'
+                : state.connection !== 'connected'
+                  ? 'Reconnecting to the room…'
+                  : disconnectedPlayer
+                    ? `Waiting for ${disconnectedPlayer.name}…`
+                    : 'Waiting for a connection…'}
             </h2>
             <p>
               {state.connection === 'lost'
                 ? 'The room or reconnection window has expired.'
-                : 'The battle is paused while a trainer reconnects. The grace period is 30 seconds.'}
+                : state.connection !== 'connected'
+                  ? 'Your connection dropped. The game will try to reconnect for 30 seconds.'
+                  : 'The battle is paused while the other trainer reconnects. The grace period is 30 seconds.'}
             </p>
             <Button variant="outline" onClick={leaveRoom}>
               Return home
