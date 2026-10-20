@@ -6,8 +6,10 @@ import { resolve } from 'node:path';
 const sources = [
   resolve('docs/character-concepts/rune-dragon-movement-concept.png'),
   resolve('docs/character-concepts/rune-dragon-reactions-cutout.png'),
+  resolve('docs/character-concepts/rune-dragon-tail-whip-concept.png'),
 ];
 const output = resolve('apps/frontend/public/assets');
+const frameWidth = 320;
 await mkdir(output, { recursive: true });
 
 const boards = await Promise.all(
@@ -78,6 +80,37 @@ async function cutout([board, left, right, top, bottom]) {
 const poseArt = Object.fromEntries(
   await Promise.all(Object.entries(poses).map(async ([name, rect]) => [name, await cutout(rect)])),
 );
+const tailWhipRects = [
+  [2, 0, 512, 0, 512],
+  [2, 512, 1005, 0, 512],
+  [2, 1024, 1536, 0, 512],
+  [2, 0, 535, 512, 1024],
+  [2, 535, 1040, 512, 1024],
+  [2, 1040, 1536, 512, 1024],
+];
+const tailWhipFrames = await Promise.all(
+  tailWhipRects.map(async (rect) => {
+    const source = await cutout(rect);
+    const { width, height } = await sharp(source).metadata();
+    const art = await sharp(source)
+      .resize(Math.round(width * 0.46), Math.round(height * 0.46), { kernel: 'nearest' })
+      .png()
+      .toBuffer();
+    const resized = await sharp(art).metadata();
+    return sharp({
+      create: { width: frameWidth, height: 160, channels: 4, background: '#00000000' },
+    })
+      .composite([
+        {
+          input: art,
+          left: Math.round((frameWidth - resized.width) / 2),
+          top: 152 - resized.height,
+        },
+      ])
+      .png()
+      .toBuffer();
+  }),
+);
 
 // Keep one silhouette in each animation. Rapidly alternating unrelated poses
 // made the old run/dash/backstep rows look like they were blinking.
@@ -87,7 +120,7 @@ const rowPoses = [
   'jump',
   'fall',
   'land',
-  'dash',
+  'run', // The attack row uses the six authored tail-whip poses below.
   'victory',
   'dash',
   'backstep',
@@ -117,8 +150,12 @@ for (const [name, source] of Object.entries(poseArt)) {
 
 const overlays = [];
 for (let row = 0; row < rowPoses.length; row++) {
-  const base = baseFrames[rowPoses[row]];
   for (let frame = 0; frame < 6; frame++) {
+    if (row === 5) {
+      overlays.push({ input: tailWhipFrames[frame], left: frame * frameWidth, top: row * 160 });
+      continue;
+    }
+    const base = baseFrames[rowPoses[row]];
     const pixels = Buffer.alloc(160 * 160 * 4);
     const phase = (frame / 6) * Math.PI * 2;
     const drift =
@@ -143,17 +180,24 @@ for (let row = 0; row < rowPoses.length; row++) {
         );
       }
     }
+    const body = await sharp(pixels, { raw: { width: 160, height: 160, channels: 4 } })
+      .png()
+      .toBuffer();
+    const fullFrame = await sharp({
+      create: { width: frameWidth, height: 160, channels: 4, background: '#00000000' },
+    })
+      .composite([{ input: body, left: 80, top: 0 }])
+      .png()
+      .toBuffer();
     overlays.push({
-      input: await sharp(pixels, { raw: { width: 160, height: 160, channels: 4 } })
-        .png()
-        .toBuffer(),
-      left: frame * 160,
+      input: fullFrame,
+      left: frame * frameWidth,
       top: row * 160,
     });
   }
 }
 await sharp({
-  create: { width: 960, height: 2400, channels: 4, background: '#00000000' },
+  create: { width: frameWidth * 6, height: 2400, channels: 4, background: '#00000000' },
 })
   .composite(overlays)
   .png()

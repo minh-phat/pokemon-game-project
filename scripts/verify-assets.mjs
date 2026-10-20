@@ -40,7 +40,7 @@ if (eeveeSheet.width !== 960 || eeveeSheet.height !== 2400 || !eeveeSheet.hasAlp
 const runedrakeSheet = await sharp(
   resolve('apps/frontend/public/assets/runedrake-sheet.png'),
 ).metadata();
-if (runedrakeSheet.width !== 960 || runedrakeSheet.height !== 2400 || !runedrakeSheet.hasAlpha)
+if (runedrakeSheet.width !== 1920 || runedrakeSheet.height !== 2400 || !runedrakeSheet.hasAlpha)
   throw new Error('Invalid Runedrake sprite sheet');
 for (const id of [
   'eevee-strike',

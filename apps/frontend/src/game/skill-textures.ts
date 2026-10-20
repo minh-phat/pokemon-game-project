@@ -469,7 +469,9 @@ function paint(c: Context, id: string, element: Element, frame: number) {
 
 /** Bake transparent frame atlases once; combat renders animated Sprites, not Graphics. */
 export function createSkillTextures(scene: Phaser.Scene) {
-  const definitions = Object.values(SKILL_BY_ID).map((s) => ({ id: s.id, element: s.element }));
+  const definitions = Object.values(SKILL_BY_ID)
+    .filter((skill) => skill.id !== 'tail-whip')
+    .map((skill) => ({ id: skill.id, element: skill.element }));
   for (const id of ['paralyzed', 'electro-charge', 'electro-trail', 'electro-impact'])
     definitions.push({ id, element: 'electric' });
   definitions.push({ id: 'burning', element: 'fire' });

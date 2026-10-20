@@ -53,7 +53,10 @@ export function createArenaScene(
         });
       arena.layers.forEach((url, i) => this.load.image(`layer-${i}`, url));
       for (const id of Object.keys(ASSETS.sprites) as (keyof typeof ASSETS.sprites)[])
-        this.load.spritesheet(id, ASSETS.sprites[id], { frameWidth: 160, frameHeight: 160 });
+        this.load.spritesheet(id, ASSETS.sprites[id], {
+          frameWidth: id === 'runedrake' ? 320 : 160,
+          frameHeight: 160,
+        });
       this.load.on('loaderror', () => {
         this.shownError = true;
         onError('An arena asset could not load. Reload the page to retry.');

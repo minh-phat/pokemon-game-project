@@ -56,6 +56,26 @@ describe('rules and contracts', () => {
   });
 });
 describe('damage and hit geometry', () => {
+  it('lets Runedrake whip a target at medium range without hitting beyond its reach', () => {
+    expect(POKEMON.runedrake.skills[0].id).toBe('tail-whip');
+    expect(POKEMON.runedrake.attackRange).toBe(160);
+    for (const [distance, shouldHit] of [
+      [150, true],
+      [210, false],
+    ] as const) {
+      const e = battle([['runedrake'], ['charmander']]);
+      const [a, b] = e.state.fighters;
+      a.x = 400;
+      b.x = a.x + distance;
+      a.depth = b.depth = 0;
+      a.thinkIn = b.thinkIn = 100;
+      a.invulnerable = b.invulnerable = 0;
+      const hp = b.hp;
+      expect(e.beginSkill(a, 'tail-whip')).toBe(true);
+      step(e, 0.4);
+      expect(b.hp < hp).toBe(shouldHit);
+    }
+  });
   it('lands Sludge Bomb beneath a hit target and damages only while it stands in the pool', () => {
     const e = battle([['bulbasaur'], ['charmander']]);
     const [a, b] = e.state.fighters;

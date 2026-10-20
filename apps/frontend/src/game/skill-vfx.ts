@@ -157,6 +157,7 @@ export class SkillVfx {
       }
       if (!f.cast) continue;
       const skill = SKILL_BY_ID[f.cast.skillId];
+      if (skill.id === 'tail-whip') continue;
       if (f.species === 'eevee' && skill.id === 'counter-pounce') {
         const triggered = f.cast.counterAt !== undefined;
         const id = `cast-${f.id}`;

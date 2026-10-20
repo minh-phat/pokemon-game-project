@@ -231,7 +231,7 @@ describe('manual battle commands', () => {
     expect(a.moveIntent).toBe(0);
     expect(a.sprinting).toBe(false);
   });
-  it.each(['pikachu', 'charmander', 'squirtle', 'bulbasaur'] as const)(
+  it.each(['pikachu', 'charmander', 'squirtle', 'bulbasaur', 'runedrake'] as const)(
     'automatically uses %s basic attack, but no special skill',
     (species) => {
       const e = initializeBattle(

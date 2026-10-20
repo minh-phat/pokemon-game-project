@@ -128,6 +128,13 @@ export const SKILLS = {
     description: 'A sturdy body check.',
     knockback: 160,
   }),
+  tailWhip: skill('tail-whip', 'Tail Whip', 'normal', 'melee', 13, 0, 1.15, 160, {
+    description: 'Sweeps its long tail forward to strike at medium range.',
+    startup: 0.22,
+    active: 0.16,
+    hitbox: { width: 42, height: 44, altitude: 29 },
+    knockback: 125,
+  }),
   waterGun: skill('water-gun', 'Water Gun', 'water', 'projectile', 20, 14, 2.8, 500, {
     description: 'A focused stream of water.',
     projectileSpeed: 560,
@@ -424,10 +431,10 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
     acceleration: 960,
     jumpStrength: 425,
     dodgeCooldown: 2,
-    attackRange: 90,
+    attackRange: 160,
     collision: { width: 58, height: 54 },
     skills: [
-      SKILLS.tackle,
+      SKILLS.tailWhip,
       SKILLS.ember,
       SKILLS.flamethrower,
       SKILLS.flameBurst,
