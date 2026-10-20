@@ -12,7 +12,7 @@ test('VS AI: selection, pause, animated combat, results, and play again', async 
   page.on('pageerror', (e) => errors.push(e.message));
   expect((await request.get('http://localhost:3001/health')).ok()).toBe(true);
   const roster = await (await request.get('http://localhost:3001/pokemon')).json();
-  expect(roster).toHaveLength(4);
+  expect(roster).toHaveLength(6);
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /A little team/ })).toBeVisible();
   await page.screenshot({ path: 'test-results/home-desktop.png', fullPage: true });
@@ -55,6 +55,27 @@ test('VS AI: selection, pause, animated combat, results, and play again', async 
   expect(errors).toEqual([]);
   await expect(page.locator('canvas')).toHaveCount(0);
 });
+
+test('Runedrake can be selected and rendered in battle', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  const sheet = page.waitForResponse(
+    (response) => response.url().endsWith('/assets/runedrake-sheet.png') && response.ok(),
+  );
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Let’s battle' }).click();
+  await page.getByRole('button', { name: /YOUR PACE/ }).click();
+  await rules(page);
+  await page.getByRole('button', { name: 'Inspect Runedrake' }).click();
+  await expect(page.getByRole('heading', { name: 'Runedrake', exact: true }).last()).toBeVisible();
+  await page.getByRole('button', { name: 'Add Runedrake' }).click();
+  await page.getByRole('button', { name: 'Enter the arena' }).click();
+  await sheet;
+  await expect(page.locator('canvas')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled();
+  expect(errors).toEqual([]);
+});
+
 test('online: two trainers complete an authoritative match and vote for rematch', async ({
   browser,
 }) => {

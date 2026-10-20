@@ -7,6 +7,7 @@ export const ASSETS = {
     squirtle: '/assets/squirtle.svg',
     bulbasaur: '/assets/bulbasaur.svg',
     eevee: '/assets/eevee.png',
+    runedrake: '/assets/runedrake.png',
   },
   sprites: {
     pikachu: '/assets/pikachu-sheet.svg',
@@ -14,6 +15,7 @@ export const ASSETS = {
     squirtle: '/assets/squirtle-sheet.svg',
     bulbasaur: '/assets/bulbasaur-sheet.svg',
     eevee: '/assets/eevee-sheet.png',
+    runedrake: '/assets/runedrake-sheet.png',
   },
   frame: { width: 160, height: 160, columns: 6, rows: 15 },
   arenas: ['forest', 'volcano', 'lake'].flatMap((id) =>

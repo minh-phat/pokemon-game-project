@@ -78,6 +78,7 @@ export class SkillVfx {
     delta: number,
     paused: boolean,
     reduced: boolean,
+    hoverByFighter: ReadonlyMap<string, number>,
   ) {
     this.paused = paused;
     this.reduced = reduced;
@@ -130,7 +131,8 @@ export class SkillVfx {
         492 +
         (old
           ? Phaser.Math.Linear(old.depth, f.depth, alpha) - Phaser.Math.Linear(old.y, f.y, alpha)
-          : f.depth - f.y);
+          : f.depth - f.y) -
+        (hoverByFighter.get(f.id) ?? 0);
       if (f.effects.some((effect) => effect.kind === 'stun')) {
         const statusId = `paralyzed-${f.id}`;
         this.place(statusId, 'skill-vfx-paralyzed', x, y, 94, 94, 0);
@@ -380,12 +382,12 @@ export class SkillVfx {
     this.impacts = this.impacts.filter((v) => v.remaining > 0);
   }
 
-  event(event: BattleEvent) {
+  event(event: BattleEvent, hoverLift = 0) {
     if (event.kind !== 'damage' && event.kind !== 'heal') return;
     if (event.text.endsWith('· pool')) return;
     const element = event.kind === 'heal' ? 'grass' : (event.element ?? 'normal');
     const x = event.x,
-      y = 492 + (event.depth ?? 0) - event.y;
+      y = 492 + (event.depth ?? 0) - event.y - hoverLift;
     const electroBall = event.text.startsWith('Electro Ball');
     const sludgeBomb = event.text.startsWith('Sludge Bomb');
     const finale = event.text.startsWith('Starfall Rush · finale');

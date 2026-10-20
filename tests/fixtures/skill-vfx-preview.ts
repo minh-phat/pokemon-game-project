@@ -154,6 +154,7 @@ new Phaser.Game({
           delta,
           controls.paused,
           controls.reduced,
+          new Map(),
         );
       });
       this.events.once('shutdown', () => vfx.destroy());

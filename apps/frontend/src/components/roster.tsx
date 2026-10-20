@@ -26,7 +26,7 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
         title={inspectOnly ? 'Little legends.' : 'Choose your companions.'}
         description={
           inspectOnly
-            ? 'Five personalities. Find your kind of fighter.'
+            ? 'Six personalities. Find your kind of fighter.'
             : `Pick ${state.rules.teamSize} Pokémon. Their instincts will take it from here.`
         }
         back={() => state.go(inspectOnly ? 'home' : state.sessionId ? 'lobby' : 'rules')}

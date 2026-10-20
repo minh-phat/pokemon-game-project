@@ -1,6 +1,13 @@
 import { z } from 'zod';
 
-export const speciesIds = ['pikachu', 'charmander', 'squirtle', 'bulbasaur', 'eevee'] as const;
+export const speciesIds = [
+  'pikachu',
+  'charmander',
+  'squirtle',
+  'bulbasaur',
+  'eevee',
+  'runedrake',
+] as const;
 export const SpeciesSchema = z.enum(speciesIds);
 export type SpeciesId = z.infer<typeof SpeciesSchema>;
 export type Element = 'normal' | 'electric' | 'fire' | 'water' | 'grass' | 'poison';
@@ -125,6 +132,8 @@ export interface PokemonDefinition {
   description: string;
   passive?: { name: string; description: string };
   color: string;
+  /** Visual height above the arena floor; combat hitboxes stay unchanged. */
+  hoverHeight?: number;
   hp: number;
   energy: number;
   maxStamina: number;

@@ -5,6 +5,7 @@ import { battleFeed } from '@/lib/battle-feed';
 import { selectManualFighter } from '@/lib/network';
 import { useGame } from '@/lib/store';
 import { BattleAudio } from './audio';
+import { easeHover, hoverTarget } from './hover';
 import { SkillVfx } from './skill-vfx';
 
 type Visual = {
@@ -15,6 +16,7 @@ type Visual = {
   ring: Phaser.GameObjects.Ellipse;
   targetMarker: Phaser.GameObjects.Text;
   lastAnimation: string;
+  hoverLift: number;
 };
 export function createArenaScene(
   arenaId: MatchRules['arena'],
@@ -100,19 +102,20 @@ export function createArenaScene(
             frameRate: a.frameRate,
             repeat: a.repeat,
           });
-          this.textures.get('eevee').setFilter(Phaser.Textures.FilterMode.NEAREST);
-          for (const id of [
-            'eevee-strike',
-            'swift',
-            'shadow-step',
-            'counter-pounce',
-            'starfall-rush',
-            'starfall-impact',
-            'eevee-guard',
-            'eevee-adaptive',
-          ])
-            this.textures.get(`skill-vfx-${id}`).setFilter(Phaser.Textures.FilterMode.NEAREST);
         }
+      for (const id of ['eevee', 'runedrake'])
+        this.textures.get(id).setFilter(Phaser.Textures.FilterMode.NEAREST);
+      for (const id of [
+        'eevee-strike',
+        'swift',
+        'shadow-step',
+        'counter-pounce',
+        'starfall-rush',
+        'starfall-impact',
+        'eevee-guard',
+        'eevee-adaptive',
+      ])
+        this.textures.get(`skill-vfx-${id}`).setFilter(Phaser.Textures.FilterMode.NEAREST);
       this.skillVfx = new SkillVfx(this);
       const particleColor =
         arenaId === 'volcano' ? 0xf6aa72 : arenaId === 'lake' ? 0xd2edee : 0xc9df94;
@@ -163,7 +166,7 @@ export function createArenaScene(
         sprite: this.add
           .sprite(f.x, 520, f.species)
           .setOrigin(0.5, 0.84)
-          .setScale(f.species === 'eevee' ? 0.66 : 0.82)
+          .setScale(f.species === 'eevee' ? 0.66 : f.species === 'runedrake' ? 0.9 : 0.82)
           .setDepth(5),
         bars: this.add.graphics().setDepth(15),
         label: this.add
@@ -177,6 +180,7 @@ export function createArenaScene(
           .setOrigin(0.5)
           .setDepth(16),
         lastAnimation: '',
+        hoverLift: POKEMON[f.species].hoverHeight ?? 0,
       };
       this.actors.set(f.id, visual);
       visual.sprite.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
@@ -253,6 +257,7 @@ export function createArenaScene(
         this.layers.slice(0, 3).forEach((layer, i) => {
           layer.x = 600 + (cameraTarget - 600) * (0.004 + i * 0.003);
         });
+      const hoverByFighter = new Map<string, number>();
       for (const f of snapshot.fighters) {
         let v = this.actors.get(f.id);
         if (!f.active && f.hp > 0) {
@@ -275,9 +280,15 @@ export function createArenaScene(
         const ground = 520 + depth;
         const faint = f.hp <= 0;
         const faintAlpha = faint ? Math.max(0, 1 - f.animationTime / 1.6) : 1;
+        const hoverHeight = POKEMON[f.species].hoverHeight ?? 0;
+        const grounded = faint || f.effects.some((effect) => effect.kind === 'stun');
+        const targetHover = hoverTarget(hoverHeight, grounded, time, settings.reducedMotion);
+        if (!settings.paused) v.hoverLift = easeHover(v.hoverLift, targetHover, delta);
+        hoverByFighter.set(f.id, v.hoverLift);
+        const altitude = y + v.hoverLift;
         v.sprite
           .setVisible(faintAlpha > 0)
-          .setPosition(x, ground - y)
+          .setPosition(x, ground - altitude)
           .setDepth(10 + (ground - 300) / 300)
           .setFlipX(f.facing < 0)
           .setAlpha(f.invulnerable > 0 ? 0.55 + Math.sin(time / 35) * 0.2 : faintAlpha);
@@ -304,9 +315,10 @@ export function createArenaScene(
               : 0xffffff,
         );
         v.shadow
-          .setVisible(!faint)
+          .setVisible(hoverHeight > 0 ? faintAlpha > 0 : !faint)
           .setPosition(x, ground + 2)
-          .setScale(Math.max(0.45, 1 - y / 300));
+          .setScale(Math.max(0.45, 1 - altitude / 300))
+          .setAlpha(hoverHeight > 0 ? Math.max(0, 1 - altitude / 260) * faintAlpha : 1);
         const selected = f.team === myTeam && snapshot.manualTeams[f.team] && controlledId === f.id;
         const targeted = !faint && f.id === targetId;
         v.ring
@@ -318,24 +330,26 @@ export function createArenaScene(
             selected || targeted ? 0.95 : 0.55,
           )
           .setScale(selected || targeted ? 1.35 : 1);
-        v.label.setVisible(!faint).setPosition(x, ground - 96 - y);
-        v.targetMarker.setVisible(targeted).setPosition(x, ground - 119 - y);
+        v.label.setVisible(!faint).setPosition(x, ground - 96 - altitude);
+        v.targetMarker.setVisible(targeted).setPosition(x, ground - 119 - altitude);
         const def = POKEMON[f.species];
         v.bars.clear();
         if (!faint) {
-          v.bars.fillStyle(0x172e2b, 0.75).fillRoundedRect(x - 31, ground - 84 - y, 62, 7, 3);
+          v.bars
+            .fillStyle(0x172e2b, 0.75)
+            .fillRoundedRect(x - 31, ground - 84 - altitude, 62, 7, 3);
           v.bars
             .fillStyle(f.team === 0 ? 0xd5e6a9 : 0xf0b0a1)
-            .fillRoundedRect(x - 30, ground - 83 - y, 60 * (f.hp / def.hp), 5, 2);
+            .fillRoundedRect(x - 30, ground - 83 - altitude, 60 * (f.hp / def.hp), 5, 2);
           v.bars
             .fillStyle(0xa1d9e1, 0.85)
-            .fillRect(x - 30, ground - 74 - y, (60 * f.energy) / def.energy, 2);
-          v.bars.fillStyle(0x292b24, 0.8).fillRect(x - 30, ground - 70 - y, 60, 3);
+            .fillRect(x - 30, ground - 74 - altitude, (60 * f.energy) / def.energy, 2);
+          v.bars.fillStyle(0x292b24, 0.8).fillRect(x - 30, ground - 70 - altitude, 60, 3);
           v.bars
             .fillStyle(f.stamina < f.maxStamina * 0.2 ? 0xee9777 : 0xe0be70, 0.95)
             .fillRect(
               x - 30,
-              ground - 70 - y,
+              ground - 70 - altitude,
               60 * Math.max(0, Math.min(1, f.stamina / f.maxStamina)),
               3,
             );
@@ -347,7 +361,7 @@ export function createArenaScene(
               Phaser.Display.Color.HexStringToColor(ELEMENTS[skill.element].color).color,
               0.7,
             );
-            v.bars.strokeCircle(x, ground - 26 - y, 20 + progress * 12);
+            v.bars.strokeCircle(x, ground - 26 - altitude, 20 + progress * 12);
           }
         }
       }
@@ -358,16 +372,18 @@ export function createArenaScene(
         delta,
         settings.paused,
         settings.reducedMotion,
+        hoverByFighter,
       );
       for (const event of snapshot.events) {
         if (event.id <= this.lastEvent) continue;
         this.lastEvent = event.id;
-        this.skillVfx.event(event);
+        const eventHover = hoverByFighter.get(event.fighterId) ?? 0;
+        this.skillVfx.event(event, eventHover);
         if (event.kind === 'damage' || event.kind === 'heal') {
           const floating = this.add
             .text(
               event.x,
-              445 + (event.depth ?? 0) - event.y,
+              445 + (event.depth ?? 0) - event.y - eventHover,
               `${event.kind === 'heal' ? '+' : '−'}${event.value}`,
               {
                 fontFamily: 'system-ui',
@@ -391,7 +407,7 @@ export function createArenaScene(
         if (event.kind === 'skill') {
           this.ambience.play(event.element === 'poison' ? 'water' : (event.element ?? 'normal'));
           const label = this.add
-            .text(event.x, 407 + (event.depth ?? 0) - event.y, event.text, {
+            .text(event.x, 407 + (event.depth ?? 0) - event.y - eventHover, event.text, {
               fontFamily: 'system-ui',
               fontSize: '12px',
               color: ELEMENTS[event.element ?? 'normal'].color,

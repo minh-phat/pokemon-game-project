@@ -20,7 +20,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "assets": "node scripts/generate-assets.mjs && node scripts/build-eevee-assets.mjs && node scripts/build-eevee-vfx.mjs",
+    "assets": "node scripts/generate-assets.mjs && node scripts/build-eevee-assets.mjs && node scripts/build-eevee-vfx.mjs && node scripts/build-runedrake-assets.mjs",
     "verify:assets": "node scripts/verify-assets.mjs",
     "benchmark": "tsx scripts/benchmark.ts",
     "format": "prettier --write apps/*/src packages/*/src scripts tests *.ts *.json docs README.md",

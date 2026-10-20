@@ -13,6 +13,8 @@ const expected = [
   'favicon.svg',
   'eevee.png',
   'eevee-sheet.png',
+  'runedrake.png',
+  'runedrake-sheet.png',
   ...[
     'eevee-strike',
     'swift',
@@ -35,6 +37,11 @@ for (const id of ids) {
 const eeveeSheet = await sharp(resolve('apps/frontend/public/assets/eevee-sheet.png')).metadata();
 if (eeveeSheet.width !== 960 || eeveeSheet.height !== 2400 || !eeveeSheet.hasAlpha)
   throw new Error('Invalid Eevee sprite sheet');
+const runedrakeSheet = await sharp(
+  resolve('apps/frontend/public/assets/runedrake-sheet.png'),
+).metadata();
+if (runedrakeSheet.width !== 960 || runedrakeSheet.height !== 2400 || !runedrakeSheet.hasAlpha)
+  throw new Error('Invalid Runedrake sprite sheet');
 for (const id of [
   'eevee-strike',
   'swift',
@@ -52,5 +59,5 @@ for (const id of [
     throw new Error(`Invalid Eevee VFX sheet ${id}`);
 }
 console.log(
-  `Verified ${expected.length} assets, four vector sprite sheets, and Eevee raster sprite sheets.`,
+  `Verified ${expected.length} assets, four vector sprite sheets, and Eevee and Runedrake raster sprite sheets.`,
 );

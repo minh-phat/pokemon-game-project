@@ -246,6 +246,10 @@ const animations = Object.fromEntries(
     },
   ]),
 ) as PokemonDefinition['animations'];
+const runedrakeAnimations: PokemonDefinition['animations'] = {
+  ...animations,
+  run: { ...animations.run, frameRate: 10 },
+};
 export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
   pikachu: {
     id: 'pikachu',
@@ -400,6 +404,37 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
     ],
     animations,
     ai: { aggression: 0.88, dodge: 0.92, guard: 0.18, preferredDistance: 105, retreat: 0.3 },
+  },
+  runedrake: {
+    id: 'runedrake',
+    name: 'Runedrake',
+    number: 'X01',
+    element: 'fire',
+    role: 'Rune serpent',
+    description: 'A fire-wreathed serpent that hovers over the arena and strikes from range.',
+    color: '#ef7d46',
+    hoverHeight: 44,
+    hp: 190,
+    energy: 100,
+    maxStamina: 100,
+    attack: 28,
+    defense: 24,
+    speed: 170,
+    sprintSpeed: 255,
+    acceleration: 960,
+    jumpStrength: 425,
+    dodgeCooldown: 2,
+    attackRange: 90,
+    collision: { width: 58, height: 54 },
+    skills: [
+      SKILLS.tackle,
+      SKILLS.ember,
+      SKILLS.flamethrower,
+      SKILLS.flameBurst,
+      SKILLS.infernoStream,
+    ],
+    animations: runedrakeAnimations,
+    ai: { aggression: 0.75, dodge: 0.72, guard: 0.38, preferredDistance: 210, retreat: 0.55 },
   },
 };
 export const ROSTER = Object.values(POKEMON);
