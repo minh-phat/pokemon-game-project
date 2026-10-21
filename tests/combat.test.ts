@@ -56,6 +56,57 @@ describe('rules and contracts', () => {
   });
 });
 describe('damage and hit geometry', () => {
+  it('fires three fast Ember Glyph seals in a triangular spread from Runedrake', () => {
+    expect(POKEMON.runedrake.skills[1].id).toBe('ember-glyph');
+    expect(POKEMON.charmander.skills.some((skill) => skill.id === 'ember')).toBe(true);
+    const e = battle([['runedrake'], ['charmander']]);
+    const [a, b] = e.state.fighters;
+    a.x = 200;
+    b.x = 1050;
+    a.depth = b.depth = 0;
+    a.aimX = 1;
+    a.aimDepth = 0;
+    a.thinkIn = b.thinkIn = 100;
+    expect(e.beginSkill(a, 'ember-glyph')).toBe(true);
+    step(e, 0.35);
+    const shots = e.state.projectiles.filter((p) => p.skillId === 'ember-glyph');
+    expect(shots).toHaveLength(3);
+    expect(shots.map((p) => Math.sign(p.vDepth ?? 0))).toEqual([-1, 0, 1]);
+    expect(shots[1]!.x).toBeGreaterThan(shots[0]!.x);
+    expect(shots[1]!.x).toBeGreaterThan(shots[2]!.x);
+    expect(
+      shots.every((p) => Math.hypot(p.vx, p.vDepth ?? 0) === SKILLS.emberGlyph.projectileSpeed),
+    ).toBe(true);
+    expect(shots.every((p) => p.life > 0.9)).toBe(true);
+  });
+  it.each([1, 2, 3])('deals exactly 8 damage per Ember Glyph seal when %i hit', (hits) => {
+    const e = battle([['runedrake'], ['charmander']]);
+    const [a, b] = e.state.fighters;
+    a.x = 200;
+    b.x = 1050;
+    a.depth = b.depth = 0;
+    a.aimX = 1;
+    a.aimDepth = 0;
+    a.thinkIn = b.thinkIn = 100;
+    b.invulnerable = 0;
+    expect(e.beginSkill(a, 'ember-glyph')).toBe(true);
+    step(e, 0.35);
+    b.x = 500;
+    b.vx = b.vDepth = 0;
+    e.state.projectiles.forEach((p, i) => {
+      p.x = p.previousX = 470;
+      p.depth = p.previousDepth = i < hits ? 0 : 300;
+      p.vx = SKILLS.emberGlyph.projectileSpeed;
+      p.vDepth = 0;
+    });
+    const hp = b.hp;
+    e.updateBattle(FIXED_DELTA);
+    expect(hp - b.hp).toBe(8 * hits);
+    expect(
+      e.state.events.filter((event) => event.kind === 'damage' && event.text.startsWith('Hỏa Ấn')),
+    ).toHaveLength(hits);
+    expect(b.effects.some((effect) => effect.kind === 'burn')).toBe(false);
+  });
   it('lets Runedrake whip a target at medium range without hitting beyond its reach', () => {
     expect(POKEMON.runedrake.skills[0].id).toBe('tail-whip');
     expect(POKEMON.runedrake.attackRange).toBe(160);

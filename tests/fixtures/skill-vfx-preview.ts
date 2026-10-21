@@ -10,9 +10,12 @@ new Phaser.Game({
   height: 1000,
   backgroundColor: '#172d30',
   scene: {
+    preload() {
+      this.load.image('ember-glyph-art', (window as any).emberGlyphAsset);
+    },
     create() {
       createSkillTextures(this);
-      const skills = Object.values(SKILL_BY_ID);
+      const skills = Object.values(SKILL_BY_ID).filter((skill) => skill.id !== 'tail-whip');
       const vfx = new SkillVfx(this);
       const snapshot: BattleSnapshot = {
         seed: 1,
@@ -102,7 +105,11 @@ new Phaser.Game({
         vfxPreview: {
           controls,
           inspect: () => ({
-            frames: skills.map((s) => this.anims.get(`skill-vfx-${s.id}`).frames.length),
+            frames: skills.map((s) =>
+              s.id === 'ember-glyph'
+                ? Number(this.textures.exists('ember-glyph-art'))
+                : this.anims.get(`skill-vfx-${s.id}`).frames.length,
+            ),
             sprites: this.children.list.filter((o) => o instanceof Phaser.GameObjects.Sprite)
               .length,
             puddles: this.children.list.filter(

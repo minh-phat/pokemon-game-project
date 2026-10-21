@@ -34,6 +34,11 @@ it('all animation definitions point to authored sprite frames', async () => {
   }
 });
 
+it('Ember Glyph uses a transparent image asset', async () => {
+  const image = await sharp('apps/frontend/public/assets/runedrake-ember-glyph.png').metadata();
+  expect([image.width, image.height, image.hasAlpha]).toEqual([256, 128, true]);
+});
+
 it('Runedrake run frames keep a stable silhouette', async () => {
   const { data, info } = await sharp('apps/frontend/public/assets/runedrake-sheet.png')
     .raw()

@@ -38,7 +38,7 @@ export class SkillVfx {
 
   private sprite(key: string) {
     const sprite = this.scene.add.sprite(0, 0, key, 0).setDepth(12);
-    if (key !== 'electro-ball-art') sprite.play(key);
+    if (key !== 'electro-ball-art' && key !== 'ember-glyph-art') sprite.play(key);
     return sprite;
   }
 
@@ -68,7 +68,8 @@ export class SkillVfx {
       .setAlpha(this.reduced ? 0.65 : 0.95);
     if (this.paused || this.reduced) effect.sprite.anims.pause();
     else effect.sprite.anims.resume();
-    if (this.reduced) effect.sprite.setFrame(3);
+    if (this.reduced && key !== 'electro-ball-art' && key !== 'ember-glyph-art')
+      effect.sprite.setFrame(3);
   }
 
   update(
@@ -158,6 +159,21 @@ export class SkillVfx {
       if (!f.cast) continue;
       const skill = SKILL_BY_ID[f.cast.skillId];
       if (skill.id === 'tail-whip') continue;
+      if (skill.id === 'ember-glyph') {
+        if (f.cast.elapsed < skill.startup) {
+          for (let i = 0; i < 3; i++) {
+            const id = `cast-${f.id}-${i}`;
+            this.place(id, 'ember-glyph-art', x + (i - 1) * 27, y - 48 + (i % 2) * 6, 43, 22, 0);
+            this.attached
+              .get(id)!
+              .sprite.setAlpha(
+                (this.reduced ? 0.45 : 0.55) + 0.25 * Math.min(1, f.cast.elapsed / skill.startup),
+              );
+            live.add(id);
+          }
+        }
+        continue;
+      }
       if (f.species === 'eevee' && skill.id === 'counter-pounce') {
         const triggered = f.cast.counterAt !== undefined;
         const id = `cast-${f.id}`;
@@ -280,17 +296,28 @@ export class SkillVfx {
               ? 104
               : skill.id === 'flame-burst'
                 ? 100
-                : Math.max(76, p.width * 2);
+                : skill.id === 'ember-glyph'
+                  ? 94
+                  : Math.max(76, p.width * 2);
       const auraSize = skill.electricAura
         ? ((p.width + skill.electricAura.reach * 2) * 128) / 116
         : null;
       this.place(
         id,
-        skill.id === 'electro-ball' ? 'electro-ball-art' : `skill-vfx-${skill.id}`,
+        skill.id === 'electro-ball'
+          ? 'electro-ball-art'
+          : skill.id === 'ember-glyph'
+            ? 'ember-glyph-art'
+            : `skill-vfx-${skill.id}`,
         x,
         y,
         auraSize ?? width,
-        auraSize ?? (skill.id === 'sludge-bomb' ? 104 : Math.max(60, p.height * 2.3)),
+        auraSize ??
+          (skill.id === 'sludge-bomb'
+            ? 104
+            : skill.id === 'ember-glyph'
+              ? 47
+              : Math.max(60, p.height * 2.3)),
         angle,
       );
       if (skill.id === 'swift')

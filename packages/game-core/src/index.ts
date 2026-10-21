@@ -617,25 +617,35 @@ export class BattleEngine {
     s.events.forEach((event, index) => {
       if (cast.elapsed + 1e-9 >= event.at && !(cast.fired & (1 << index))) {
         cast.fired |= 1 << index;
-        if (event.kind === 'projectile')
-          this.state.projectiles.push({
-            id: `p${++this.projectileId}`,
-            ownerId: f.id,
-            team: f.team,
-            skillId: s.id,
-            x: f.x + f.aimX * 32,
-            previousX: f.x + f.aimX * 32,
-            y: f.y + s.hitbox.altitude,
-            vx: f.aimX * s.projectileSpeed,
-            depth: f.depth + f.aimDepth * 32,
-            previousDepth: f.depth + f.aimDepth * 32,
-            vDepth: f.aimDepth * s.projectileSpeed,
-            width: s.hitbox.width,
-            height: s.hitbox.height,
-            life: s.range / s.projectileSpeed,
-            targetId: s.homing ? cast.targetId : undefined,
-            age: 0,
-          });
+        if (event.kind === 'projectile') {
+          const glyphSpread = s.id === 'ember-glyph' ? [-0.16, 0, 0.16] : [0];
+          for (const [shot, offset] of glyphSpread.entries()) {
+            const aim = Math.atan2(f.aimDepth, f.aimX);
+            const angle = aim + offset;
+            const forward = shot === 1 && s.id === 'ember-glyph' ? 14 : 0;
+            const side = s.id === 'ember-glyph' ? (shot - 1) * 10 : 0;
+            const x = f.x + f.aimX * (32 + forward) - f.aimDepth * side;
+            const depth = f.depth + f.aimDepth * (32 + forward) + f.aimX * side;
+            this.state.projectiles.push({
+              id: `p${++this.projectileId}`,
+              ownerId: f.id,
+              team: f.team,
+              skillId: s.id,
+              x,
+              previousX: x,
+              y: f.y + s.hitbox.altitude,
+              vx: Math.cos(angle) * s.projectileSpeed,
+              depth,
+              previousDepth: depth,
+              vDepth: Math.sin(angle) * s.projectileSpeed,
+              width: s.hitbox.width,
+              height: s.hitbox.height,
+              life: s.range / s.projectileSpeed,
+              targetId: s.homing ? cast.targetId : undefined,
+              age: 0,
+            });
+          }
+        }
         if (event.kind === 'buff')
           f.effects.push(...s.effects.map((e) => ({ ...e, sourceId: f.id })));
       }
@@ -947,7 +957,7 @@ export class BattleEngine {
             continue;
           }
           if (f.invulnerable <= 0) {
-            this.hit(owner, f, skill);
+            this.hit(owner, f, skill, skill.id === 'ember-glyph' ? skill.damage : undefined);
             if (skill.groundHazard) this.createGroundHazard(p, f.x, f.depth);
             p.life = 0;
             landed = true;

@@ -15,6 +15,7 @@ const expected = [
   'eevee-sheet.png',
   'runedrake.png',
   'runedrake-sheet.png',
+  'runedrake-ember-glyph.png',
   ...[
     'eevee-strike',
     'swift',
@@ -42,6 +43,11 @@ const runedrakeSheet = await sharp(
 ).metadata();
 if (runedrakeSheet.width !== 1920 || runedrakeSheet.height !== 2400 || !runedrakeSheet.hasAlpha)
   throw new Error('Invalid Runedrake sprite sheet');
+const emberGlyph = await sharp(
+  resolve('apps/frontend/public/assets/runedrake-ember-glyph.png'),
+).metadata();
+if (emberGlyph.width !== 256 || emberGlyph.height !== 128 || !emberGlyph.hasAlpha)
+  throw new Error('Invalid Ember Glyph sprite');
 for (const id of [
   'eevee-strike',
   'swift',

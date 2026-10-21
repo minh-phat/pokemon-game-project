@@ -37,6 +37,7 @@ export function createArenaScene(
     preload() {
       const arena = ARENAS.find((a) => a.id === arenaId)!;
       this.load.image('electro-ball-art', '/assets/electro-ball-art.png');
+      this.load.image('ember-glyph-art', '/assets/runedrake-ember-glyph.png');
       for (const id of [
         'eevee-strike',
         'swift',
@@ -108,6 +109,7 @@ export function createArenaScene(
         }
       for (const id of ['eevee', 'runedrake'])
         this.textures.get(id).setFilter(Phaser.Textures.FilterMode.NEAREST);
+      this.textures.get('ember-glyph-art').setFilter(Phaser.Textures.FilterMode.NEAREST);
       for (const id of [
         'eevee-strike',
         'swift',
@@ -289,9 +291,14 @@ export function createArenaScene(
         if (!settings.paused) v.hoverLift = easeHover(v.hoverLift, targetHover, delta);
         hoverByFighter.set(f.id, v.hoverLift);
         const altitude = y + v.hoverLift;
+        const glyphCasting =
+          f.cast?.skillId === 'ember-glyph' && f.cast.elapsed < SKILL_BY_ID['ember-glyph'].startup;
+        const glyphWobble =
+          glyphCasting && !settings.reducedMotion ? Math.sin(f.cast!.elapsed * 35) * 0.025 : 0;
         v.sprite
           .setVisible(faintAlpha > 0)
-          .setPosition(x, ground - altitude)
+          .setPosition(x + glyphWobble * 70, ground - altitude)
+          .setRotation(glyphWobble)
           .setDepth(10 + (ground - 300) / 300)
           .setFlipX(f.facing < 0)
           .setAlpha(f.invulnerable > 0 ? 0.55 + Math.sin(time / 35) * 0.2 : faintAlpha);

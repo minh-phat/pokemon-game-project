@@ -41,6 +41,7 @@ const skillControls: Record<string, { icon: LucideIcon; label: string }> = {
   'volt-tackle': { icon: Footprints, label: 'Volt' },
   scratch: { icon: Swords, label: 'Scratch' },
   ember: { icon: Flame, label: 'Ember' },
+  'ember-glyph': { icon: Flame, label: 'Ember Glyph' },
   flamethrower: { icon: Wind, label: 'Flame' },
   'flame-burst': { icon: Bomb, label: 'Burst' },
   'inferno-stream': { icon: Flame, label: 'Inferno' },

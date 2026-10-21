@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { SKILL_BY_ID } from '@arena/game-data';
 import { build } from 'tsup';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -23,6 +24,13 @@ test('all skill sprites animate, emit particles, pause, reduce motion, and clean
     page.on('pageerror', (error) => errors.push(error.message));
     await page.setViewportSize({ width: 1100, height: 1100 });
     await page.setContent('<html><body style="margin:0;background:#172d30"></body></html>');
+    const glyphImage = await readFile('apps/frontend/public/assets/runedrake-ember-glyph.png');
+    await page.evaluate(
+      (asset) => {
+        (window as any).emberGlyphAsset = asset;
+      },
+      `data:image/png;base64,${glyphImage.toString('base64')}`,
+    );
     await page.addScriptTag({
       content: await readFile(join(output, 'skill-vfx-preview.global.js'), 'utf8'),
     });
@@ -31,7 +39,11 @@ test('all skill sprites animate, emit particles, pause, reduce motion, and clean
     await expect
       .poll(async () => (await inspect())?.sprites, { timeout: 10000 })
       .toBeGreaterThan(20);
-    expect((await inspect()).frames).toEqual(Array(19).fill(12));
+    expect((await inspect()).frames).toEqual(
+      Object.values(SKILL_BY_ID)
+        .filter((skill) => skill.id !== 'tail-whip')
+        .map((skill) => (skill.id === 'ember-glyph' ? 1 : 12)),
+    );
     expect((await inspect()).puddles).toBe(1);
     expect((await inspect()).sludgeBombs).toBe(1);
     expect((await inspect()).sludgeTrails).toBe(2);
