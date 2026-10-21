@@ -92,3 +92,11 @@ it('Runedrake tail-whip poses move the attached tail forward', async () => {
     expect(changed).toBeGreaterThan(2000);
   }
 });
+
+it('citadel uses the original uploaded image at its native aspect ratio', async () => {
+  const arena = ARENAS.find((a) => a.id === 'ruins')!;
+  const metadata = await sharp(resolve('apps/frontend/public', `.${arena.background}`)).metadata();
+  expect([metadata.width, metadata.height]).toEqual([1942, 810]);
+  expect(arena.width / arena.height!).toBeCloseTo(metadata.width! / metadata.height!, 10);
+  expect(arena.thumbnail).toBe(arena.background);
+});

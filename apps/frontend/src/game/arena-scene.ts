@@ -1,3 +1,4 @@
+import { drawRuins } from './ruins-arena';
 import * as Phaser from 'phaser';
 import { ANIMATIONS, type Fighter, type MatchRules } from '@arena/shared-types';
 import { ARENAS, ASSETS, ELEMENTS, POKEMON, SKILL_BY_ID } from '@arena/game-data';
@@ -31,6 +32,17 @@ export function createArenaScene(
     private leaves: { dot: Phaser.GameObjects.Ellipse; speed: number; phase: number }[] = [];
     private layers: Phaser.GameObjects.Image[] = [];
     private shownError = false;
+    private followedId: string | null = null;
+    private lastCameraStatus = '';
+    private cameraZoom = 1;
+    private cameraFraming: 'cover' | 'overview' | 'custom' = 'cover';
+    private framingZoom(mode: 'cover' | 'overview') {
+      const arena = ARENAS.find((a) => a.id === arenaId)!;
+      const camera = this.cameras.main;
+      const ratios = [camera.width / arena.width, camera.height / (arena.height ?? 760)];
+      return mode === 'cover' ? Math.max(...ratios) : Math.min(...ratios);
+    }
+    private cameraChanged = arenaId === 'ruins';
     constructor() {
       super('arena');
     }
@@ -53,6 +65,7 @@ export function createArenaScene(
           frameWidth: 128,
           frameHeight: 128,
         });
+      if (arena.background) this.load.image('arena-background', arena.background);
       arena.layers.forEach((url, i) => this.load.image(`layer-${i}`, url));
       for (const id of Object.keys(ASSETS.sprites) as (keyof typeof ASSETS.sprites)[])
         this.load.spritesheet(id, ASSETS.sprites[id], {
@@ -65,39 +78,68 @@ export function createArenaScene(
       });
     }
     create() {
-      for (let i = 0; i < 4; i++)
-        this.layers.push(
-          this.add
-            .image(600, 380, `layer-${i}`)
-            .setDisplaySize(1200, 760)
-            .setDepth(i - 10),
-        );
-      // A broad ground plane makes vertical travel distinct from jumping.
-      const floor = this.add.graphics().setDepth(-5);
-      const groundColor =
-        arenaId === 'volcano' ? 0x66514b : arenaId === 'lake' ? 0x7bbaa7 : 0x779b62;
-      const arena = ARENAS.find((a) => a.id === arenaId)!;
-      const left = arena.bounds[0],
-        right = arena.bounds[1];
-      const top = arena.ground + arena.depthBounds[0];
-      const bottom = arena.ground + arena.depthBounds[1];
-      const width = right - left,
-        height = bottom - top;
-      const centerY = (top + bottom) / 2;
-      floor.fillStyle(groundColor, 1).fillRoundedRect(12, top - 65, 1176, height + 95, 38);
-      floor.lineStyle(3, 0xf3e8c6, 0.4).strokeRoundedRect(left, top, width, height, 24);
-      floor.lineStyle(2, 0xf3e8c6, 0.15).strokeEllipse(600, centerY, 260, 210);
-      floor.lineBetween(600, top, 600, bottom);
-      for (let i = 0; i < 110; i++) {
-        floor
-          .fillStyle(i % 2 ? 0xffffff : 0x20382c, 0.08)
-          .fillEllipse(
-            left + 20 + ((i * 173) % (width - 40)),
-            top + 15 + ((i * 71) % (height - 30)),
-            6 + (i % 9),
-            3,
+      if (arenaId !== 'ruins') {
+        for (let i = 0; i < 4; i++)
+          this.layers.push(
+            this.add
+              .image(600, 380, `layer-${i}`)
+              .setDisplaySize(1200, 760)
+              .setDepth(i - 10),
           );
+        // A broad ground plane makes vertical travel distinct from jumping.
+        const floor = this.add.graphics().setDepth(-5);
+        const groundColor =
+          arenaId === 'volcano' ? 0x66514b : arenaId === 'lake' ? 0x7bbaa7 : 0x779b62;
+        const arena = ARENAS.find((a) => a.id === arenaId)!;
+        const left = arena.bounds[0],
+          right = arena.bounds[1];
+        const top = arena.ground + arena.depthBounds[0];
+        const bottom = arena.ground + arena.depthBounds[1];
+        const width = right - left,
+          height = bottom - top;
+        const centerY = (top + bottom) / 2;
+        floor.fillStyle(groundColor, 1).fillRoundedRect(12, top - 65, 1176, height + 95, 38);
+        floor.lineStyle(3, 0xf3e8c6, 0.4).strokeRoundedRect(left, top, width, height, 24);
+        floor.lineStyle(2, 0xf3e8c6, 0.15).strokeEllipse(600, centerY, 260, 210);
+        floor.lineBetween(600, top, 600, bottom);
+        for (let i = 0; i < 110; i++) {
+          floor
+            .fillStyle(i % 2 ? 0xffffff : 0x20382c, 0.08)
+            .fillEllipse(
+              left + 20 + ((i * 173) % (width - 40)),
+              top + 15 + ((i * 71) % (height - 30)),
+              6 + (i % 9),
+              3,
+            );
+        }
       }
+      const arena = ARENAS.find((a) => a.id === arenaId)!;
+      if (arenaId === 'ruins') drawRuins(this, arena);
+      const cameraControl = (event: Event) => {
+        const action = (event as CustomEvent<string>).detail;
+        this.cameraChanged = true;
+        if (action.startsWith('follow:')) {
+          this.followedId = action.slice(7);
+          this.cameraFraming = 'custom';
+          this.cameraZoom = Math.max(1, this.framingZoom('cover'), this.cameraZoom);
+        } else if (action === 'overview' || action === 'cover') {
+          this.followedId = null;
+          this.cameraFraming = action;
+          this.cameraZoom = this.framingZoom(action);
+        } else {
+          this.cameraFraming = 'custom';
+          this.cameraZoom = Phaser.Math.Clamp(
+            this.cameraZoom * (action === 'in' ? 1.2 : 1 / 1.2),
+            this.framingZoom('overview'),
+            Math.max(2, this.framingZoom('cover')),
+          );
+        }
+      };
+      window.addEventListener('arena-camera', cameraControl);
+      this.events.once('shutdown', () => window.removeEventListener('arena-camera', cameraControl));
+      this.input.on('wheel', (_p: unknown, _objects: unknown, _dx: number, dy: number) =>
+        cameraControl(new CustomEvent('arena-camera', { detail: dy < 0 ? 'in' : 'out' })),
+      );
       for (const [id, def] of Object.entries(POKEMON))
         for (const animation of ANIMATIONS) {
           const a = def.animations[animation];
@@ -125,7 +167,7 @@ export function createArenaScene(
       this.skillVfx = new SkillVfx(this);
       const particleColor =
         arenaId === 'volcano' ? 0xf6aa72 : arenaId === 'lake' ? 0xd2edee : 0xc9df94;
-      for (let i = 0; i < 25; i++) {
+      for (let i = 0; i < (arenaId === 'ruins' ? 0 : 25); i++) {
         this.leaves.push({
           dot: this.add
             .ellipse(
@@ -141,7 +183,7 @@ export function createArenaScene(
           phase: i,
         });
       }
-      this.ambience = new BattleAudio(arenaId);
+      this.ambience = new BattleAudio(arenaId === 'ruins' ? 'forest' : arenaId);
       this.events.once('shutdown', () => {
         this.ambience.destroy();
         this.actors.clear();
@@ -190,6 +232,13 @@ export function createArenaScene(
       };
       this.actors.set(f.id, visual);
       visual.sprite.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
+        const actor = battleFeed.latest?.fighters.find((actor) => actor.id === f.id);
+        if (actor?.active && actor.hp > 0) {
+          this.followedId = f.id;
+          this.cameraChanged = true;
+          this.cameraFraming = 'custom';
+          this.cameraZoom = Math.max(1, this.framingZoom('cover'), this.cameraZoom);
+        }
         const game = useGame.getState();
         const team =
           game.mode === 'online'
@@ -242,7 +291,11 @@ export function createArenaScene(
       );
       const targetId = controlled && snapshot.manualTeams[myTeam] ? controlled.targetId : null;
       const canvasParent = this.game.canvas.parentElement;
-      if (canvasParent && canvasParent.clientWidth / canvasParent.clientHeight < 1200 / 760) {
+      if (
+        !this.cameraChanged &&
+        canvasParent &&
+        canvasParent.clientWidth / canvasParent.clientHeight < 1200 / 760
+      ) {
         const visibleWidth = (760 * canvasParent.clientWidth) / canvasParent.clientHeight;
         const target = snapshot.fighters.find((f) => f.id === controlled?.targetId && f.active);
         const center = controlled
@@ -258,6 +311,46 @@ export function createArenaScene(
         );
       } else {
         this.cameras.main.scrollX = 0;
+      }
+      if (this.cameraChanged) {
+        const arena = ARENAS.find((a) => a.id === arenaId)!;
+        const camera = this.cameras.main;
+        const follow = snapshot.fighters.find(
+          (f) => f.id === this.followedId && f.active && f.hp > 0,
+        );
+        if (this.followedId && !follow) {
+          this.followedId = null;
+          this.cameraFraming = 'cover';
+        }
+        if (this.cameraFraming !== 'custom') this.cameraZoom = this.framingZoom(this.cameraFraming);
+        camera.setZoom(this.cameraZoom);
+        const worldHeight = arena.height ?? 760;
+        const halfW = camera.width / 2 / this.cameraZoom,
+          halfH = camera.height / 2 / this.cameraZoom;
+        const x = follow
+          ? Phaser.Math.Clamp(
+              follow.x,
+              Math.min(halfW, arena.width / 2),
+              Math.max(arena.width - halfW, arena.width / 2),
+            )
+          : arena.width / 2;
+        const y = follow
+          ? Phaser.Math.Clamp(
+              520 + follow.depth,
+              Math.min(halfH, worldHeight / 2),
+              Math.max(worldHeight - halfH, worldHeight / 2),
+            )
+          : worldHeight / 2;
+        camera.centerOn(x, y);
+        const status = `${this.followedId ?? ''}:${this.cameraZoom}`;
+        if (status !== this.lastCameraStatus) {
+          this.lastCameraStatus = status;
+          window.dispatchEvent(
+            new CustomEvent('arena-camera-status', {
+              detail: { id: this.followedId ?? '', zoom: Math.round(this.cameraZoom * 100) },
+            }),
+          );
+        }
       }
       if (!settings.reducedMotion)
         this.layers.slice(0, 3).forEach((layer, i) => {

@@ -1,3 +1,5 @@
+import { RUINS_ARENA } from './ruins';
+export * from './ruins';
 import {
   ANIMATIONS,
   type PokemonDefinition,
@@ -569,6 +571,7 @@ export const ARENAS: ArenaDefinition[] = [
     ],
     ambient: '/assets/lake.wav',
   },
+  RUINS_ARENA,
 ];
 export const DIFFICULTY = {
   easy: { reaction: 0.34, accuracy: 0.55, aggression: 0.8 },

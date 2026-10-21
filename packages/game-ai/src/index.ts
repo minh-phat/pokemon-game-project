@@ -203,7 +203,7 @@ export function decideAction(
         return { type: 'dodge', mode: 'crouch', direction: 0 };
     }
     const away = -direction,
-      enoughSpace = f.x + away * 100 > 55 && f.x + away * 100 < 1145;
+      enoughSpace = f.x + away * 100 > arena.bounds[0] && f.x + away * 100 < arena.bounds[1];
     if (def.ai.guard > 0.6 || !enoughSpace) return { type: 'guard' };
     const sidestep = steer(-0.3, 1, 'Retreat');
     if (sidestep.type === 'move')
@@ -263,8 +263,8 @@ export function decideAction(
   if (
     (distance < def.ai.preferredDistance * 0.65 || (hpRatio < 0.24 && distance < 160)) &&
     random() < def.ai.retreat &&
-    f.x - direction * 60 > 55 &&
-    f.x - direction * 60 < 1145
+    f.x - direction * 60 > arena.bounds[0] &&
+    f.x - direction * 60 < arena.bounds[1]
   )
     return steer(-1, 0.8, 'Retreat');
   if (distance > def.ai.preferredDistance || (!available.length && distance > def.attackRange))

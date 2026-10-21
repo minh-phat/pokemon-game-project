@@ -189,7 +189,7 @@ export function Home({
           </span>
           <div>
             <p className="eyebrow">A WORLD WORTH EXPLORING</p>
-            <h3>Three arenas. Endless possibilities.</h3>
+            <h3>Four arenas. Endless possibilities.</h3>
             <p className="muted small">From emerald forests to shores of crystal blue.</p>
           </div>
         </div>
@@ -203,7 +203,7 @@ export function Home({
                 go('arenas');
               }}
             >
-              <img src={`/assets/${a.id}.svg`} alt={a.name} />
+              <img src={a.thumbnail ?? `/assets/${a.id}.svg`} alt={a.name} />
             </button>
           ))}
         </div>

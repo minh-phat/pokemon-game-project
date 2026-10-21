@@ -140,7 +140,7 @@ export function LobbyScreen() {
           </div>
         </div>
         <aside className="panel lobby-rules">
-          <img src={`/assets/${arena.id}.svg`} alt={arena.name} />
+          <img src={arena.thumbnail ?? `/assets/${arena.id}.svg`} alt={arena.name} />
           <h3>{arena.name}</h3>
           <dl>
             <div>

@@ -1,5 +1,6 @@
+import { terrainContact } from '@arena/game-core';
 import * as Phaser from 'phaser';
-import { ELEMENTS, POKEMON, SKILL_BY_ID } from '@arena/game-data';
+import { ARENAS, ELEMENTS, POKEMON, SKILL_BY_ID } from '@arena/game-data';
 import type { BattleEvent, BattleSnapshot, Element } from '@arena/shared-types';
 import { createSkillTextures } from './skill-textures';
 import { BindVfx } from './bind-vfx';
@@ -353,14 +354,22 @@ export class SkillVfx {
         ? oldAngle +
           Math.atan2(Math.sin(targetAngle - oldAngle), Math.cos(targetAngle - oldAngle)) * alpha
         : targetAngle;
-      const length = directional ? skill.range : 76;
+      const arena = ARENAS.find((a) => a.id === snapshot.rules.arena)!;
+      const contact = directional
+        ? terrainContact(arena, f, {
+            x: f.x + Math.cos(angle) * skill.range,
+            depth: f.depth + Math.sin(angle) * skill.range,
+          })
+        : 1;
+      const length = directional ? skill.range * contact : 76;
+      if (directional && length < 1) continue;
       const center = directional ? length * (stream ? 0.54 : 0.45) : 0;
       this.place(
         id,
         `skill-vfx-${electroCharge ? 'electro-charge' : charge && f.species === 'eevee' ? 'eevee-adaptive' : charge ? `charge-${skill.element}` : skill.id}`,
         x + Math.cos(angle) * center,
         y + Math.sin(angle) * center,
-        electroCharge ? 112 : length * (directional ? (stream ? 1.08 : 1.2) : 1),
+        electroCharge ? 112 : length * (directional && contact === 1 ? (stream ? 1.08 : 1.2) : 1),
         electroCharge ? 112 : stream ? 310 : skill.behavior === 'area' && !charge ? 100 : 80,
         directional ? angle : 0,
       );
@@ -370,8 +379,8 @@ export class SkillVfx {
           this.emitters
             .get('fire')!
             .emitParticleAt(
-              x + Math.cos(angle) * skill.range * distance,
-              y + Math.sin(angle) * skill.range * distance,
+              x + Math.cos(angle) * length * distance,
+              y + Math.sin(angle) * length * distance,
               3,
             );
       if (emit)

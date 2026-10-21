@@ -105,7 +105,7 @@ export function ArenaPicker({
           className={value === a.id ? 'selected' : ''}
           onClick={() => onChange(a.id)}
         >
-          <img src={`/assets/${a.id}.svg`} alt="" />
+          <img src={a.thumbnail ?? `/assets/${a.id}.svg`} alt="" />
           <span>
             <strong>{a.name}</strong>
             <small>{a.subtitle}</small>
@@ -379,7 +379,7 @@ export function ArenasScreen() {
           const Icon = [Leaf, Flame, Waves][i];
           return (
             <article className="panel" key={a.id}>
-              <img src={`/assets/${a.id}.svg`} alt={a.name} />
+              <img src={a.thumbnail ?? `/assets/${a.id}.svg`} alt={a.name} />
               <div>
                 <Icon size={22} />
                 <h2>{a.name}</h2>

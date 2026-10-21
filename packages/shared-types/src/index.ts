@@ -17,7 +17,7 @@ export const RulesSchema = z
     activeSize: z.number().int().min(1).max(4),
     duration: z.union([z.literal(0), z.literal(60), z.literal(120), z.literal(180)]),
     difficulty: z.enum(['easy', 'normal', 'hard']),
-    arena: z.enum(['forest', 'volcano', 'lake']),
+    arena: z.enum(['forest', 'volcano', 'lake', 'ruins']),
     duplicates: z.boolean(),
     elements: z.boolean(),
     switching: z.boolean(),
@@ -160,7 +160,23 @@ export interface PokemonDefinition {
     retreat: number;
   };
 }
+export interface ArenaObstacle {
+  id: string;
+  kind: 'rock' | 'pillar' | 'wall';
+  x: number;
+  depth: number;
+  width: number;
+  length: number;
+  height: number;
+}
 export interface ArenaDefinition {
+  height?: number;
+  background?: string;
+  thumbnail?: string;
+  spawnSpacing?: number;
+  obstacles?: ArenaObstacle[];
+  spawnDepth?: number;
+
   id: MatchRules['arena'];
   name: string;
   subtitle: string;
