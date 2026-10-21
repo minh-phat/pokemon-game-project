@@ -38,8 +38,7 @@ export function createArenaScene(
       const arena = ARENAS.find((a) => a.id === arenaId)!;
       this.load.image('electro-ball-art', '/assets/electro-ball-art.png');
       this.load.image('ember-glyph-art', '/assets/runedrake-ember-glyph.png');
-      this.load.image('runedrake-bind-body', '/assets/runedrake-bind-body.png');
-      this.load.image('runedrake-bind-head', '/assets/runedrake-bind-head.png');
+      this.load.image('runedrake-bind-rig', '/assets/runedrake-bind-rig.png');
       for (const id of [
         'eevee-strike',
         'swift',

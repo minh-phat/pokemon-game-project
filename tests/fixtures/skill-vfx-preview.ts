@@ -5,15 +5,14 @@ import { SkillVfx } from '../../apps/frontend/src/game/skill-vfx';
 import { DEFAULT_RULES, type BattleSnapshot, type Fighter } from '@arena/shared-types';
 
 new Phaser.Game({
-  type: Phaser.CANVAS,
+  type: (window as any).vfxRenderer === 'webgl' ? Phaser.WEBGL : Phaser.CANVAS,
   width: 1000,
   height: 1000,
   backgroundColor: '#172d30',
   scene: {
     preload() {
       this.load.image('ember-glyph-art', (window as any).emberGlyphAsset);
-      this.load.image('runedrake-bind-body', (window as any).bindBodyAsset);
-      this.load.image('runedrake-bind-head', (window as any).bindHeadAsset);
+      this.load.image('runedrake-bind-rig', (window as any).bindRigAsset);
       this.load.image('bind-victim', (window as any).bindVictimAsset);
     },
     create() {
@@ -161,6 +160,7 @@ new Phaser.Game({
             snapshot.groundHazards = [];
             this.children.list.forEach((object) => {
               if (object instanceof Phaser.GameObjects.Text) object.setVisible(false);
+              if (object instanceof Phaser.GameObjects.Particles.ParticleEmitter) object.killAll();
             });
           },
           inspect: () => ({
@@ -178,10 +178,14 @@ new Phaser.Game({
             ).length,
             bindCoils: this.children.list.filter((o) => o.name === 'bind-body-front').length,
             bindCoilWidth: this.children.getByName('bind-body-front')?.getData('radius'),
+            bindArt: this.children.getByName('bind-body-front')?.getData('art'),
+            bindTails: this.children.list.filter((o) => o.name === 'bind-tail').length,
+            bindTextures: this.textures.getTextureKeys().filter((key) => /^bind-\d+-/.test(key))
+              .length,
             bindBodyPoints: this.children.getByName('bind-body-front')?.getData('points'),
             bindLayers: this.children.list
               .filter((o) => o.name === 'bind-body-front' || o.name === 'bind-body-back')
-              .map((o) => (o as Phaser.GameObjects.Graphics).depth),
+              .map((o) => (o as Phaser.GameObjects.Image).depth),
             bindHeadX: (this.children.getByName('bind-head') as Phaser.GameObjects.Sprite)?.x,
             bindHeadY: (this.children.getByName('bind-head') as Phaser.GameObjects.Sprite)?.y,
             laserCores: this.children.list.filter(

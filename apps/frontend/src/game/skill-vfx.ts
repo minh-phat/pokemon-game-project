@@ -224,7 +224,7 @@ export class SkillVfx {
             live.add(id);
           }
         }
-        if (f.cast.bound && this.scene.textures.exists('runedrake-bind-head')) {
+        if (f.cast.bound && this.scene.textures.exists('runedrake-bind-rig')) {
           const target = snapshot.fighters.find(
             (v) => v.id === f.cast?.targetId && v.active && v.hp > 0,
           );
