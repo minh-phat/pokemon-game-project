@@ -19,24 +19,26 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] },
   },
-  webServer: [
-    {
-      command: command('frontend'),
-      url: 'http://localhost:3000',
-      reuseExistingServer: !process.env.CI,
-      timeout: 120000,
-    },
-    {
-      command: command('backend'),
-      url: 'http://localhost:3001/health',
-      reuseExistingServer: !process.env.CI,
-      timeout: 30000,
-    },
-    {
-      command: command('game-server'),
-      url: 'http://localhost:2567/health',
-      reuseExistingServer: !process.env.CI,
-      timeout: 30000,
-    },
-  ],
+  webServer: process.env.E2E_STANDALONE
+    ? []
+    : [
+        {
+          command: command('frontend'),
+          url: 'http://localhost:3000',
+          reuseExistingServer: !process.env.CI,
+          timeout: 120000,
+        },
+        {
+          command: command('backend'),
+          url: 'http://localhost:3001/health',
+          reuseExistingServer: !process.env.CI,
+          timeout: 30000,
+        },
+        {
+          command: command('game-server'),
+          url: 'http://localhost:2567/health',
+          reuseExistingServer: !process.env.CI,
+          timeout: 30000,
+        },
+      ],
 });

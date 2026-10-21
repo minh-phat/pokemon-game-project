@@ -577,6 +577,16 @@ export class BattleEngine {
       f.cooldowns[s.id] > 0
     )
       return false;
+    const bindTarget =
+      s.id === 'cursed-scroll-bind'
+        ? this.state.fighters
+            .filter((v) => v.team !== f.team && v.active && v.hp > 0)
+            .sort(
+              (a, b) =>
+                (a.id === f.targetId ? -1 : b.id === f.targetId ? 1 : 0) ||
+                Math.hypot(a.x - f.x, a.depth - f.depth) - Math.hypot(b.x - f.x, b.depth - f.depth),
+            )[0]
+        : undefined;
     this.setGuard(f, false);
     f.sprinting = false;
     f.energy -= s.energy;
@@ -587,17 +597,34 @@ export class BattleEngine {
         (a, b) =>
           Math.hypot(a.x - f.x, a.depth - f.depth) - Math.hypot(b.x - f.x, b.depth - f.depth),
       )[0];
+    const chosenTarget = bindTarget ?? target;
+    const bindDistance = chosenTarget
+      ? Math.hypot(chosenTarget.x - f.x, chosenTarget.depth - f.depth)
+      : 0;
+    const bindDirectionX =
+      chosenTarget && bindDistance > 0 ? (chosenTarget.x - f.x) / bindDistance : f.aimX;
+    const bindDirectionDepth =
+      chosenTarget && bindDistance > 0 ? (chosenTarget.depth - f.depth) / bindDistance : f.aimDepth;
+    const bindTravel = chosenTarget ? Math.min(s.range, Math.max(0, bindDistance - 43)) : s.range;
     f.cast = {
       skillId,
       elapsed: 0,
       fired: 0,
       hitIds: [],
-      targetId: f.targetId ?? target?.id,
+      targetId: bindTarget?.id ?? f.targetId ?? target?.id,
       originX: f.x,
       originDepth: f.depth,
+      ...(s.id === 'cursed-scroll-bind' && {
+        bindEligible:
+          !!chosenTarget &&
+          bindDistance <= s.range &&
+          POKEMON[chosenTarget.species].collision.width <= 90 &&
+          POKEMON[chosenTarget.species].collision.height <= 90,
+      }),
       ...(autoBasic && { autoBasic: true }),
-      lockX: target?.x,
-      lockDepth: target?.depth,
+      lockX: s.id === 'cursed-scroll-bind' ? f.x + bindDirectionX * bindTravel : target?.x,
+      lockDepth:
+        s.id === 'cursed-scroll-bind' ? f.depth + bindDirectionDepth * bindTravel : target?.depth,
     };
     if (s.id === 'shadow-step') f.dodgeEarned = false;
     f.moveIntent = 0;
@@ -614,6 +641,10 @@ export class BattleEngine {
       s = SKILL_BY_ID[cast.skillId];
     cast.elapsed += dt;
     if (f.species === 'eevee' && this.eeveeCastTick(f, cast, s)) return;
+    if (s.id === 'cursed-scroll-bind') {
+      this.cursedScrollBindTick(f, cast, s, dt);
+      return;
+    }
     s.events.forEach((event, index) => {
       if (cast.elapsed + 1e-9 >= event.at && !(cast.fired & (1 << index))) {
         cast.fired |= 1 << index;
@@ -703,6 +734,67 @@ export class BattleEngine {
       }
     }
     if (cast.elapsed >= s.startup + s.active + s.recovery) {
+      f.cast = null;
+      f.state = 'Recover';
+      f.thinkIn = 0.06;
+    }
+  }
+  private cursedScrollBindTick(
+    f: Fighter,
+    cast: NonNullable<Fighter['cast']>,
+    s: SkillDefinition,
+    dt: number,
+  ) {
+    const target = this.state.fighters.find((v) => v.id === cast.targetId && v.active && v.hp > 0);
+    if (cast.elapsed <= s.startup && !cast.bound) {
+      const pursuing = cast.bindEligible && target;
+      const destinationX = pursuing ? target.x - f.aimX * 43 : (cast.lockX ?? f.x);
+      const destinationDepth = pursuing
+        ? target.depth - f.aimDepth * 43
+        : (cast.lockDepth ?? f.depth);
+      const dx = destinationX - f.x,
+        dz = destinationDepth - f.depth;
+      const distance = Math.hypot(dx, dz) || 1;
+      const travel = Math.min(1700 * dt, distance);
+      f.x += (dx / distance) * travel;
+      f.depth += (dz / distance) * travel;
+      f.aimX = dx / distance;
+      f.aimDepth = dz / distance;
+      f.facing = f.aimX >= 0 ? 1 : -1;
+      f.vx = f.vDepth = 0;
+      this.animate(f, 'dash');
+    }
+    if (cast.elapsed >= s.startup && !cast.bound && !(cast.fired & 1)) {
+      cast.fired |= 1;
+      if (
+        cast.bindEligible &&
+        target &&
+        target.invulnerable <= 0 &&
+        Math.hypot(target.x - f.x, target.depth - f.depth) <= 85 &&
+        POKEMON[target.species].collision.width <= 90 &&
+        POKEMON[target.species].collision.height <= 90
+      ) {
+        cast.bound = true;
+        target.cast = null;
+        target.vx = target.vDepth = 0;
+        target.moveIntent = target.moveDepth = 0;
+        this.animate(f, 'guard');
+        this.animate(target, 'hit');
+      }
+    }
+    if (cast.bound && target && cast.elapsed <= s.startup + s.active + FIXED_DELTA) {
+      target.actionTime = Math.max(target.actionTime, 2 * FIXED_DELTA);
+      target.vx = target.vDepth = 0;
+      f.vx = f.vDepth = 0;
+      for (let pulse = 0; pulse < 3; pulse++) {
+        const mask = 1 << (pulse + 1);
+        if (cast.elapsed + 1e-9 >= s.startup + pulse + 1 && !(cast.fired & mask)) {
+          cast.fired |= mask;
+          this.hit(f, target, s, 10);
+        }
+      }
+    }
+    if (cast.elapsed >= s.startup + (cast.bound ? s.active : 0) + s.recovery) {
       f.cast = null;
       f.state = 'Recover';
       f.thinkIn = 0.06;

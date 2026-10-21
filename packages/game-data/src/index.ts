@@ -154,6 +154,27 @@ export const SKILLS = {
     hitbox: { width: 42, height: 44, altitude: 29 },
     knockback: 125,
   }),
+  cursedScrollBind: skill(
+    'cursed-scroll-bind',
+    'Trầm Mộc Chấn Lực (Cursed Scroll Bind)',
+    'normal',
+    'melee',
+    30,
+    30,
+    7,
+    340,
+    {
+      description:
+        'Dash at a medium-range foe, coil tighter for three seconds, and squeeze for 30 total damage. Oversized foes cannot be bound.',
+      startup: 0.24,
+      active: 3,
+      recovery: 0.22,
+      knockback: 0,
+      animation: 'dash',
+      events: [],
+      usage: { minRange: 65, priority: 1.55 },
+    },
+  ),
   waterGun: skill('water-gun', 'Water Gun', 'water', 'projectile', 20, 14, 2.8, 500, {
     description: 'A focused stream of water.',
     projectileSpeed: 560,
@@ -455,7 +476,7 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
     skills: [
       SKILLS.tailWhip,
       SKILLS.emberGlyph,
-      SKILLS.flamethrower,
+      SKILLS.cursedScrollBind,
       SKILLS.flameBurst,
       SKILLS.infernoStream,
     ],

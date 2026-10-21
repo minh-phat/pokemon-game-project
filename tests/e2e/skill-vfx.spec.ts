@@ -25,11 +25,19 @@ test('all skill sprites animate, emit particles, pause, reduce motion, and clean
     await page.setViewportSize({ width: 1100, height: 1100 });
     await page.setContent('<html><body style="margin:0;background:#172d30"></body></html>');
     const glyphImage = await readFile('apps/frontend/public/assets/runedrake-ember-glyph.png');
+    const bindBodyImage = await readFile('apps/frontend/public/assets/runedrake-bind-body.png');
+    const bindHeadImage = await readFile('apps/frontend/public/assets/runedrake-bind-head.png');
     await page.evaluate(
-      (asset) => {
-        (window as any).emberGlyphAsset = asset;
+      (assets) => {
+        (window as any).emberGlyphAsset = assets.glyph;
+        (window as any).bindBodyAsset = assets.body;
+        (window as any).bindHeadAsset = assets.head;
       },
-      `data:image/png;base64,${glyphImage.toString('base64')}`,
+      {
+        glyph: `data:image/png;base64,${glyphImage.toString('base64')}`,
+        body: `data:image/png;base64,${bindBodyImage.toString('base64')}`,
+        head: `data:image/png;base64,${bindHeadImage.toString('base64')}`,
+      },
     );
     await page.addScriptTag({
       content: await readFile(join(output, 'skill-vfx-preview.global.js'), 'utf8'),
@@ -45,6 +53,24 @@ test('all skill sprites animate, emit particles, pause, reduce motion, and clean
         .map((skill) => (skill.id === 'ember-glyph' ? 1 : 12)),
     );
     expect((await inspect()).puddles).toBe(1);
+    expect((await inspect()).bindCoils).toBe(1);
+    expect((await inspect()).bindMasked).toBe(true);
+    await page.screenshot({ path: 'test-results/skill-vfx-wrap-preview.png' });
+    const earlyHeadX = (await inspect()).bindHeadX;
+    await page.evaluate(() => {
+      (window as any).vfxPreview.controls.bindElapsed = 0.84;
+    });
+    await expect.poll(async () => (await inspect()).bindHeadX).not.toBe(earlyHeadX);
+    const smallCoilWidth = (await inspect()).bindCoilWidth;
+    await page.evaluate(() => {
+      (window as any).vfxPreview.controls.boundSpecies = 'runedrake';
+    });
+    await expect.poll(async () => (await inspect()).bindCoilWidth).toBeGreaterThan(smallCoilWidth);
+    const looseCoilWidth = (await inspect()).bindCoilWidth;
+    await page.evaluate(() => {
+      (window as any).vfxPreview.controls.bindElapsed = 3.04;
+    });
+    await expect.poll(async () => (await inspect()).bindCoilWidth).toBeLessThan(looseCoilWidth);
     expect((await inspect()).sludgeBombs).toBe(1);
     expect((await inspect()).sludgeTrails).toBe(2);
     await expect.poll(async () => (await inspect()).particles).toBeGreaterThan(0);

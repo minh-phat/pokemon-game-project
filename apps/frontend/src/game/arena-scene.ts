@@ -38,6 +38,8 @@ export function createArenaScene(
       const arena = ARENAS.find((a) => a.id === arenaId)!;
       this.load.image('electro-ball-art', '/assets/electro-ball-art.png');
       this.load.image('ember-glyph-art', '/assets/runedrake-ember-glyph.png');
+      this.load.image('runedrake-bind-body', '/assets/runedrake-bind-body.png');
+      this.load.image('runedrake-bind-head', '/assets/runedrake-bind-head.png');
       for (const id of [
         'eevee-strike',
         'swift',
@@ -295,10 +297,41 @@ export function createArenaScene(
           f.cast?.skillId === 'ember-glyph' && f.cast.elapsed < SKILL_BY_ID['ember-glyph'].startup;
         const glyphWobble =
           glyphCasting && !settings.reducedMotion ? Math.sin(f.cast!.elapsed * 35) * 0.025 : 0;
+        const binder = snapshot.fighters.find(
+          (other) =>
+            other.cast?.skillId === 'cursed-scroll-bind' &&
+            other.cast.bound &&
+            other.cast.targetId === f.id,
+        );
+        const bindAge = binder?.cast
+          ? Math.max(0, binder.cast.elapsed - SKILL_BY_ID['cursed-scroll-bind'].startup)
+          : 0;
+        const bindProgress = binder
+          ? Math.min(1, bindAge / SKILL_BY_ID['cursed-scroll-bind'].active)
+          : 0;
+        const bindPulse =
+          binder && !settings.reducedMotion
+            ? Math.max(0, 1 - Math.abs(bindAge - Math.round(bindAge)) / 0.16)
+            : 0;
+        const baseScale = f.species === 'eevee' ? 0.66 : f.species === 'runedrake' ? 0.9 : 0.82;
         v.sprite
-          .setVisible(faintAlpha > 0)
-          .setPosition(x + glyphWobble * 70, ground - altitude)
+          .setVisible(
+            faintAlpha > 0 &&
+              !(
+                f.species === 'runedrake' &&
+                f.cast?.skillId === 'cursed-scroll-bind' &&
+                f.cast.bound
+              ),
+          )
+          .setPosition(
+            x + glyphWobble * 70 + Math.sin(bindAge * 90) * bindPulse * 3,
+            ground - altitude,
+          )
           .setRotation(glyphWobble)
+          .setScale(
+            baseScale * (1 - 0.13 * bindProgress - 0.045 * bindPulse),
+            baseScale * (1 + 0.035 * bindProgress),
+          )
           .setDepth(10 + (ground - 300) / 300)
           .setFlipX(f.facing < 0)
           .setAlpha(f.invulnerable > 0 ? 0.55 + Math.sin(time / 35) * 0.2 : faintAlpha);

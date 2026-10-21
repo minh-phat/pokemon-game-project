@@ -1,12 +1,14 @@
 import * as Phaser from 'phaser';
-import { ELEMENTS, SKILL_BY_ID } from '@arena/game-data';
+import { ELEMENTS, POKEMON, SKILL_BY_ID } from '@arena/game-data';
 import type { BattleEvent, BattleSnapshot, Element } from '@arena/shared-types';
 import { createSkillTextures } from './skill-textures';
 
 type Effect = { sprite: Phaser.GameObjects.Sprite; key: string };
+type WrapMask = { graphics: Phaser.GameObjects.Graphics; sprite: Phaser.GameObjects.Sprite };
 
 export class SkillVfx {
   private attached = new Map<string, Effect>();
+  private wrapMasks = new Map<string, WrapMask>();
   private impacts: { sprite: Phaser.GameObjects.Sprite; remaining: number }[] = [];
   private seenHazards = new Set<string>();
   private emitters = new Map<Element, Phaser.GameObjects.Particles.ParticleEmitter>();
@@ -38,7 +40,14 @@ export class SkillVfx {
 
   private sprite(key: string) {
     const sprite = this.scene.add.sprite(0, 0, key, 0).setDepth(12);
-    if (key !== 'electro-ball-art' && key !== 'ember-glyph-art') sprite.play(key);
+    if (
+      key !== 'electro-ball-art' &&
+      key !== 'ember-glyph-art' &&
+      key !== 'runedrake' &&
+      key !== 'runedrake-bind-body' &&
+      key !== 'runedrake-bind-head'
+    )
+      sprite.play(key);
     return sprite;
   }
 
@@ -68,7 +77,14 @@ export class SkillVfx {
       .setAlpha(this.reduced ? 0.65 : 0.95);
     if (this.paused || this.reduced) effect.sprite.anims.pause();
     else effect.sprite.anims.resume();
-    if (this.reduced && key !== 'electro-ball-art' && key !== 'ember-glyph-art')
+    if (
+      this.reduced &&
+      key !== 'electro-ball-art' &&
+      key !== 'ember-glyph-art' &&
+      key !== 'runedrake' &&
+      key !== 'runedrake-bind-body' &&
+      key !== 'runedrake-bind-head'
+    )
       effect.sprite.setFrame(3);
   }
 
@@ -159,6 +175,139 @@ export class SkillVfx {
       if (!f.cast) continue;
       const skill = SKILL_BY_ID[f.cast.skillId];
       if (skill.id === 'tail-whip') continue;
+      if (skill.id === 'cursed-scroll-bind') {
+        if (f.cast.elapsed < skill.startup && !reduced && this.scene.textures.exists('runedrake')) {
+          for (let i = 1; i <= 3; i++) {
+            const id = `bind-dash-${f.id}-${i}`;
+            this.place(id, 'runedrake', x - f.aimX * i * 33, y - f.aimDepth * i * 33, 288, 144, 0);
+            this.attached
+              .get(id)!
+              .sprite.setFrame(42 + i)
+              .setFlipX(f.facing < 0)
+              .setAlpha(0.36 - i * 0.08);
+            live.add(id);
+          }
+        }
+        if (
+          f.cast.bound &&
+          this.scene.textures.exists('runedrake-bind-body') &&
+          this.scene.textures.exists('runedrake-bind-head')
+        ) {
+          const target = snapshot.fighters.find(
+            (v) => v.id === f.cast?.targetId && v.active && v.hp > 0,
+          );
+          if (target) {
+            const oldTarget = previous?.fighters.find((v) => v.id === target.id);
+            const tx = oldTarget ? Phaser.Math.Linear(oldTarget.x, target.x, alpha) : target.x;
+            const ty =
+              492 +
+              (oldTarget
+                ? Phaser.Math.Linear(oldTarget.depth, target.depth, alpha) -
+                  Phaser.Math.Linear(oldTarget.y, target.y, alpha)
+                : target.depth - target.y) -
+              (hoverByFighter.get(target.id) ?? 0);
+            const size = POKEMON[target.species].collision;
+            const baseDiameter = Math.max(210, 125 + (size.width + size.height) * 1.1);
+            const bindAge = Math.max(0, f.cast.elapsed - skill.startup);
+            const squeeze = Math.min(1, bindAge / skill.active);
+            const wrap = reduced ? 1 : Math.min(1, bindAge / 0.9);
+            const pulse = reduced
+              ? 0
+              : Math.max(0, 1 - Math.abs(bindAge - Math.round(bindAge)) / 0.16);
+            const diameter = baseDiameter * (1.2 - 0.29 * squeeze - 0.045 * pulse);
+            const id = `bind-coil-${f.id}`;
+            this.place(
+              id,
+              'runedrake-bind-body',
+              tx,
+              ty - 12,
+              diameter,
+              diameter * (1 - 0.06 * squeeze),
+              -0.07 * squeeze + Math.sin(bindAge * 6) * (reduced ? 0 : 0.02),
+            );
+            const coil = this.attached.get(id)!.sprite;
+            coil
+              .setFlipX(f.facing < 0)
+              .setDepth(14)
+              .setAlpha(reduced ? 0.75 : 0.98);
+            let wrapMask = this.wrapMasks.get(id);
+            if (!wrapMask) {
+              const graphics = this.scene.make.graphics({}, false);
+              coil.setMask(graphics.createGeometryMask());
+              wrapMask = { graphics, sprite: coil };
+              this.wrapMasks.set(id, wrapMask);
+            }
+            const mask = wrapMask.graphics.clear().fillStyle(0xffffff);
+            if (wrap >= 1) mask.fillCircle(tx, ty - 12, diameter);
+            else {
+              const entry = f.facing > 0 ? Math.PI : 0;
+              const direction = f.facing;
+              const points = [new Phaser.Geom.Point(tx, ty - 12)];
+              for (let index = 0; index <= 48; index++) {
+                const angle = entry + (direction * wrap * Math.PI * 2 * index) / 48;
+                points.push(
+                  new Phaser.Geom.Point(
+                    tx + Math.cos(angle) * diameter,
+                    ty - 12 + Math.sin(angle) * diameter,
+                  ),
+                );
+              }
+              mask.fillPoints(points, true);
+            }
+            live.add(id);
+            const entry = f.facing > 0 ? Math.PI : 0;
+            const crawl = Math.max(0, Math.min(1, (bindAge - 0.9) / 2.1));
+            const headAngle = entry + f.facing * (wrap * Math.PI * 2 + crawl * Math.PI * 0.55);
+            const headId = `bind-head-${f.id}`;
+            const radius = diameter * 0.35;
+            this.place(
+              headId,
+              'runedrake-bind-head',
+              tx + Math.cos(headAngle) * radius,
+              ty - 12 + Math.sin(headAngle) * radius,
+              diameter * 0.65,
+              diameter * 0.44,
+              headAngle + (f.facing * Math.PI) / 2,
+            );
+            this.attached
+              .get(headId)!
+              .sprite.setOrigin(0.79, 0.53)
+              .setDepth(Math.sin(headAngle) < 0 ? 9 : 15)
+              .setAlpha(reduced ? 0.76 : 1);
+            live.add(headId);
+            if (pulse > 0.05) {
+              const pressureId = `bind-pressure-${f.id}`;
+              this.place(
+                pressureId,
+                'runedrake-bind-body',
+                tx,
+                ty - 12,
+                diameter * 1.12,
+                diameter * 1.05,
+                -0.07 * squeeze,
+              );
+              this.attached
+                .get(pressureId)!
+                .sprite.setFlipX(f.facing < 0)
+                .setDepth(13)
+                .setTint(0xffaa77)
+                .setAlpha(pulse * 0.28);
+              live.add(pressureId);
+            }
+            if (emit && !reduced) {
+              const angle = bindAge * 5;
+              this.emitters
+                .get('fire')!
+                .emitParticleAt(
+                  tx + Math.cos(angle) * diameter * 0.34,
+                  ty - 12 + Math.sin(angle) * diameter * 0.34,
+                  1 + Math.round(pulse * 2),
+                );
+            }
+          }
+        }
+        continue;
+      }
       if (skill.id === 'ember-glyph') {
         if (f.cast.elapsed < skill.startup) {
           for (let i = 0; i < 3; i++) {
@@ -397,6 +546,12 @@ export class SkillVfx {
     }
     for (const [id, effect] of this.attached)
       if (!live.has(id)) {
+        const wrapMask = this.wrapMasks.get(id);
+        if (wrapMask) {
+          wrapMask.sprite.clearMask(true);
+          wrapMask.graphics.destroy();
+          this.wrapMasks.delete(id);
+        }
         effect.sprite.destroy();
         this.attached.delete(id);
       }
@@ -474,6 +629,11 @@ export class SkillVfx {
   }
 
   destroy() {
+    for (const wrapMask of this.wrapMasks.values()) {
+      wrapMask.sprite.clearMask(true);
+      wrapMask.graphics.destroy();
+    }
+    this.wrapMasks.clear();
     for (const effect of this.attached.values()) effect.sprite.destroy();
     for (const impact of this.impacts) impact.sprite.destroy();
     for (const emitter of this.emitters.values()) emitter.destroy();

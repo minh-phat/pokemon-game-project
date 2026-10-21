@@ -186,6 +186,8 @@ export interface Cast {
   originDepth?: number;
   lockX?: number;
   lockDepth?: number;
+  bound?: boolean;
+  bindEligible?: boolean;
 }
 export interface Fighter {
   id: string;

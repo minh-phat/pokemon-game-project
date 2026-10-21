@@ -12,6 +12,8 @@ new Phaser.Game({
   scene: {
     preload() {
       this.load.image('ember-glyph-art', (window as any).emberGlyphAsset);
+      this.load.image('runedrake-bind-body', (window as any).bindBodyAsset);
+      this.load.image('runedrake-bind-head', (window as any).bindHeadAsset);
     },
     create() {
       createSkillTextures(this);
@@ -49,6 +51,38 @@ new Phaser.Game({
             aimDepth: 0,
             cast: null,
             effects: [{ kind: 'burn', duration: 4, strength: 3 }],
+          } as unknown as Fighter,
+          {
+            id: 'bind-preview',
+            species: 'runedrake',
+            active: true,
+            hp: 190,
+            x: 470,
+            depth: 100,
+            y: 0,
+            aimX: 1,
+            aimDepth: 0,
+            facing: 1,
+            cast: {
+              skillId: 'cursed-scroll-bind',
+              elapsed: 0.48,
+              fired: 1,
+              hitIds: [],
+              targetId: 'bound-preview',
+              bound: true,
+            },
+            effects: [],
+          } as unknown as Fighter,
+          {
+            id: 'bound-preview',
+            species: 'charmander',
+            active: true,
+            hp: 180,
+            x: 510,
+            depth: 100,
+            y: 0,
+            cast: null,
+            effects: [],
           } as unknown as Fighter,
         ],
         events: [],
@@ -100,7 +134,14 @@ new Phaser.Game({
         fontSize: '18px',
         color: '#fff0c2',
       });
-      const controls = { paused: false, reduced: false, clear: false, angle: 0 };
+      const controls = {
+        paused: false,
+        reduced: false,
+        clear: false,
+        angle: 0,
+        boundSpecies: 'charmander',
+        bindElapsed: 0.48,
+      };
       Object.assign(window, {
         vfxPreview: {
           controls,
@@ -117,6 +158,28 @@ new Phaser.Game({
                 o instanceof Phaser.GameObjects.Sprite &&
                 o.texture.key === 'skill-vfx-sludge-puddle',
             ).length,
+            bindCoils: this.children.list.filter(
+              (o) =>
+                o instanceof Phaser.GameObjects.Sprite && o.texture.key === 'runedrake-bind-body',
+            ).length,
+            bindCoilWidth: (
+              this.children.list.find(
+                (o) =>
+                  o instanceof Phaser.GameObjects.Sprite && o.texture.key === 'runedrake-bind-body',
+              ) as Phaser.GameObjects.Sprite | undefined
+            )?.displayWidth,
+            bindMasked: !!(
+              this.children.list.find(
+                (o) =>
+                  o instanceof Phaser.GameObjects.Sprite && o.texture.key === 'runedrake-bind-body',
+              ) as Phaser.GameObjects.Sprite | undefined
+            )?.mask,
+            bindHeadX: (
+              this.children.list.find(
+                (o) =>
+                  o instanceof Phaser.GameObjects.Sprite && o.texture.key === 'runedrake-bind-head',
+              ) as Phaser.GameObjects.Sprite | undefined
+            )?.x,
             sludgeBombs: this.children.list.filter(
               (o) =>
                 o instanceof Phaser.GameObjects.Sprite && o.texture.key === 'skill-vfx-sludge-bomb',
@@ -152,6 +215,8 @@ new Phaser.Game({
       this.events.on('update', (_time: number, delta: number) => {
         snapshot.fighters[0].aimX = Math.cos(controls.angle);
         snapshot.fighters[0].aimDepth = Math.sin(controls.angle);
+        snapshot.fighters[3].species = controls.boundSpecies as Fighter['species'];
+        snapshot.fighters[2].cast!.elapsed = controls.bindElapsed;
         vfx.update(
           controls.clear
             ? { ...snapshot, fighters: [], projectiles: [], groundHazards: [] }

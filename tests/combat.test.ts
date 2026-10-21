@@ -127,6 +127,73 @@ describe('damage and hit geometry', () => {
       expect(b.hp < hp).toBe(shouldHit);
     }
   });
+  it.each(['pikachu', 'charmander', 'squirtle', 'bulbasaur', 'eevee', 'runedrake'] as SpeciesId[])(
+    'dashes to and binds %s for exactly 30 damage',
+    (species) => {
+      const e = battle([['runedrake'], [species]]);
+      const [a, b] = e.state.fighters;
+      a.x = 400;
+      b.x = 680;
+      a.depth = b.depth = 0;
+      a.thinkIn = b.thinkIn = 100;
+      a.invulnerable = b.invulnerable = 0;
+      expect(POKEMON.runedrake.skills[2].id).toBe('cursed-scroll-bind');
+      const hp = b.hp;
+      expect(e.beginSkill(a, 'cursed-scroll-bind')).toBe(true);
+      step(e, 0.18);
+      expect(a.x).toBeGreaterThan(590);
+      expect(b.hp).toBe(hp);
+      step(e, 0.16);
+      expect(a.cast?.bound).toBe(true);
+      expect(b.hp).toBe(hp);
+      step(e, 0.8);
+      expect(a.cast?.bound).toBe(true);
+      expect(b.hp).toBe(hp);
+      step(e, 0.16);
+      expect(b.hp).toBe(hp - 10);
+      step(e, 1);
+      expect(a.cast?.bound).toBe(true);
+      expect(b.hp).toBe(hp - 20);
+      step(e, 1);
+      expect(b.hp).toBe(hp - 30);
+      step(e, 0.25);
+      expect(a.cast?.skillId).not.toBe('cursed-scroll-bind');
+    },
+  );
+  it('still dashes but never binds or damages beyond range or against an oversized opponent', () => {
+    const e = battle([['runedrake'], ['charmander']]);
+    const [a, b] = e.state.fighters;
+    a.x = 300;
+    b.x = 700;
+    a.thinkIn = b.thinkIn = 100;
+    a.invulnerable = b.invulnerable = 0;
+    const hp = b.hp;
+    expect(e.beginSkill(a, 'cursed-scroll-bind')).toBe(true);
+    step(e, 0.3);
+    expect(a.x).toBeGreaterThan(600);
+    expect(a.cast?.bound).toBeFalsy();
+    step(e, 0.7);
+    expect(b.hp).toBe(hp);
+
+    const oversized = battle([['runedrake'], ['charmander']]);
+    const [c, d] = oversized.state.fighters;
+    c.x = 300;
+    d.x = 550;
+    c.thinkIn = d.thinkIn = 100;
+    c.invulnerable = d.invulnerable = 0;
+    const original = POKEMON.charmander.collision;
+    POKEMON.charmander.collision = { width: 100, height: 100 };
+    try {
+      expect(oversized.beginSkill(c, 'cursed-scroll-bind')).toBe(true);
+      step(oversized, 0.3);
+      expect(c.x).toBeGreaterThan(450);
+      expect(c.cast?.bound).toBeFalsy();
+      step(oversized, 0.7);
+      expect(d.hp).toBe(POKEMON.charmander.hp);
+    } finally {
+      POKEMON.charmander.collision = original;
+    }
+  });
   it('lands Sludge Bomb beneath a hit target and damages only while it stands in the pool', () => {
     const e = battle([['bulbasaur'], ['charmander']]);
     const [a, b] = e.state.fighters;
