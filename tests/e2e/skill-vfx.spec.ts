@@ -27,16 +27,19 @@ test('all skill sprites animate, emit particles, pause, reduce motion, and clean
     const glyphImage = await readFile('apps/frontend/public/assets/runedrake-ember-glyph.png');
     const bindBodyImage = await readFile('apps/frontend/public/assets/runedrake-bind-body.png');
     const bindHeadImage = await readFile('apps/frontend/public/assets/runedrake-bind-head.png');
+    const victimImage = await readFile('apps/frontend/public/assets/charmander.svg');
     await page.evaluate(
       (assets) => {
         (window as any).emberGlyphAsset = assets.glyph;
         (window as any).bindBodyAsset = assets.body;
         (window as any).bindHeadAsset = assets.head;
+        (window as any).bindVictimAsset = assets.victim;
       },
       {
         glyph: `data:image/png;base64,${glyphImage.toString('base64')}`,
         body: `data:image/png;base64,${bindBodyImage.toString('base64')}`,
         head: `data:image/png;base64,${bindHeadImage.toString('base64')}`,
+        victim: `data:image/svg+xml;base64,${victimImage.toString('base64')}`,
       },
     );
     await page.addScriptTag({
@@ -54,18 +57,43 @@ test('all skill sprites animate, emit particles, pause, reduce motion, and clean
     );
     expect((await inspect()).puddles).toBe(1);
     expect((await inspect()).bindCoils).toBe(1);
-    expect((await inspect()).bindMasked).toBe(true);
+    expect((await inspect()).bindLayers).toEqual([9, 14]);
+    const earlyBodyPoints = (await inspect()).bindBodyPoints;
     await page.screenshot({ path: 'test-results/skill-vfx-wrap-preview.png' });
     const earlyHeadX = (await inspect()).bindHeadX;
+    const earlyHeadY = (await inspect()).bindHeadY;
     await page.evaluate(() => {
       (window as any).vfxPreview.controls.bindElapsed = 0.84;
     });
     await expect.poll(async () => (await inspect()).bindHeadX).not.toBe(earlyHeadX);
+    expect((await inspect()).bindBodyPoints).toBeGreaterThan(earlyBodyPoints);
     const smallCoilWidth = (await inspect()).bindCoilWidth;
     await page.evaluate(() => {
       (window as any).vfxPreview.controls.boundSpecies = 'runedrake';
     });
     await expect.poll(async () => (await inspect()).bindCoilWidth).toBeGreaterThan(smallCoilWidth);
+    await page.evaluate(() => {
+      (window as any).vfxPreview.controls.boundSpecies = 'charmander';
+      (window as any).vfxPreview.controls.bindElapsed = 1.54;
+    });
+    await expect.poll(async () => (await inspect()).bindBodyPoints).toBeGreaterThan(240);
+    expect((await inspect()).bindHeadY).toBeLessThan(earlyHeadY);
+    await page.screenshot({
+      path: 'test-results/skill-vfx-coiled-preview.png',
+      clip: { x: 410, y: 485, width: 210, height: 170 },
+    });
+    const rightHeadX = (await inspect()).bindHeadX;
+    await page.evaluate(() => {
+      (window as any).vfxPreview.controls.bindFacing = -1;
+    });
+    await expect.poll(async () => (await inspect()).bindHeadX).toBeCloseTo(1020 - rightHeadX);
+    await page.screenshot({
+      path: 'test-results/skill-vfx-coiled-left-preview.png',
+      clip: { x: 410, y: 485, width: 210, height: 170 },
+    });
+    await page.evaluate(() => {
+      (window as any).vfxPreview.controls.bindFacing = 1;
+    });
     const looseCoilWidth = (await inspect()).bindCoilWidth;
     await page.evaluate(() => {
       (window as any).vfxPreview.controls.bindElapsed = 3.04;
@@ -102,6 +130,8 @@ test('all skill sprites animate, emit particles, pause, reduce motion, and clean
       (window as any).vfxPreview.controls.clear = true;
     });
     await expect.poll(async () => (await inspect()).sprites).toBe(0);
+    expect((await inspect()).bindCoils).toBe(0);
+    expect((await inspect()).bindLayers).toEqual([]);
     expect(errors).toEqual([]);
   } finally {
     await rm(output, { recursive: true, force: true });

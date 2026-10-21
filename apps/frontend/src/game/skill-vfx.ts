@@ -2,14 +2,14 @@ import * as Phaser from 'phaser';
 import { ELEMENTS, POKEMON, SKILL_BY_ID } from '@arena/game-data';
 import type { BattleEvent, BattleSnapshot, Element } from '@arena/shared-types';
 import { createSkillTextures } from './skill-textures';
+import { BindVfx } from './bind-vfx';
 
 type Effect = { sprite: Phaser.GameObjects.Sprite; key: string };
-type WrapMask = { graphics: Phaser.GameObjects.Graphics; sprite: Phaser.GameObjects.Sprite };
 
 export class SkillVfx {
   private attached = new Map<string, Effect>();
   private beamGraphics = new Map<string, Phaser.GameObjects.Graphics>();
-  private wrapMasks = new Map<string, WrapMask>();
+  private binds = new Map<string, BindVfx>();
   private impacts: { sprite: Phaser.GameObjects.Sprite; remaining: number }[] = [];
   private seenHazards = new Set<string>();
   private emitters = new Map<Element, Phaser.GameObjects.Particles.ParticleEmitter>();
@@ -110,6 +110,7 @@ export class SkillVfx {
     const emit = !paused && !reduced && this.particleClock >= 35;
     if (emit) this.particleClock %= 35;
     const live = new Set<string>();
+    const liveBinds = new Set<string>();
     for (const hazard of snapshot.groundHazards ?? []) {
       const id = `hazard-${hazard.id}`;
       const age = SKILL_BY_ID[hazard.skillId].groundHazard!.duration - hazard.duration;
@@ -223,11 +224,7 @@ export class SkillVfx {
             live.add(id);
           }
         }
-        if (
-          f.cast.bound &&
-          this.scene.textures.exists('runedrake-bind-body') &&
-          this.scene.textures.exists('runedrake-bind-head')
-        ) {
+        if (f.cast.bound && this.scene.textures.exists('runedrake-bind-head')) {
           const target = snapshot.fighters.find(
             (v) => v.id === f.cast?.targetId && v.active && v.hp > 0,
           );
@@ -242,103 +239,26 @@ export class SkillVfx {
                 : target.depth - target.y) -
               (hoverByFighter.get(target.id) ?? 0);
             const size = POKEMON[target.species].collision;
-            const baseDiameter = Math.max(210, 125 + (size.width + size.height) * 1.1);
-            const bindAge = Math.max(0, f.cast.elapsed - skill.startup);
-            const squeeze = Math.min(1, bindAge / skill.active);
-            const wrap = reduced ? 1 : Math.min(1, bindAge / 0.9);
-            const pulse = reduced
-              ? 0
-              : Math.max(0, 1 - Math.abs(bindAge - Math.round(bindAge)) / 0.16);
-            const diameter = baseDiameter * (1.2 - 0.29 * squeeze - 0.045 * pulse);
-            const id = `bind-coil-${f.id}`;
-            this.place(
-              id,
-              'runedrake-bind-body',
+            const elapsed =
+              old?.cast?.skillId === f.cast.skillId && old.cast.bound
+                ? Phaser.Math.Linear(old.cast.elapsed, f.cast.elapsed, alpha)
+                : f.cast.elapsed;
+            let bind = this.binds.get(f.id);
+            if (!bind) {
+              bind = new BindVfx(this.scene);
+              this.binds.set(f.id, bind);
+            }
+            bind.update(
               tx,
-              ty - 12,
-              diameter,
-              diameter * (1 - 0.06 * squeeze),
-              -0.07 * squeeze + Math.sin(bindAge * 6) * (reduced ? 0 : 0.02),
+              ty,
+              size.width,
+              size.height,
+              f.facing,
+              Math.max(0, elapsed - skill.startup),
+              skill.active,
+              reduced,
             );
-            const coil = this.attached.get(id)!.sprite;
-            coil
-              .setFlipX(f.facing < 0)
-              .setDepth(14)
-              .setAlpha(reduced ? 0.75 : 0.98);
-            let wrapMask = this.wrapMasks.get(id);
-            if (!wrapMask) {
-              const graphics = this.scene.make.graphics({}, false);
-              coil.setMask(graphics.createGeometryMask());
-              wrapMask = { graphics, sprite: coil };
-              this.wrapMasks.set(id, wrapMask);
-            }
-            const mask = wrapMask.graphics.clear().fillStyle(0xffffff);
-            if (wrap >= 1) mask.fillCircle(tx, ty - 12, diameter);
-            else {
-              const entry = f.facing > 0 ? Math.PI : 0;
-              const direction = f.facing;
-              const points = [new Phaser.Geom.Point(tx, ty - 12)];
-              for (let index = 0; index <= 48; index++) {
-                const angle = entry + (direction * wrap * Math.PI * 2 * index) / 48;
-                points.push(
-                  new Phaser.Geom.Point(
-                    tx + Math.cos(angle) * diameter,
-                    ty - 12 + Math.sin(angle) * diameter,
-                  ),
-                );
-              }
-              mask.fillPoints(points, true);
-            }
-            live.add(id);
-            const entry = f.facing > 0 ? Math.PI : 0;
-            const crawl = Math.max(0, Math.min(1, (bindAge - 0.9) / 2.1));
-            const headAngle = entry + f.facing * (wrap * Math.PI * 2 + crawl * Math.PI * 0.55);
-            const headId = `bind-head-${f.id}`;
-            const radius = diameter * 0.35;
-            this.place(
-              headId,
-              'runedrake-bind-head',
-              tx + Math.cos(headAngle) * radius,
-              ty - 12 + Math.sin(headAngle) * radius,
-              diameter * 0.65,
-              diameter * 0.44,
-              headAngle + (f.facing * Math.PI) / 2,
-            );
-            this.attached
-              .get(headId)!
-              .sprite.setOrigin(0.79, 0.53)
-              .setDepth(Math.sin(headAngle) < 0 ? 9 : 15)
-              .setAlpha(reduced ? 0.76 : 1);
-            live.add(headId);
-            if (pulse > 0.05) {
-              const pressureId = `bind-pressure-${f.id}`;
-              this.place(
-                pressureId,
-                'runedrake-bind-body',
-                tx,
-                ty - 12,
-                diameter * 1.12,
-                diameter * 1.05,
-                -0.07 * squeeze,
-              );
-              this.attached
-                .get(pressureId)!
-                .sprite.setFlipX(f.facing < 0)
-                .setDepth(13)
-                .setTint(0xffaa77)
-                .setAlpha(pulse * 0.28);
-              live.add(pressureId);
-            }
-            if (emit && !reduced) {
-              const angle = bindAge * 5;
-              this.emitters
-                .get('fire')!
-                .emitParticleAt(
-                  tx + Math.cos(angle) * diameter * 0.34,
-                  ty - 12 + Math.sin(angle) * diameter * 0.34,
-                  1 + Math.round(pulse * 2),
-                );
-            }
+            liveBinds.add(f.id);
           }
         }
         continue;
@@ -686,15 +606,15 @@ export class SkillVfx {
     }
     for (const [id, effect] of this.attached)
       if (!live.has(id)) {
-        const wrapMask = this.wrapMasks.get(id);
-        if (wrapMask) {
-          wrapMask.sprite.clearMask(true);
-          wrapMask.graphics.destroy();
-          this.wrapMasks.delete(id);
-        }
         effect.sprite.destroy();
         this.attached.delete(id);
       }
+    for (const [id, bind] of this.binds) {
+      if (!liveBinds.has(id)) {
+        bind.destroy();
+        this.binds.delete(id);
+      }
+    }
     for (const impact of this.impacts) {
       if (paused || reduced) impact.sprite.anims.pause();
       else impact.sprite.anims.resume();
@@ -771,11 +691,8 @@ export class SkillVfx {
   destroy() {
     for (const graphics of this.beamGraphics.values()) graphics.destroy();
     this.beamGraphics.clear();
-    for (const wrapMask of this.wrapMasks.values()) {
-      wrapMask.sprite.clearMask(true);
-      wrapMask.graphics.destroy();
-    }
-    this.wrapMasks.clear();
+    for (const bind of this.binds.values()) bind.destroy();
+    this.binds.clear();
     for (const effect of this.attached.values()) effect.sprite.destroy();
     for (const impact of this.impacts) impact.sprite.destroy();
     for (const emitter of this.emitters.values()) emitter.destroy();

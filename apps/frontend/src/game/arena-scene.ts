@@ -306,25 +306,29 @@ export function createArenaScene(
         const bindAge = binder?.cast
           ? Math.max(0, binder.cast.elapsed - SKILL_BY_ID['cursed-scroll-bind'].startup)
           : 0;
-        const bindProgress = binder
-          ? Math.min(1, bindAge / SKILL_BY_ID['cursed-scroll-bind'].active)
-          : 0;
+        const bindT = Math.max(0, Math.min(1, (bindAge - 1.05) / 1.95));
+        const bindProgress = bindT * bindT * (3 - 2 * bindT);
         const bindPulse =
           binder && !settings.reducedMotion
-            ? Math.max(0, 1 - Math.abs(bindAge - Math.round(bindAge)) / 0.16)
+            ? Math.exp(-Math.pow((bindAge - Math.round(bindAge)) / 0.105, 2)) *
+              Math.max(0, Math.min(1, (bindAge - 0.7) / 0.3))
             : 0;
+        const enteringBind =
+          f.species === 'runedrake' && f.cast?.skillId === 'cursed-scroll-bind' && f.cast.bound;
+        const entryFade = enteringBind
+          ? settings.reducedMotion
+            ? 0
+            : 1 -
+              Math.min(
+                1,
+                Math.max(0, f.cast!.elapsed - SKILL_BY_ID['cursed-scroll-bind'].startup) / 0.12,
+              )
+          : 1;
         const baseScale = f.species === 'eevee' ? 0.66 : f.species === 'runedrake' ? 0.9 : 0.82;
         v.sprite
-          .setVisible(
-            faintAlpha > 0 &&
-              !(
-                f.species === 'runedrake' &&
-                f.cast?.skillId === 'cursed-scroll-bind' &&
-                f.cast.bound
-              ),
-          )
+          .setVisible(faintAlpha > 0 && entryFade > 0)
           .setPosition(
-            x + glyphWobble * 70 + Math.sin(bindAge * 90) * bindPulse * 3,
+            x + glyphWobble * 70 + Math.sin(bindAge * 22) * bindPulse * 1.5,
             ground - altitude,
           )
           .setRotation(glyphWobble)
@@ -334,7 +338,9 @@ export function createArenaScene(
           )
           .setDepth(10 + (ground - 300) / 300)
           .setFlipX(f.facing < 0)
-          .setAlpha(f.invulnerable > 0 ? 0.55 + Math.sin(time / 35) * 0.2 : faintAlpha);
+          .setAlpha(
+            (f.invulnerable > 0 ? 0.55 + Math.sin(time / 35) * 0.2 : faintAlpha) * entryFade,
+          );
         const animation = `${f.species}-${f.animation}`;
         if (animation !== v.lastAnimation) {
           v.sprite.play(animation);

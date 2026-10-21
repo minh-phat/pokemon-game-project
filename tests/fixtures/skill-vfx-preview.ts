@@ -14,6 +14,7 @@ new Phaser.Game({
       this.load.image('ember-glyph-art', (window as any).emberGlyphAsset);
       this.load.image('runedrake-bind-body', (window as any).bindBodyAsset);
       this.load.image('runedrake-bind-head', (window as any).bindHeadAsset);
+      this.load.image('bind-victim', (window as any).bindVictimAsset);
     },
     create() {
       createSkillTextures(this);
@@ -135,6 +136,11 @@ new Phaser.Game({
         fontSize: '18px',
         color: '#fff0c2',
       });
+      const victim = this.add
+        .image(510, 620, 'bind-victim')
+        .setOrigin(0.5, 0.84)
+        .setScale(0.82)
+        .setDepth(11);
       const controls = {
         paused: false,
         reduced: false,
@@ -142,11 +148,21 @@ new Phaser.Game({
         angle: 0,
         boundSpecies: 'charmander',
         bindElapsed: 0.48,
+        bindFacing: 1,
         showLaser: false,
       };
       Object.assign(window, {
         vfxPreview: {
           controls,
+          focusBind: () => {
+            snapshot.fighters[0].active = false;
+            snapshot.fighters[1].active = false;
+            snapshot.projectiles = [];
+            snapshot.groundHazards = [];
+            this.children.list.forEach((object) => {
+              if (object instanceof Phaser.GameObjects.Text) object.setVisible(false);
+            });
+          },
           inspect: () => ({
             frames: skills.map((s) =>
               s.id === 'ember-glyph'
@@ -160,28 +176,14 @@ new Phaser.Game({
                 o instanceof Phaser.GameObjects.Sprite &&
                 o.texture.key === 'skill-vfx-sludge-puddle',
             ).length,
-            bindCoils: this.children.list.filter(
-              (o) =>
-                o instanceof Phaser.GameObjects.Sprite && o.texture.key === 'runedrake-bind-body',
-            ).length,
-            bindCoilWidth: (
-              this.children.list.find(
-                (o) =>
-                  o instanceof Phaser.GameObjects.Sprite && o.texture.key === 'runedrake-bind-body',
-              ) as Phaser.GameObjects.Sprite | undefined
-            )?.displayWidth,
-            bindMasked: !!(
-              this.children.list.find(
-                (o) =>
-                  o instanceof Phaser.GameObjects.Sprite && o.texture.key === 'runedrake-bind-body',
-              ) as Phaser.GameObjects.Sprite | undefined
-            )?.mask,
-            bindHeadX: (
-              this.children.list.find(
-                (o) =>
-                  o instanceof Phaser.GameObjects.Sprite && o.texture.key === 'runedrake-bind-head',
-              ) as Phaser.GameObjects.Sprite | undefined
-            )?.x,
+            bindCoils: this.children.list.filter((o) => o.name === 'bind-body-front').length,
+            bindCoilWidth: this.children.getByName('bind-body-front')?.getData('radius'),
+            bindBodyPoints: this.children.getByName('bind-body-front')?.getData('points'),
+            bindLayers: this.children.list
+              .filter((o) => o.name === 'bind-body-front' || o.name === 'bind-body-back')
+              .map((o) => (o as Phaser.GameObjects.Graphics).depth),
+            bindHeadX: (this.children.getByName('bind-head') as Phaser.GameObjects.Sprite)?.x,
+            bindHeadY: (this.children.getByName('bind-head') as Phaser.GameObjects.Sprite)?.y,
             laserCores: this.children.list.filter(
               (o) =>
                 o instanceof Phaser.GameObjects.Sprite &&
@@ -231,10 +233,12 @@ new Phaser.Game({
         },
       });
       this.events.on('update', (_time: number, delta: number) => {
+        victim.setVisible(!controls.clear);
         snapshot.fighters[0].aimX = Math.cos(controls.angle);
         snapshot.fighters[0].aimDepth = Math.sin(controls.angle);
         snapshot.fighters[3].species = controls.boundSpecies as Fighter['species'];
         snapshot.fighters[2].cast!.elapsed = controls.bindElapsed;
+        snapshot.fighters[2].facing = controls.bindFacing as 1 | -1;
         snapshot.fighters[0].cast = controls.showLaser
           ? { skillId: 'dragon-laser', elapsed: 1.2, fired: 0, hitIds: [] }
           : { skillId: 'inferno-stream', elapsed: 1.2, fired: 1, hitIds: [] };
