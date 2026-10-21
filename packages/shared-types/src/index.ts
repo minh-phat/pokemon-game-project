@@ -118,6 +118,7 @@ export interface SkillDefinition {
   usage: { minRange: number; priority: number; belowHP?: number };
   events: { at: number; kind: 'hit' | 'projectile' | 'buff' }[];
   channel?: { interval: number; halfAngle: number };
+  beam?: { width: number; interval: number; clashPower: number };
   electricAura?: { reach: number; damageScale: number };
   movement?: { speed: number; duration: number };
   groundHazard?: { radius: number; duration: number; interval: number; damage: number };
@@ -263,6 +264,17 @@ export interface GroundHazard {
   duration: number;
   pulse: number;
 }
+export interface BattleBeam {
+  ownerId: string;
+  team: 0 | 1;
+  skillId: string;
+  startX: number;
+  startDepth: number;
+  endX: number;
+  endDepth: number;
+  width: number;
+  clashWith?: string;
+}
 export interface BattleEvent {
   id: number;
   tick: number;
@@ -297,6 +309,7 @@ export interface BattleSnapshot {
   controlledFighterIds: [string | null, string | null];
   fighters: Fighter[];
   projectiles: Projectile[];
+  beams?: BattleBeam[];
   groundHazards: GroundHazard[];
   events: BattleEvent[];
   result: BattleResult | null;

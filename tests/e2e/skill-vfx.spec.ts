@@ -80,6 +80,14 @@ test('all skill sprites animate, emit particles, pause, reduce motion, and clean
     });
     await expect.poll(async () => (await inspect()).streamRotation).toBeGreaterThan(1.4);
     await page.evaluate(() => {
+      (window as any).vfxPreview.controls.showLaser = true;
+      (window as any).vfxPreview.controls.angle = 0;
+    });
+    await expect.poll(async () => (await inspect()).laserCores).toBe(2);
+    expect((await inspect()).laserClashes).toBe(1);
+    expect((await inspect()).laserMouths).toBe(1);
+    await page.screenshot({ path: 'test-results/dragon-laser-preview.png' });
+    await page.evaluate(() => {
       (window as any).vfxPreview.controls.paused = true;
     });
     await page.waitForTimeout(100);

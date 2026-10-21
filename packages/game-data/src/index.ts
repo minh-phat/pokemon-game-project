@@ -143,6 +143,19 @@ export const SKILLS = {
     channel: { interval: 0.5, halfAngle: 22 },
     usage: { minRange: 70, priority: 1.7 },
   }),
+  dragonLaser: skill('dragon-laser', 'Hỏa Long Lazer', 'fire', 'area', 8, 45, 10, 650, {
+    description:
+      'Charge fire in its mouth, then sustain a narrow laser. Opposing beams meet and push against each other.',
+    startup: 0.75,
+    active: 2.4,
+    recovery: 0.35,
+    hitbox: { width: 34, height: 38, altitude: 30 },
+    knockback: 0,
+    effects: [{ kind: 'burn', duration: 1.5, strength: 2 }],
+    beam: { width: 34, interval: 0.4, clashPower: 1 },
+    events: [],
+    usage: { minRange: 150, priority: 1.75 },
+  }),
   tackle: skill('tackle', 'Tackle', 'normal', 'melee', 13, 0, 1.15, 88, {
     description: 'A sturdy body check.',
     knockback: 160,
@@ -478,7 +491,7 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
       SKILLS.emberGlyph,
       SKILLS.cursedScrollBind,
       SKILLS.flameBurst,
-      SKILLS.infernoStream,
+      SKILLS.dragonLaser,
     ],
     animations: runedrakeAnimations,
     ai: { aggression: 0.75, dodge: 0.72, guard: 0.38, preferredDistance: 210, retreat: 0.55 },

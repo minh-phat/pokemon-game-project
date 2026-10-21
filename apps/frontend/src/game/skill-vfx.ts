@@ -8,11 +8,13 @@ type WrapMask = { graphics: Phaser.GameObjects.Graphics; sprite: Phaser.GameObje
 
 export class SkillVfx {
   private attached = new Map<string, Effect>();
+  private beamGraphics = new Map<string, Phaser.GameObjects.Graphics>();
   private wrapMasks = new Map<string, WrapMask>();
   private impacts: { sprite: Phaser.GameObjects.Sprite; remaining: number }[] = [];
   private seenHazards = new Set<string>();
   private emitters = new Map<Element, Phaser.GameObjects.Particles.ParticleEmitter>();
   private particleClock = 0;
+  private beamTime = 0;
   private paused = false;
   private reduced = false;
 
@@ -99,6 +101,7 @@ export class SkillVfx {
   ) {
     this.paused = paused;
     this.reduced = reduced;
+    if (!paused && !reduced) this.beamTime += Math.min(delta, 100) / 1000;
     for (const emitter of this.emitters.values()) {
       emitter.timeScale = paused ? 0 : 1;
       if (reduced) emitter.killAll();
@@ -175,6 +178,38 @@ export class SkillVfx {
       if (!f.cast) continue;
       const skill = SKILL_BY_ID[f.cast.skillId];
       if (skill.id === 'tail-whip') continue;
+      if (skill.beam) {
+        const mouthX = x + f.aimX * 45;
+        const mouthY = y + f.aimDepth * 45 - 20;
+        const charge = f.cast.elapsed < skill.startup;
+        const fade = Math.max(
+          0,
+          1 - (f.cast.elapsed - skill.startup - skill.active) / skill.recovery,
+        );
+        if (fade <= 0) continue;
+        const id = `beam-mouth-${f.id}`;
+        const progress = Math.min(1, f.cast.elapsed / skill.startup);
+        const ignition = charge ? 0 : Math.max(0, 1 - (f.cast.elapsed - skill.startup) / 0.16);
+        const size = charge ? 30 + 65 * progress * progress : 86 + ignition * 32;
+        this.place(
+          id,
+          'skill-vfx-dragon-laser-charge',
+          mouthX,
+          mouthY,
+          size,
+          size,
+          Math.atan2(f.aimDepth, f.aimX),
+        );
+        this.attached
+          .get(id)!
+          .sprite.setDepth(15)
+          .setBlendMode(Phaser.BlendModes.ADD)
+          .setAlpha((charge ? 0.55 + 0.45 * progress : 0.95) * fade);
+        live.add(id);
+        if (emit && !reduced)
+          this.emitters.get('fire')!.emitParticleAt(mouthX, mouthY, charge ? 2 : 5);
+        continue;
+      }
       if (skill.id === 'cursed-scroll-bind') {
         if (f.cast.elapsed < skill.startup && !reduced && this.scene.textures.exists('runedrake')) {
           for (let i = 1; i <= 3; i++) {
@@ -428,6 +463,111 @@ export class SkillVfx {
             charge ? 1 : 3,
           );
     }
+    const liveBeams = new Set<string>();
+    const liveClashes = new Set<string>();
+    for (const beam of snapshot.beams ?? []) {
+      const owner = snapshot.fighters.find((f) => f.id === beam.ownerId);
+      if (!owner) continue;
+      const hover = hoverByFighter.get(owner.id) ?? 0;
+      const sx = beam.startX,
+        sy = 492 + beam.startDepth - owner.y - hover - 20;
+      const ex = beam.endX,
+        ey = 492 + beam.endDepth - owner.y - hover - 20;
+      const length = Math.hypot(ex - sx, ey - sy);
+      const angle = Math.atan2(ey - sy, ex - sx);
+      const color = Phaser.Display.Color.HexStringToColor(
+        ELEMENTS[SKILL_BY_ID[beam.skillId].element].color,
+      ).color;
+      let graphics = this.beamGraphics.get(beam.ownerId);
+      if (!graphics) {
+        graphics = this.scene.add.graphics().setDepth(11).setBlendMode(Phaser.BlendModes.ADD);
+        this.beamGraphics.set(beam.ownerId, graphics);
+      }
+      graphics.clear();
+      const time = reduced ? 0 : this.beamTime;
+      const dx = Math.cos(angle),
+        dy = Math.sin(angle);
+      const point = (along: number, across: number) =>
+        new Phaser.Geom.Point(sx + dx * along - dy * across, sy + dy * along + dx * across);
+      // Flame tongues travel towards the impact while the straight core stays readable.
+      const tongues = Math.max(4, Math.ceil(length / 38));
+      for (let i = 0; i < tongues; i++) {
+        const t = (i / tongues + time * 0.8) % 1;
+        const side = i % 2 ? 1 : -1;
+        const envelope = Math.sin(t * Math.PI);
+        const along = t * length;
+        const base = side * beam.width * 0.3;
+        const reach = side * beam.width * (0.7 + 0.25 * Math.sin(time * 13 + i)) * envelope;
+        graphics.fillStyle(i % 3 ? color : 0xffd16d, reduced ? 0.25 : 0.55);
+        graphics.fillPoints(
+          [
+            point(Math.max(0, along - 26), base),
+            point(Math.max(0, along - 18), reach * 0.85),
+            point(along - 8, reach),
+            point(along + 4, reach * 0.55),
+            point(Math.min(length, along + 15), base),
+            point(along - 5, base * 0.65),
+          ],
+          true,
+        );
+      }
+      liveBeams.add(beam.ownerId);
+      const id = `beam-core-${beam.ownerId}`;
+      this.place(
+        id,
+        'skill-vfx-dragon-laser',
+        (sx + ex) / 2,
+        (sy + ey) / 2,
+        Math.max(4, length),
+        beam.width * 2.8 * (1 + (reduced ? 0 : Math.sin(time * 17) * 0.025)),
+        angle,
+      );
+      this.attached
+        .get(id)!
+        .sprite.setDepth(12)
+        .setBlendMode(Phaser.BlendModes.ADD)
+        .setAlpha(reduced ? 0.72 : 1);
+      live.add(id);
+      if (beam.clashWith) {
+        const pair = [beam.ownerId, beam.clashWith].sort().join('-');
+        if (!liveClashes.has(pair)) {
+          const impactId = `beam-clash-${pair}`;
+          const size = 138 + Math.sin(time * 19) * 5;
+          this.place(impactId, 'skill-vfx-dragon-laser-impact', ex, ey, size, size, time * 0.4);
+          this.attached.get(impactId)!.sprite.setDepth(16).setBlendMode(Phaser.BlendModes.ADD);
+          live.add(impactId);
+          liveClashes.add(pair);
+          if (emit && !reduced) this.emitters.get('fire')!.emitParticleAt(ex, ey, 8);
+        }
+      } else if (
+        snapshot.fighters.some(
+          (f) =>
+            f.team !== beam.team &&
+            f.active &&
+            f.hp > 0 &&
+            Math.hypot(f.x - ex, f.depth - beam.endDepth) < 55,
+        )
+      ) {
+        const impactId = `beam-hit-${beam.ownerId}`;
+        this.place(impactId, 'skill-vfx-dragon-laser-impact', ex, ey, 96, 96, angle);
+        this.attached
+          .get(impactId)!
+          .sprite.setDepth(14)
+          .setBlendMode(Phaser.BlendModes.ADD)
+          .setAlpha(0.9);
+        live.add(impactId);
+      }
+      if (emit && !reduced)
+        for (const part of [0.2, 0.5, 0.8])
+          this.emitters
+            .get('fire')!
+            .emitParticleAt(sx + (ex - sx) * part, sy + (ey - sy) * part, 2);
+    }
+    for (const [id, graphics] of this.beamGraphics)
+      if (!liveBeams.has(id)) {
+        graphics.destroy();
+        this.beamGraphics.delete(id);
+      }
     for (const p of snapshot.projectiles) {
       const old = previous?.projectiles.find((v) => v.id === p.id);
       const x = old ? Phaser.Math.Linear(old.x, p.x, alpha) : p.x;
@@ -629,6 +769,8 @@ export class SkillVfx {
   }
 
   destroy() {
+    for (const graphics of this.beamGraphics.values()) graphics.destroy();
+    this.beamGraphics.clear();
     for (const wrapMask of this.wrapMasks.values()) {
       wrapMask.sprite.clearMask(true);
       wrapMask.graphics.destroy();

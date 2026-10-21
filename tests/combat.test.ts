@@ -194,6 +194,51 @@ describe('damage and hit geometry', () => {
       POKEMON.charmander.collision = original;
     }
   });
+  it('charges Runedrake’s fifth skill, then holds a narrow laser on its target', () => {
+    expect(POKEMON.runedrake.skills[4].id).toBe('dragon-laser');
+    const e = battle([['runedrake'], ['charmander']]);
+    const [a, b] = e.state.fighters;
+    a.x = 350;
+    b.x = 750;
+    a.depth = b.depth = 0;
+    a.thinkIn = b.thinkIn = 100;
+    a.invulnerable = b.invulnerable = 0;
+    const hp = b.hp;
+    expect(e.beginSkill(a, 'dragon-laser')).toBe(true);
+    step(e, 0.7);
+    expect(e.state.beams).toHaveLength(0);
+    expect(b.hp).toBe(hp);
+    step(e, 0.3);
+    expect(e.state.beams).toHaveLength(1);
+    expect(e.state.beams![0]!.endX).toBeLessThan(b.x);
+    expect(b.hp).toBeLessThan(hp);
+    const afterFirstPulse = b.hp;
+    step(e, 0.5);
+    expect(b.hp).toBeLessThan(afterFirstPulse);
+  });
+  it('lets two opposing lasers clash and hold a moving collision point', () => {
+    const e = battle([['runedrake'], ['runedrake']]);
+    const [a, b] = e.state.fighters;
+    a.x = 350;
+    b.x = 850;
+    a.depth = b.depth = 0;
+    a.thinkIn = b.thinkIn = 100;
+    a.invulnerable = b.invulnerable = 0;
+    expect(e.beginSkill(a, 'dragon-laser')).toBe(true);
+    expect(e.beginSkill(b, 'dragon-laser')).toBe(true);
+    step(e, 1);
+    const [left, right] = e.state.beams!;
+    expect(left.clashWith).toBe(b.id);
+    expect(right.clashWith).toBe(a.id);
+    expect(left.endX).toBeCloseTo(right.endX);
+    expect(left.endX).toBeGreaterThan(a.x);
+    expect(left.endX).toBeLessThan(b.x);
+    const firstPoint = left.endX;
+    step(e, 0.4);
+    expect(e.state.beams![0]!.endX).not.toBeCloseTo(firstPoint);
+    expect(a.hp).toBe(POKEMON.runedrake.hp);
+    expect(b.hp).toBe(POKEMON.runedrake.hp);
+  });
   it('lands Sludge Bomb beneath a hit target and damages only while it stands in the pool', () => {
     const e = battle([['bulbasaur'], ['charmander']]);
     const [a, b] = e.state.fighters;

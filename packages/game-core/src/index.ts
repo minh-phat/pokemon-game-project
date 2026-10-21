@@ -6,6 +6,7 @@ import {
   validateTeam,
   type AIAction,
   type BattleConfig,
+  type BattleBeam,
   type BattleEvent,
   type BattleResult,
   type BattleSnapshot,
@@ -63,6 +64,7 @@ export class BattleEngine {
       rules: this.config.rules,
       fighters: [],
       projectiles: [],
+      beams: [],
       groundHazards: [],
       events: [],
       result: null,
@@ -352,7 +354,11 @@ export class BattleEngine {
             Math.hypot(a.x - f.x, a.depth - f.depth) - Math.hypot(b.x - f.x, b.depth - f.depth),
         )[0];
       f.targetId = target?.id ?? null;
-      if (target && f.actionTime === 0 && (!f.cast || SKILL_BY_ID[f.cast.skillId].channel)) {
+      if (
+        target &&
+        f.actionTime === 0 &&
+        (!f.cast || SKILL_BY_ID[f.cast.skillId].channel || SKILL_BY_ID[f.cast.skillId].beam)
+      ) {
         const distance = Math.hypot(target.x - f.x, target.depth - f.depth) || 1;
         const angle = Math.atan2(target.depth - f.depth, target.x - f.x);
         if (f.cast) {
@@ -410,6 +416,7 @@ export class BattleEngine {
       this.trySwitch(f);
     }
     this.resolveBodies();
+    this.beamTick();
     this.groundHazardTick(dt);
     this.projectileTick(dt);
     this.deployReserves();
@@ -419,6 +426,7 @@ export class BattleEngine {
       this.state.result = result;
       this.state.phase = 'finished';
       this.state.projectiles = [];
+      this.state.beams = [];
       this.state.groundHazards = [];
       for (const f of this.state.fighters)
         if (f.hp > 0 && f.active) {
@@ -902,6 +910,148 @@ export class BattleEngine {
       if (cast.elapsed >= s.startup + s.active + s.recovery) f.cast = null;
     } else return false;
     return true;
+  }
+  private beamTick() {
+    const beams: BattleBeam[] = [];
+    for (const f of this.state.fighters) {
+      if (!f.active || f.hp <= 0 || !f.cast) continue;
+      const skill = SKILL_BY_ID[f.cast.skillId];
+      if (
+        !skill.beam ||
+        f.cast.elapsed < skill.startup ||
+        f.cast.elapsed > skill.startup + skill.active + FIXED_DELTA
+      )
+        continue;
+      const length = Math.hypot(f.aimX, f.aimDepth) || 1;
+      const dx = f.aimX / length,
+        dz = f.aimDepth / length;
+      const startX = f.x + dx * 34,
+        startDepth = f.depth + dz * 34;
+      beams.push({
+        ownerId: f.id,
+        team: f.team,
+        skillId: skill.id,
+        startX,
+        startDepth,
+        endX: startX + dx * skill.range,
+        endDepth: startDepth + dz * skill.range,
+        width: skill.beam.width,
+      });
+    }
+    for (const beam of beams) {
+      const owner = this.state.fighters.find((f) => f.id === beam.ownerId)!;
+      const skill = SKILL_BY_ID[beam.skillId];
+      const dx = (beam.endX - beam.startX) / skill.range,
+        dz = (beam.endDepth - beam.startDepth) / skill.range;
+      let nearest = skill.range;
+      for (const target of this.state.fighters) {
+        if (
+          !target.active ||
+          target.hp <= 0 ||
+          target.team === beam.team ||
+          !this.beamHits(owner, target, beam, skill)
+        )
+          continue;
+        const forward = (target.x - beam.startX) * dx + (target.depth - beam.startDepth) * dz;
+        nearest = Math.min(
+          nearest,
+          Math.max(0, forward - POKEMON[target.species].collision.width * 0.35),
+        );
+      }
+      beam.endX = beam.startX + dx * nearest;
+      beam.endDepth = beam.startDepth + dz * nearest;
+    }
+    // All beam types share this collision path; a future laser only needs a beam definition.
+    for (let i = 0; i < beams.length; i++) {
+      for (let j = i + 1; j < beams.length; j++) {
+        const a = beams[i],
+          b = beams[j];
+        if (a.team === b.team) continue;
+        const sa = SKILL_BY_ID[a.skillId],
+          sb = SKILL_BY_ID[b.skillId];
+        const aLength = Math.hypot(a.endX - a.startX, a.endDepth - a.startDepth);
+        const bLength = Math.hypot(b.endX - b.startX, b.endDepth - b.startDepth);
+        if (aLength < 1 || bLength < 1) continue;
+        const ax = (a.endX - a.startX) / aLength,
+          az = (a.endDepth - a.startDepth) / aLength;
+        const bx = (b.endX - b.startX) / bLength,
+          bz = (b.endDepth - b.startDepth) / bLength;
+        if (ax * bx + az * bz > -0.85) continue;
+        const betweenX = b.startX - a.startX,
+          betweenDepth = b.startDepth - a.startDepth;
+        const separation = betweenX * ax + betweenDepth * az;
+        if (
+          separation <= 0 ||
+          Math.abs(betweenX * az - betweenDepth * ax) > (a.width + b.width) / 2 + 15
+        )
+          continue;
+        const lower = Math.max(0, separation - bLength),
+          upper = Math.min(aLength, separation);
+        if (lower > upper) continue;
+        const powerA = sa.beam!.clashPower,
+          powerB = sb.beam!.clashPower;
+        const distance = Math.max(
+          lower,
+          Math.min(
+            upper,
+            (separation * powerA) / (powerA + powerB) + Math.sin(this.state.elapsed * 9) * 7,
+          ),
+        );
+        const pointX = a.startX + ax * distance,
+          pointDepth = a.startDepth + az * distance;
+        if (
+          distance < aLength &&
+          Math.hypot(pointX - b.startX, pointDepth - b.startDepth) < bLength
+        ) {
+          a.endX = b.endX = pointX;
+          a.endDepth = b.endDepth = pointDepth;
+          a.clashWith = b.ownerId;
+          b.clashWith = a.ownerId;
+        }
+      }
+    }
+    this.state.beams = beams;
+    for (const beam of beams) {
+      const owner = this.state.fighters.find((f) => f.id === beam.ownerId)!;
+      const cast = owner.cast;
+      if (!cast) continue;
+      const skill = SKILL_BY_ID[beam.skillId];
+      const interval = skill.beam!.interval;
+      while (
+        (cast.channelTicks ?? 0) * interval < skill.active - 1e-9 &&
+        cast.elapsed + 1e-9 >= skill.startup + 0.2 + (cast.channelTicks ?? 0) * interval
+      ) {
+        cast.channelTicks = (cast.channelTicks ?? 0) + 1;
+        for (const target of this.state.fighters)
+          if (
+            target.active &&
+            target.hp > 0 &&
+            target.team !== beam.team &&
+            this.beamHits(owner, target, beam, skill)
+          )
+            this.hit(owner, target, skill);
+      }
+    }
+  }
+  private beamHits(owner: Fighter, target: Fighter, beam: BattleBeam, skill: SkillDefinition) {
+    const dx = beam.endX - beam.startX,
+      dz = beam.endDepth - beam.startDepth;
+    const length = Math.hypot(dx, dz) || 1;
+    const toX = target.x - beam.startX,
+      toDepth = target.depth - beam.startDepth;
+    const forward = (toX * dx + toDepth * dz) / length;
+    const side = Math.abs(toX * dz - toDepth * dx) / length;
+    const radius = POKEMON[target.species].collision.width / 2;
+    const targetBox = fighterBox(target);
+    const bottom = owner.y + skill.hitbox.altitude - skill.hitbox.height / 2;
+    const top = owner.y + skill.hitbox.altitude + skill.hitbox.height / 2;
+    return (
+      forward >= -radius &&
+      forward <= length + radius &&
+      side <= beam.width / 2 + radius &&
+      targetBox.top >= bottom &&
+      targetBox.bottom <= top
+    );
   }
   private meleeHits(f: Fighter, target: Fighter, skill: SkillDefinition) {
     const dx = target.x - f.x,

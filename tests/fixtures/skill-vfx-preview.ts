@@ -87,6 +87,7 @@ new Phaser.Game({
         ],
         events: [],
         result: null,
+        beams: [],
         groundHazards: [
           {
             id: 'preview-pool',
@@ -141,6 +142,7 @@ new Phaser.Game({
         angle: 0,
         boundSpecies: 'charmander',
         bindElapsed: 0.48,
+        showLaser: false,
       };
       Object.assign(window, {
         vfxPreview: {
@@ -180,6 +182,22 @@ new Phaser.Game({
                   o instanceof Phaser.GameObjects.Sprite && o.texture.key === 'runedrake-bind-head',
               ) as Phaser.GameObjects.Sprite | undefined
             )?.x,
+            laserCores: this.children.list.filter(
+              (o) =>
+                o instanceof Phaser.GameObjects.Sprite &&
+                o.texture.key === 'skill-vfx-dragon-laser' &&
+                o.displayWidth > 150,
+            ).length,
+            laserClashes: this.children.list.filter(
+              (o) =>
+                o instanceof Phaser.GameObjects.Sprite &&
+                o.texture.key === 'skill-vfx-dragon-laser-impact',
+            ).length,
+            laserMouths: this.children.list.filter(
+              (o) =>
+                o instanceof Phaser.GameObjects.Sprite &&
+                o.texture.key === 'skill-vfx-dragon-laser-charge',
+            ).length,
             sludgeBombs: this.children.list.filter(
               (o) =>
                 o instanceof Phaser.GameObjects.Sprite && o.texture.key === 'skill-vfx-sludge-bomb',
@@ -217,9 +235,38 @@ new Phaser.Game({
         snapshot.fighters[0].aimDepth = Math.sin(controls.angle);
         snapshot.fighters[3].species = controls.boundSpecies as Fighter['species'];
         snapshot.fighters[2].cast!.elapsed = controls.bindElapsed;
+        snapshot.fighters[0].cast = controls.showLaser
+          ? { skillId: 'dragon-laser', elapsed: 1.2, fired: 0, hitIds: [] }
+          : { skillId: 'inferno-stream', elapsed: 1.2, fired: 1, hitIds: [] };
+        snapshot.beams = controls.showLaser
+          ? [
+              {
+                ownerId: 'stream-preview',
+                team: 0,
+                skillId: 'dragon-laser',
+                startX: 310,
+                startDepth: 338,
+                endX: 500,
+                endDepth: 338,
+                width: 34,
+                clashWith: 'burn-preview',
+              },
+              {
+                ownerId: 'burn-preview',
+                team: 1,
+                skillId: 'dragon-laser',
+                startX: 690,
+                startDepth: 338,
+                endX: 500,
+                endDepth: 338,
+                width: 34,
+                clashWith: 'stream-preview',
+              },
+            ]
+          : [];
         vfx.update(
           controls.clear
-            ? { ...snapshot, fighters: [], projectiles: [], groundHazards: [] }
+            ? { ...snapshot, fighters: [], projectiles: [], beams: [], groundHazards: [] }
             : snapshot,
           null,
           1,

@@ -178,6 +178,129 @@ function pixelFire(c: Context, id: 'inferno-stream' | 'burning', frame: number) 
   }
 }
 
+function dragonLaserArt(c: Context, id: string, frame: number) {
+  const phase = (frame / FRAMES) * TAU;
+  const pulse = Math.sin(phase * 2);
+  if (id === 'dragon-laser') {
+    // Transparent edges and irregular silhouettes keep a stretched beam from becoming a rectangle.
+    const halo = c.createLinearGradient(0, 9, 0, 119);
+    halo.addColorStop(0, '#ff3b1000');
+    halo.addColorStop(0.3, '#ff501322');
+    halo.addColorStop(0.5, '#ffb03d88');
+    halo.addColorStop(0.7, '#ff501322');
+    halo.addColorStop(1, '#ff3b1000');
+    c.fillStyle = halo;
+    c.fillRect(0, 9, 128, 110);
+    const ribbon = (radius: number, wave: number, color: string) => {
+      c.fillStyle = color;
+      c.beginPath();
+      for (const side of [-1, 1]) {
+        for (let step = 0; step <= 64; step++) {
+          const x = side < 0 ? step * 2 : 128 - step * 2;
+          const taper = 0.56 + 0.44 * Math.sin((x / 128) * Math.PI);
+          const ripple =
+            Math.sin(x * 0.17 - phase * 2 + side) * wave +
+            Math.sin(x * 0.33 - phase * 3) * wave * 0.35;
+          const y = 64 + side * (radius + ripple) * taper;
+          if (side < 0 && step === 0) c.moveTo(x, y);
+          else c.lineTo(x, y);
+        }
+      }
+      c.closePath();
+      c.fill();
+    };
+    ribbon(26, 8, '#f33b1666');
+    ribbon(19, 5, '#ff621bcc');
+    ribbon(12, 3, '#ffb53cee');
+    ribbon(6.5, 1.2, '#fff1a4');
+    ribbon(2.4, 0.4, '#fffefa');
+    // Hot filaments flow forwards through the flame sheath.
+    c.lineCap = 'round';
+    for (let i = 0; i < 8; i++) {
+      const x = ((i * 19 + frame * (128 / FRAMES)) % 156) - 14;
+      const side = i % 2 ? 1 : -1;
+      const y = 64 + side * (13 + (i % 3) * 5);
+      c.strokeStyle = i % 3 ? '#ffe08cbb' : '#fff9d9ee';
+      c.lineWidth = i % 3 ? 1.4 : 2;
+      c.beginPath();
+      c.moveTo(x - 13, y + side * 4);
+      c.quadraticCurveTo(x, y - side * 5, x + 9, y);
+      c.stroke();
+    }
+    const fade = c.createLinearGradient(0, 0, 128, 0);
+    fade.addColorStop(0, '#ffffff00');
+    fade.addColorStop(0.08, '#ffffff');
+    fade.addColorStop(0.92, '#ffffff');
+    fade.addColorStop(1, '#ffffff00');
+    c.globalCompositeOperation = 'destination-in';
+    c.fillStyle = fade;
+    c.fillRect(0, 0, 128, 128);
+    return;
+  }
+  if (id === 'dragon-laser-impact') {
+    glow(c, 64, 64, 61, '#ff581b66');
+    glow(c, 64, 64, 33 + pulse * 2, '#ffbd46bb');
+    for (let i = 0; i < 10; i++) {
+      const angle = (i * TAU) / 10 + Math.sin(phase) * 0.12;
+      const reach = 27 + ((i * 13) % 23) + Math.sin(phase + i * 2) * 6;
+      c.save();
+      c.translate(64, 64);
+      c.rotate(angle);
+      c.fillStyle = i % 2 ? '#ff7e28bb' : '#ffd174dd';
+      c.beginPath();
+      c.moveTo(8, -5);
+      c.quadraticCurveTo(reach * 0.65, -10, reach, -3);
+      c.quadraticCurveTo(reach * 0.55, 2, 10, 5);
+      c.fill();
+      c.restore();
+    }
+    const shock = 24 + ((frame * 3) % 22);
+    c.strokeStyle = '#ffe9a5aa';
+    c.lineWidth = 1.5;
+    for (let i = 0; i < 3; i++) {
+      c.beginPath();
+      c.arc(64, 64, shock, (i * TAU) / 3 + phase * 0.2, (i * TAU) / 3 + 1.2 + phase * 0.2);
+      c.stroke();
+    }
+    glow(c, 64, 64, 18, '#fffdeeee');
+    c.fillStyle = '#fffdf0';
+    c.beginPath();
+    c.ellipse(64, 64, 8 + pulse, 13 + pulse, 0, 0, TAU);
+    c.fill();
+    return;
+  }
+  glow(c, 64, 64, 59, '#ff511b55');
+  glow(c, 64, 64, 35, '#ffb64caa');
+  const radius = 15 + pulse * 1.5;
+  const heart = c.createRadialGradient(61, 61, 1, 64, 64, radius);
+  heart.addColorStop(0, '#fffff4');
+  heart.addColorStop(0.4, '#fff6b9');
+  heart.addColorStop(0.75, '#ffb43b');
+  heart.addColorStop(1, '#f34b1b66');
+  c.fillStyle = heart;
+  c.beginPath();
+  c.arc(64, 64, radius, 0, TAU);
+  c.fill();
+  for (let i = 0; i < 3; i++) {
+    c.save();
+    c.translate(64, 64);
+    c.rotate((i * TAU) / 3 - phase);
+    c.fillStyle = '#ff882fcc';
+    c.beginPath();
+    c.moveTo(9, -8);
+    c.bezierCurveTo(30, -30, 46, -13, 39, 13);
+    c.bezierCurveTo(39, -4, 24, -15, 13, 3);
+    c.closePath();
+    c.fill();
+    c.strokeStyle = '#ffe8a3';
+    c.lineWidth = 1.5;
+    c.beginPath();
+    c.arc(0, 0, 23, -1.2, 0.15);
+    c.stroke();
+    c.restore();
+  }
+}
+
 function pixelSludge(
   c: Context,
   id: 'sludge-bomb' | 'sludge-trail' | 'sludge-impact' | 'sludge-puddle',
@@ -282,6 +405,10 @@ function pixelSludge(
 }
 
 function paint(c: Context, id: string, element: Element, frame: number) {
+  if (id.startsWith('dragon-laser')) {
+    dragonLaserArt(c, id, frame);
+    return;
+  }
   if (
     id === 'sludge-bomb' ||
     id === 'sludge-trail' ||
@@ -475,6 +602,8 @@ export function createSkillTextures(scene: Phaser.Scene) {
   for (const id of ['paralyzed', 'electro-charge', 'electro-trail', 'electro-impact'])
     definitions.push({ id, element: 'electric' });
   definitions.push({ id: 'burning', element: 'fire' });
+  definitions.push({ id: 'dragon-laser-charge', element: 'fire' });
+  definitions.push({ id: 'dragon-laser-impact', element: 'fire' });
   definitions.push(
     { id: 'eevee-guard', element: 'normal' },
     { id: 'eevee-adaptive', element: 'normal' },
