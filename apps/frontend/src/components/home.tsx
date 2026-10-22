@@ -218,7 +218,7 @@ export function Home({
       </section>
       <div className="home-note">
         <Shield size={14} />
-        <span>No accounts. No downloads. Just a good battle.</span>
+        <span>Play as a guest or sign in. Your next battle awaits.</span>
       </div>
     </div>
   );

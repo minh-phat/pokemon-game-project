@@ -25,7 +25,7 @@ export function Dialog({
           {children}
           <DialogPrimitive.Close
             className="dialog-close button button-ghost button-icon"
-            aria-label="Close settings"
+            aria-label="Close dialog"
           >
             <X size={19} />
           </DialogPrimitive.Close>

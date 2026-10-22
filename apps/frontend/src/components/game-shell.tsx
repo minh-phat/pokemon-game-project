@@ -15,6 +15,7 @@ import { useGame } from '@/lib/store';
 import { leaveRoom, restoreRoom } from '@/lib/network';
 import { battleFeed } from '@/lib/battle-feed';
 import { Home } from './home';
+import { Account } from './account';
 import {
   ArenaPicker,
   ArenasScreen,
@@ -116,6 +117,7 @@ export function GameShell() {
           </button>
         </nav>
         <div className="header-actions">
+          <Account />
           <span className="local-status">
             <i />
             READY TO PLAY

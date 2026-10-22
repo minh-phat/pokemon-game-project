@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { AuthController, authDatabase } from './auth';
 import { Controller, Get, Post, Param, Module, NotFoundException } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { randomUUID } from 'node:crypto';
@@ -36,12 +37,17 @@ class GameController {
     return { playerId: randomUUID(), expiresIn: 86400 };
   }
 }
-@Module({ controllers: [GameController] })
+@Module({
+  controllers: [GameController, AuthController],
+  providers: [{ provide: 'AUTH_DATABASE', useValue: authDatabase }],
+})
 class AppModule {}
 const app = await NestFactory.create(AppModule);
 app.enableCors({
+  credentials: true,
   origin: (process.env.FRONTEND_ORIGIN ?? 'http://localhost:3000,http://127.0.0.1:3000').split(','),
 });
+const authRequests = new Map<string, { count: number; until: number }>();
 const requests = new Map<string, { count: number; until: number }>();
 app.use((req: Request, res: Response, next: NextFunction) => {
   const key = req.ip ?? 'local',
@@ -50,6 +56,17 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   if (!bucket || now > bucket.until) {
     bucket = { count: 0, until: now + 60000 };
     requests.set(key, bucket);
+  }
+  if (req.method === 'POST' && ['/auth/login', '/auth/register'].includes(req.path)) {
+    let authBucket = authRequests.get(key);
+    if (!authBucket || now > authBucket.until) {
+      authBucket = { count: 0, until: now + 60000 };
+      authRequests.set(key, authBucket);
+    }
+    if (authRequests.size > 10000)
+      for (const [ip, value] of authRequests) if (value.until < now) authRequests.delete(ip);
+    if (++authBucket.count > 10)
+      return res.status(429).json({ message: 'Bạn thử quá nhiều lần. Vui lòng đợi một phút.' });
   }
   if (++bucket.count > 120)
     return res.status(429).json({ message: 'Please slow down and retry in a minute' });

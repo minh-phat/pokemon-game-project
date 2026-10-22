@@ -3414,3 +3414,31 @@ select option {
     bottom: max(24px, env(safe-area-inset-bottom));
   }
 }
+
+.account-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 24px;
+}
+.account-form label {
+  display: grid;
+  gap: 8px;
+  font-weight: 600;
+}
+.account-form input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #c8d2c9;
+  border-radius: 10px;
+  background: #fff;
+  color: #243c30;
+  font: inherit;
+}
+.account-form input:focus-visible {
+  outline: 2px solid #527b53;
+  outline-offset: 2px;
+}
+.account-error {
+  color: #a32e2e;
+}

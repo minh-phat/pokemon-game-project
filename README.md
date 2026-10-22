@@ -133,3 +133,20 @@ The frontend currently imports immutable game data from the shared workspace, so
 - Settings and reconnection survive on the current device; offline matches do not survive reloads. Server restarts intentionally clear rooms.
 
 Recommended next work: commission/licence final art and audio, run a broad balance and accessibility playtest, profile on real mobile hardware, optimize snapshot traffic, then add persistence behind a match-result repository and multi-process room coordination if deployment requires it.
+
+### Tài khoản và MongoDB
+
+Nút **Đăng nhập** trên thanh điều hướng hỗ trợ đăng ký, đăng nhập, khôi phục phiên khi tải lại trang và đăng xuất. Bạn vẫn có thể chơi với tư cách khách.
+
+Thêm các biến sau vào `.env` ở thư mục gốc rồi khởi động lại bằng `npm run dev`:
+
+```dotenv
+MONGODB_URI=mongodb://127.0.0.1:27017
+MONGODB_DB_NAME=pokemon_arena
+```
+
+Có thể thay URI bằng chuỗi kết nối MongoDB Atlas của bạn. Không đưa URI chứa mật khẩu vào Git hoặc biến `NEXT_PUBLIC_*`. Khi chưa đặt `MONGODB_URI`, game vẫn hoạt động và API tài khoản trả lỗi 503 có thông báo cấu hình.
+
+Backend tự tạo collection `users` (email duy nhất, mật khẩu băm scrypt với salt ngẫu nhiên) và `sessions` (token băm SHA-256, hết hạn sau 7 ngày, TTL index). Cookie HttpOnly lưu phiên, đăng xuất thu hồi phiên trên database. API: `POST /auth/register` (`name`, `email`, `password`), `POST /auth/login` (`email`, `password`), `GET /auth/me`, `POST /auth/logout`. Các POST cần header `X-Arena-Request: 1`; trình duyệt gửi cookie với `credentials: include`. Đăng ký thành công tự đăng nhập. Giới hạn 10 lần đăng nhập/đăng ký mỗi IP mỗi phút.
+
+Khi triển khai production, dùng HTTPS, đặt `NODE_ENV=production`, cấu hình `FRONTEND_ORIGIN` đúng domain frontend; frontend và API phải cùng site để cookie SameSite=Lax hoạt động (ví dụ `game.example.com` và `api.example.com`). Tính năng này quản lý tài khoản; chưa lưu lịch sử trận đấu hoặc ràng buộc tài khoản với phòng Colyseus.
