@@ -55,40 +55,66 @@ body:has(.fantasy-app) {
 .fantasy-home button:disabled {
   opacity: 0.55;
 }
+/* Nine-slice SVG frames keep their pixel corners at every panel size. */
 .fantasy-frame {
+  --pixel-frame: url('/assets/home/frame-gold.svg');
+  --pixel-frame-width: 22px;
   position: relative;
-  border: 2px solid #e6b565;
-  border-radius: 5px;
-  background: linear-gradient(135deg, #1c2341f2, #08132ef5 70%);
+  border: 4px solid transparent;
+  border-radius: 0;
+  border-image: var(--pixel-frame) 32 / var(--pixel-frame-width) / 0 stretch;
+  background: linear-gradient(
+    180deg,
+    #29334eee 0 8px,
+    #111e38f5 8px 48%,
+    #0a142bf5 48% calc(100% - 6px),
+    #070f24 calc(100% - 6px)
+  );
+  background-clip: padding-box;
   box-shadow:
-    0 0 0 2px #422b23,
-    0 0 0 3px #f9d78d,
-    inset 0 0 0 2px #694c38,
-    inset 0 0 18px #0008,
-    0 5px 8px #0008;
+    0 3px 0 #060c1d,
+    inset 0 0 0 1px #53607b66;
 }
-.fantasy-frame::before,
-.fantasy-frame::after {
+.fantasy-home .fantasy-frame {
+  background-clip: padding-box;
+}
+.fantasy-action.gold::before,
+.play-card::before,
+.moon-event::before,
+.dragon-event::before {
   content: '';
   position: absolute;
-  width: clamp(5px, 0.55cqw, 9px);
-  height: clamp(5px, 0.55cqw, 9px);
-  background: #ffe3a0;
-  border: 1px solid #714323;
-  transform: rotate(45deg);
-  pointer-events: none;
   z-index: 2;
+  pointer-events: none;
+  left: 50%;
+  top: -10px;
+  width: 80px;
+  height: 24px;
+  transform: translateX(-50%);
+  background: url('/assets/home/frame-crest.svg') center / 100% 100% no-repeat;
+  image-rendering: pixelated;
 }
-.fantasy-frame::before {
-  top: -5px;
-  left: -5px;
+.dragon-event::before {
+  background-image: url('/assets/home/frame-crest-blue.svg');
 }
-.fantasy-frame::after {
-  bottom: -5px;
-  right: -5px;
+.fantasy-action.gold::after,
+.play-card::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  width: 48px;
+  height: 14px;
+  transform: translateX(-50%);
+  background: url('/assets/home/frame-crest.svg') center / 100% 100% no-repeat;
+  pointer-events: none;
+  image-rendering: pixelated;
 }
 .fantasy-home button:hover:not(:disabled) {
-  filter: brightness(1.15);
+  filter: brightness(1.12);
+  box-shadow:
+    0 3px 0 #060c1d,
+    inset 0 0 0 1px #ead39c80;
 }
 .fantasy-home button:focus-visible {
   outline: 3px solid #83e3ff;
@@ -146,11 +172,12 @@ body:has(.fantasy-app) {
   color: #ffe1a0;
 }
 .landing-nav button.active {
-  background: linear-gradient(#6f431e, #271b1c);
-  outline: 1px solid #ffdf8c;
+  background: #49311e;
+  outline: 2px solid #d69c4e;
+  outline-offset: -3px;
   box-shadow:
-    inset 0 0 10px #eead3a80,
-    0 0 8px #e8ae5670;
+    inset 0 3px #ffde8b,
+    inset 0 -3px #8a542a;
 }
 .fantasy-utilities {
   display: flex;
@@ -299,26 +326,27 @@ body:has(.fantasy-app) {
   height: auto;
 }
 .fantasy-action.blue {
-  background: linear-gradient(#1768c4, #073886);
-  border-color: #b9eaff;
-  box-shadow:
-    0 0 0 2px #123767,
-    0 0 0 3px #d9e8ee,
-    inset 0 0 0 2px #2e88d4,
-    0 5px 8px #0008;
+  --pixel-frame: url('/assets/home/frame-blue.svg');
+  background: linear-gradient(
+    #287fd0 0 4px,
+    #0c4d9b 4px calc(100% - 4px),
+    #082d65 calc(100% - 4px)
+  );
+  background-clip: padding-box;
 }
 .fantasy-action.gold,
 .play-card {
-  background: linear-gradient(110deg, #ffca58, #ffe9a3 55%, #e9a53a);
+  --pixel-frame: url('/assets/home/frame-champion.svg');
+  --pixel-frame-width: 26px;
+  background: linear-gradient(
+    #fff4c6 0 6px,
+    #ffe7a5 6px 48%,
+    #f3ca77 48% calc(100% - 6px),
+    #ac692d calc(100% - 6px)
+  );
+  background-clip: padding-box;
   color: #452511;
   text-shadow: 0 1px #fff0bb;
-  border-color: #ffe8a0;
-  box-shadow:
-    0 0 0 2px #a95a22,
-    0 0 0 4px #ffe7a3,
-    inset 0 0 0 3px #bd772b,
-    inset 0 0 20px #ffb931,
-    0 5px 12px #0008;
 }
 .landing-actions .gold {
   flex: 1.3;
@@ -645,8 +673,10 @@ body:has(.fantasy-app) {
   width: 7cqw;
   height: 100%;
   background: url('/assets/home/lobby.webp') 46% 68% / 790%;
-  border-radius: 35%;
-  box-shadow: inset 0 0 12px 8px #172039;
+  border-radius: 0;
+  box-shadow:
+    inset 3px 3px #26324b,
+    inset -3px -3px #0a152d;
 }
 .pets-card,
 .bag-card {
@@ -678,18 +708,15 @@ body:has(.fantasy-app) {
   color: #f6ca73;
 }
 .dragon-event {
+  --pixel-frame-width: 24px;
   display: flex;
   align-items: center;
   text-align: left;
-  border-color: #a8e2ff;
+  --pixel-frame: url('/assets/home/frame-blue.svg');
   background: radial-gradient(at 20% 60%, #167fce, #08204c 60%, #060f2d);
-  box-shadow:
-    0 0 0 2px #13497b,
-    0 0 0 3px #a1d0f3,
-    inset 0 0 0 2px #2a6e99,
-    0 5px 8px #0008;
+  background-clip: padding-box;
   padding: 0.6cqw;
-  overflow: hidden;
+  overflow: visible;
 }
 .dragon-event > img {
   width: 43%;
@@ -771,9 +798,11 @@ body:has(.fantasy-app) {
   width: max-content;
   background: #0b1936f5;
   color: #ffedc2;
-  border: 1px solid #ddb46d;
-  border-radius: 6px;
-  box-shadow: 0 5px 30px #000b;
+  border: 4px solid transparent;
+  border-radius: 0;
+  border-image: url('/assets/home/frame-gold.svg') 32 / 18px / 0 stretch;
+  background-clip: padding-box;
+  box-shadow: 0 4px 0 #050b18;
 }
 .fantasy-app .site-header {
   border-color: #b7975f66;
@@ -805,12 +834,13 @@ body:has(.fantasy-app) {
   background-color: #142039;
 }
 body:has(.fantasy-app) .dialog-content {
-  background: linear-gradient(135deg, #1a2947, #0b142b);
-  border: 2px solid #dab777;
+  background: #101c35;
+  background-clip: padding-box;
+  border: 6px solid transparent;
+  border-image: url('/assets/home/frame-gold.svg') 32 / 28px / 0 stretch;
+  border-radius: 0;
   color: #fff3dc;
-  box-shadow:
-    0 0 0 3px #493526,
-    0 20px 80px #000b;
+  box-shadow: 0 6px 0 #050a17;
   max-height: calc(100dvh - 24px);
   overflow-y: auto;
 }
@@ -832,6 +862,48 @@ body:has(.fantasy-app) .account-form input {
 body:has(.fantasy-app) .account-error {
   color: #ffaaa4;
 }
+.language-picker,
+.fantasy-icon-button,
+.resource-add,
+.player-avatar,
+body:has(.fantasy-app) .dialog-content .button,
+body:has(.fantasy-app) .account-form input {
+  border: 3px solid transparent;
+  border-image: url('/assets/home/frame-gold.svg') 32 / 12px / 0 stretch;
+  border-radius: 0;
+  background-clip: padding-box;
+  box-shadow: 0 2px 0 #070d1e;
+}
+body:has(.fantasy-app) .account-form input {
+  border-image-source: url('/assets/home/frame-blue.svg');
+  box-shadow: inset 2px 2px #050d20;
+}
+body:has(.fantasy-app) .dialog-content .button-ghost {
+  border-image: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+body:has(.fantasy-app) .dialog-content .dialog-close {
+  border-image: url('/assets/home/frame-gold.svg') 32 / 12px / 0 stretch;
+  background: #15233e;
+}
+.resource-pill,
+.tool-button {
+  --pixel-frame-width: 14px;
+}
+.resource-pill {
+  --pixel-frame: url('/assets/home/frame-blue.svg');
+}
+.player-side-nav {
+  --pixel-frame-width: 18px;
+}
+.player-bottom-nav button {
+  --pixel-frame-width: 19px;
+}
+.feature-tile {
+  --pixel-frame-width: 22px;
+}
+
 .settings-language {
   display: flex;
   align-items: center;
@@ -839,6 +911,38 @@ body:has(.fantasy-app) .account-error {
   padding-bottom: 10px;
 }
 @media (max-height: 500px) and (orientation: landscape) {
+  .resource-pill,
+  .tool-button {
+    --pixel-frame-width: 12px;
+  }
+  .fantasy-action.gold,
+  .play-card,
+  .dragon-event {
+    --pixel-frame-width: 18px;
+  }
+  .player-side-nav,
+  .player-bottom-nav button,
+  .feature-tile {
+    --pixel-frame-width: 16px;
+  }
+  .fantasy-action.gold::before,
+  .play-card::before,
+  .moon-event::before,
+  .dragon-event::before {
+    width: 48px;
+    height: 14px;
+    top: -6px;
+  }
+  .fantasy-action.gold::after,
+  .play-card::after {
+    width: 32px;
+    height: 10px;
+    bottom: -4px;
+  }
+  .fantasy-frame {
+    --pixel-frame-width: 16px;
+    border-width: 3px;
+  }
   .landing-header {
     top: max(6px, env(safe-area-inset-top));
   }
@@ -921,11 +1025,20 @@ body:has(.fantasy-app) .account-error {
     bottom: max(9px, env(safe-area-inset-bottom));
   }
   .player-menu-card strong {
-    font-size: 2.8cqw;
+    font-size: clamp(16px, 2.5cqw, 24px);
+    line-height: 1.1;
+  }
+  .player-menu-card {
+    padding-block: 0;
   }
   .player-menu-card small {
-    font-size: 1.2cqw;
-    margin-top: 0.4cqh;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    font-size: clamp(8px, 1.05cqw, 11px);
+    line-height: 1.1;
+    margin-top: 0;
   }
   .player-menu-card > .fantasy-emblem {
     font-size: 5cqw;
@@ -975,6 +1088,10 @@ body:has(.fantasy-app) .account-error {
   }
 }
 @media (orientation: portrait) {
+  .fantasy-frame {
+    --pixel-frame-width: 14px;
+    border-width: 3px;
+  }
   .fantasy-home {
     min-height: 700px;
   }
