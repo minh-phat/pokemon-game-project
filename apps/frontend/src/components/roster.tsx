@@ -1,4 +1,5 @@
 'use client';
+import { useCopy } from '@/lib/i18n';
 import { ArrowRight, Check, Heart, Plus, Shield, Swords, Zap } from 'lucide-react';
 import { POKEMON, ROSTER } from '@arena/game-data';
 import { useGame } from '@/lib/store';
@@ -6,6 +7,7 @@ import { connectRoom, sendRoom } from '@/lib/network';
 import { Button } from './ui/button';
 import { ElementBadge, PageTitle, Portrait, Steps, TeamSlots } from './common';
 export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean }) {
+  const c = useCopy();
   const state = useGame();
   const selected = POKEMON[state.inspected];
   const busy = state.connection === 'connecting';
@@ -22,12 +24,15 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
     <div className="page-wrap roster-page">
       {!inspectOnly && <Steps step={3} />}
       <PageTitle
-        eyebrow={inspectOnly ? 'THE POKÉMON' : 'YOUR ADVENTURE. YOUR TEAM.'}
-        title={inspectOnly ? 'Little legends.' : 'Choose your companions.'}
+        eyebrow={inspectOnly ? c('THE POKÉMON') : c('YOUR ADVENTURE. YOUR TEAM.')}
+        title={inspectOnly ? c('Little legends.') : c('Choose your companions.')}
         description={
           inspectOnly
-            ? 'Six personalities. Find your kind of fighter.'
-            : `Pick ${state.rules.teamSize} Pokémon. Their instincts will take it from here.`
+            ? c('Six personalities. Find your kind of fighter.')
+            : c('Pick {count} Pokémon. Their instincts will take it from here.').replace(
+                '{count}',
+                String(state.rules.teamSize),
+              )
         }
         back={() => state.go(inspectOnly ? 'home' : state.sessionId ? 'lobby' : 'rules')}
       />
@@ -44,7 +49,7 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
                   <button
                     className="roster-inspect"
                     onClick={() => state.set({ inspected: p.id, notice: '' })}
-                    aria-label={`Inspect ${p.name}`}
+                    aria-label={`${c('Inspect')} ${p.name}`}
                     aria-pressed={selected.id === p.id}
                   >
                     <span className="dex-number">#{p.number}</span>
@@ -76,12 +81,12 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
                       {count && !state.rules.duplicates ? (
                         <>
                           <Check size={14} />
-                          Selected · remove
+                          {c('Selected · remove')}{' '}
                         </>
                       ) : (
                         <>
                           <Plus size={14} />
-                          Add {p.name}
+                          {c('Add')} {p.name}
                         </>
                       )}
                     </Button>
@@ -90,7 +95,9 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
               );
             })}
           </div>
-          <p className="hint roster-hint">Select a card to explore its skills and battle style.</p>
+          <p className="hint roster-hint">
+            {c('Select a card to explore its skills and battle style.')}
+          </p>
         </div>
         <aside className={`panel pokemon-detail ${selected.element}`}>
           <div className="detail-topline">
@@ -108,20 +115,22 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
             <div className="skill-row" style={{ marginBottom: 16 }}>
               <span className={`skill-number element-${selected.element}`}>✦</span>
               <div>
-                <strong>Nội tại · {selected.passive.name}</strong>
+                <strong>
+                  {c('Passive')} · {selected.passive.name}
+                </strong>
                 <p>{selected.passive.description}</p>
               </div>
             </div>
           )}
           <div className="stats-grid">
             {[
-              { label: 'Health', value: selected.hp, max: 240, Icon: Heart },
-              { label: 'Attack', value: selected.attack, max: 40, Icon: Swords },
-              { label: 'Defense', value: selected.defense, max: 45, Icon: Shield },
-              { label: 'Speed', value: selected.speed, max: 220, Icon: Zap },
-              { label: 'Sprint speed', value: selected.sprintSpeed, max: 330, Icon: Zap },
+              { label: c('Health'), value: selected.hp, max: 240, Icon: Heart },
+              { label: c('Attack'), value: selected.attack, max: 40, Icon: Swords },
+              { label: c('Defense'), value: selected.defense, max: 45, Icon: Shield },
+              { label: c('Speed'), value: selected.speed, max: 220, Icon: Zap },
+              { label: c('Sprint speed'), value: selected.sprintSpeed, max: 330, Icon: Zap },
               {
-                label: 'Stamina',
+                label: c('Stamina'),
                 value: selected.maxStamina,
                 max: Math.max(100, selected.maxStamina),
                 Icon: Heart,
@@ -140,8 +149,8 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
             ))}
           </div>
           <div className="skill-heading">
-            <h4>Move set</h4>
-            <span>100 energy · regenerates in battle</span>
+            <h4>{c('Move set')}</h4>
+            <span>{c('100 energy · regenerates in battle')}</span>
           </div>
           <div className="skill-list">
             {selected.skills.map((s, i) => (
@@ -151,7 +160,8 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
                   <strong>{s.name}</strong>
                   <p>{s.description}</p>
                   <small>
-                    {s.damage} power · {s.energy} energy · {s.cooldown}s cooldown
+                    {s.damage} {c('power')} · {s.energy} {c('energy')} · {s.cooldown}s{' '}
+                    {c('cooldown')}
                   </small>
                 </div>
               </div>
@@ -161,17 +171,19 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
       </div>
       {inspectOnly ? (
         <div className="flow-footer">
-          <span>Ready to see them in action?</span>
+          <span>{c('Ready to see them in action?')}</span>
           <Button onClick={() => state.go('modes')}>
-            Build a team <ArrowRight size={18} />
+            {c('Build a team')} <ArrowRight size={18} />
           </Button>
         </div>
       ) : (
         <div className="team-builder panel">
           <div>
-            <p className="eyebrow">YOUR TEAM</p>
+            <p className="eyebrow">{c('YOUR TEAM')}</p>
             <h3>
-              {state.team.length} of {state.rules.teamSize} ready
+              {c('{count} of {total} ready')
+                .replace('{count}', String(state.team.length))
+                .replace('{total}', String(state.rules.teamSize))}
             </h3>
           </div>
           <TeamSlots compact />
@@ -179,7 +191,11 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
             disabled={state.team.length !== state.rules.teamSize || busy}
             onClick={() => void confirm()}
           >
-            {busy ? 'Creating room…' : state.mode === 'ai' ? 'Enter the arena' : 'Confirm team'}
+            {busy
+              ? c('Creating room…')
+              : state.mode === 'ai'
+                ? c('Enter the arena')
+                : c('Confirm team')}
             <ArrowRight size={18} />
           </Button>
         </div>

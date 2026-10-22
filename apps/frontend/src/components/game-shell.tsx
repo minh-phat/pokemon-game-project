@@ -14,16 +14,10 @@ import {
 import { useGame } from '@/lib/store';
 import { leaveRoom, restoreRoom } from '@/lib/network';
 import { battleFeed } from '@/lib/battle-feed';
-import { Home } from './home';
+import { Home, LanguagePicker } from './home';
+import { useLanguage } from '@/lib/i18n';
 import { Account } from './account';
-import {
-  ArenaPicker,
-  ArenasScreen,
-  ModeSelection,
-  OnlineAccess,
-  RulesScreen,
-  Toggle,
-} from './setup';
+import { ArenasScreen, ModeSelection, OnlineAccess, RulesScreen, Toggle } from './setup';
 import { RosterScreen } from './roster';
 import { LobbyScreen } from './lobby';
 import { BattleScreen } from './battle-screen';
@@ -32,6 +26,11 @@ import { Dialog } from './ui/dialog';
 
 export function GameShell() {
   const state = useGame();
+  const { language, t } = useLanguage();
+  const isHome = state.screen === 'home';
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isAppMode, setIsAppMode] = useState(false);
   useEffect(() => {
@@ -63,8 +62,10 @@ export function GameShell() {
       else throw new Error('Fullscreen is unavailable');
     } catch {
       useGame.getState().set({
-        notice:
+        notice: t(
+          'Trình duyệt này không hỗ trợ toàn màn hình. Hãy thêm trò chơi vào màn hình chính.',
           'Fullscreen is unavailable in this browser. Try adding the game to your home screen.',
+        ),
       });
     }
   }
@@ -74,83 +75,110 @@ export function GameShell() {
     state.go(screen);
   }
   return (
-    <div className={`app-shell ${state.reducedMotion ? 'reduce-motion' : ''}`}>
+    <div
+      className={`app-shell fantasy-app ${isHome ? 'home-shell' : ''} ${state.reducedMotion ? 'reduce-motion' : ''}`}
+    >
       <a href="#main-content" className="skip-link">
-        Skip to content
+        {t('Đến nội dung chính', 'Skip to content')}
       </a>
-      <header className="site-header">
-        <button className="brand" aria-label="Pokémon Arena home" onClick={() => navigate('home')}>
-          <span className="brand-ball">
-            <i />
-          </span>
-          <span>
-            pokémon<span className="brand-sub">ARENA</span>
-          </span>
-        </button>
-        <nav aria-label="Main navigation">
+      {!isHome && (
+        <header className="site-header">
           <button
-            className={
-              ['home', 'modes', 'rules', 'roster', 'online', 'lobby', 'battle'].includes(
-                state.screen,
-              )
-                ? 'active'
-                : ''
-            }
+            className="brand"
+            aria-label={t('Trang chủ Triệu Hồi Sư', 'Summoner home')}
             onClick={() => navigate('home')}
           >
-            <Swords size={16} />
-            Play
+            <span className="brand-ball">
+              <i />
+            </span>
+            <span>
+              {t('Triệu Hồi Sư', 'Summoner')}
+              <span className="brand-sub">ARENA</span>
+            </span>
           </button>
-          <button
-            className={state.screen === 'codex' ? 'active' : ''}
-            onClick={() => navigate('codex')}
-          >
-            <BookOpen size={16} />
-            Pokédex
-          </button>
-          <button
-            className={state.screen === 'arenas' ? 'active' : ''}
-            onClick={() => navigate('arenas')}
-          >
-            <Compass size={16} />
-            Arenas
-          </button>
-        </nav>
-        <div className="header-actions">
-          <Account />
-          <span className="local-status">
-            <i />
-            READY TO PLAY
-          </span>
-          {!isAppMode && (
+          <nav aria-label="Main navigation">
+            <button
+              className={
+                ['home', 'modes', 'rules', 'roster', 'online', 'lobby', 'battle'].includes(
+                  state.screen,
+                )
+                  ? 'active'
+                  : ''
+              }
+              onClick={() => navigate('home')}
+            >
+              <Swords size={16} />
+              {t('Chơi', 'Play')}
+            </button>
+            <button
+              className={state.screen === 'codex' ? 'active' : ''}
+              onClick={() => navigate('codex')}
+            >
+              <BookOpen size={16} />
+              {t('Thư viện', 'Library')}
+            </button>
+            <button
+              className={state.screen === 'arenas' ? 'active' : ''}
+              onClick={() => navigate('arenas')}
+            >
+              <Compass size={16} />
+              {t('Đấu trường', 'Arenas')}
+            </button>
+          </nav>
+          <div className="header-actions">
+            <LanguagePicker />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={state.authLoading}
+              onClick={() => state.set({ accountView: state.user ? 'profile' : 'login' })}
+            >
+              {state.user?.name ?? t('Đăng Nhập', 'Log In')}
+            </Button>
+            <span className="local-status">
+              <i />
+              {t('SẴN SÀNG', 'READY TO PLAY')}
+            </span>
+            {!isAppMode && (
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label={
+                  isFullscreen
+                    ? t('Thoát toàn màn hình', 'Exit fullscreen')
+                    : t('Toàn màn hình', 'Enter fullscreen')
+                }
+                title={
+                  isFullscreen
+                    ? t('Thoát toàn màn hình', 'Exit fullscreen')
+                    : t('Toàn màn hình', 'Enter fullscreen')
+                }
+                onClick={() => void toggleFullscreen()}
+              >
+                {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={
+                state.muted ? t('Bật âm thanh', 'Enable audio') : t('Tắt âm thanh', 'Mute audio')
+              }
+              onClick={() => state.set({ muted: !state.muted })}
+            >
+              {state.muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            </Button>
             <Button
               variant="outline"
               size="icon"
-              aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-              title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-              onClick={() => void toggleFullscreen()}
+              aria-label={t('Cài đặt', 'Open settings')}
+              onClick={() => state.set({ settingsOpen: true })}
             >
-              {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+              <Settings2 size={18} />
             </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={state.muted ? 'Enable audio' : 'Mute audio'}
-            onClick={() => state.set({ muted: !state.muted })}
-          >
-            {state.muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Open settings"
-            onClick={() => state.set({ settingsOpen: true })}
-          >
-            <Settings2 size={18} />
-          </Button>
-        </div>
-      </header>
+          </div>
+        </header>
+      )}
       <main id="main-content">
         {(state.error || state.notice) && (
           <div
@@ -161,7 +189,7 @@ export function GameShell() {
             <Button
               variant="ghost"
               size="icon"
-              aria-label="Dismiss notification"
+              aria-label={t('Đóng thông báo', 'Dismiss notification')}
               onClick={() => state.set({ error: '', notice: '' })}
             >
               <X size={16} />
@@ -180,30 +208,45 @@ export function GameShell() {
         {state.screen === 'battle' && <BattleScreen />}
         {state.screen === 'arenas' && <ArenasScreen />}
       </main>
-      <footer className="site-footer">
-        <span>Made for the love of a good adventure.</span>
-        <span>
-          UNOFFICIAL FAN PROJECT <i /> LOCAL EDITION 01
-        </span>
-      </footer>
+      {!isHome && (
+        <footer className="site-footer">
+          <span>
+            {t(
+              'Một đội hình nhỏ. Một hành trình huyền thoại.',
+              'A little team. A legendary adventure.',
+            )}
+          </span>
+          <span>
+            UNOFFICIAL FAN PROJECT <i /> LOCAL EDITION 01
+          </span>
+        </footer>
+      )}
+      <Account />
       <Dialog
         open={state.settingsOpen}
         onOpenChange={(settingsOpen) => state.set({ settingsOpen })}
-        title="A little fine-tuning."
-        description="Make the arena feel right for you."
+        title={t('Cài đặt', 'Settings')}
+        description={t('Tùy chỉnh trải nghiệm của bạn.', 'Make the arena feel right for you.')}
       >
         <div className="settings-form">
+          <div className="settings-language">
+            <span>{t('Ngôn ngữ', 'Language')}</span>
+            <LanguagePicker />
+          </div>
           <Toggle
-            label="Battle audio"
-            description="Ambient sounds and Pokémon skill effects."
+            label={t('Âm thanh chiến đấu', 'Battle audio')}
+            description={t(
+              'Âm thanh môi trường và hiệu ứng kỹ năng.',
+              'Ambient sounds and Pokémon skill effects.',
+            )}
             checked={!state.muted}
             onChange={(value) => state.set({ muted: !value })}
           />
           <label className="volume-control">
-            Volume <span>{Math.round(state.volume * 100)}%</span>
+            {t('Âm lượng', 'Volume')} <span>{Math.round(state.volume * 100)}%</span>
             <input
               type="range"
-              aria-label="Audio volume"
+              aria-label={t('Âm lượng', 'Audio volume')}
               min={0}
               max={1}
               step={0.05}
@@ -212,20 +255,25 @@ export function GameShell() {
             />
           </label>
           <Toggle
-            label="Reduce motion"
-            description="Fewer ambient effects and menu animations."
+            label={t('Giảm chuyển động', 'Reduce motion')}
+            description={t(
+              'Giảm hiệu ứng môi trường và chuyển động menu.',
+              'Fewer ambient effects and menu animations.',
+            )}
             checked={state.reducedMotion}
             onChange={(reducedMotion) => state.set({ reducedMotion })}
           />
           <Toggle
-            label="Battle event feed"
-            description="Show recent skills, dodges, and battle events."
+            label={t('Nhật ký trận đấu', 'Battle event feed')}
+            description={t(
+              'Hiện kỹ năng, né tránh và diễn biến trận đấu.',
+              'Show recent skills, dodges, and battle events.',
+            )}
             checked={state.showEvents}
             onChange={(showEvents) => state.set({ showEvents })}
           />
           <p className="hint">
-            Preferences are saved on this device. Battles remain automatic; no attack controls are
-            needed.
+            {t('Tùy chọn được lưu trên thiết bị này.', 'Preferences are saved on this device.')}
           </p>
         </div>
       </Dialog>

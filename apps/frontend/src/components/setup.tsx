@@ -1,4 +1,5 @@
 'use client';
+import { useCopy } from '@/lib/i18n';
 import { useState } from 'react';
 import {
   ArrowRight,
@@ -21,41 +22,44 @@ import { Button } from './ui/button';
 import { PageTitle, Steps } from './common';
 
 export function ModeSelection() {
+  const c = useCopy();
   const { set, go } = useGame();
   return (
     <div className="page-wrap">
       <Steps step={1} />
       <PageTitle
-        eyebrow="EVERY GREAT BATTLE STARTS HERE"
-        title="How will you play?"
-        description="A moment to yourself, or a little friendly competition."
+        eyebrow={c('EVERY GREAT BATTLE STARTS HERE')}
+        title={c('How will you play?')}
+        description={c('A moment to yourself, or a little friendly competition.')}
         back={() => go('home')}
       />
       <div className="mode-selection">
         {[
           {
             mode: 'ai' as const,
-            title: 'VS AI',
-            text: 'Find your perfect team. Try new combinations against three levels of AI.',
+            title: c('VS AI'),
+            text: c('Find your perfect team. Try new combinations against three levels of AI.'),
             icon: Bot,
             features: [
-              '1–4 Pokémon per team',
-              'Three difficulty levels',
-              'Pause whenever you like',
+              c('1–4 Pokémon per team'),
+              c('Three difficulty levels'),
+              c('Pause whenever you like'),
             ],
-            tag: 'YOUR PACE. YOUR ADVENTURE.',
+            tag: c('YOUR PACE. YOUR ADVENTURE.'),
           },
           {
             mode: 'online' as const,
-            title: 'Online 1v1',
-            text: 'Invite a friend, choose your teammates, and let their instincts do the talking.',
+            title: c('Online 1v1'),
+            text: c(
+              'Invite a friend, choose your teammates, and let their instincts do the talking.',
+            ),
             icon: Users,
             features: [
-              'Private invitation rooms',
-              'Both players build a team',
-              'Live, synchronized battles',
+              c('Private invitation rooms'),
+              c('Both players build a team'),
+              c('Live, synchronized battles'),
             ],
-            tag: 'BETTER WITH A FRIEND.',
+            tag: c('BETTER WITH A FRIEND.'),
           },
         ].map((m) => (
           <button
@@ -79,7 +83,7 @@ export function ModeSelection() {
               ))}
             </ul>
             <span className="button button-primary">
-              Choose {m.title}
+              {c('Choose')} {m.title}
               <ArrowRight size={17} />
             </span>
           </button>
@@ -149,6 +153,7 @@ function Toggle({
 }
 export { Toggle };
 export function RulesScreen() {
+  const c = useCopy();
   const state = useGame();
   const [draft, setDraft] = useState<MatchRules>({ ...state.rules });
   const update = (patch: Partial<MatchRules>) => setDraft((v) => ({ ...v, ...patch }));
@@ -166,22 +171,22 @@ export function RulesScreen() {
     <div className="page-wrap">
       <Steps step={2} />
       <PageTitle
-        eyebrow={state.mode === 'ai' ? 'VS AI · MAKE IT YOURS' : 'ONLINE 1V1 · HOST SETTINGS'}
-        title="Set the stage."
-        description="A few little choices. A whole different battle."
+        eyebrow={state.mode === 'ai' ? c('VS AI · MAKE IT YOURS') : c('ONLINE 1V1 · HOST SETTINGS')}
+        title={c('Set the stage.')}
+        description={c('A few little choices. A whole different battle.')}
         back={() => state.go(state.sessionId ? 'lobby' : 'modes')}
       />
       <div className="rules-layout">
         <div className="panel rules-panel">
           <div className="panel-title">
             <Swords size={18} />
-            <h3>Battle rules</h3>
+            <h3>{c('Battle rules')}</h3>
           </div>
           <div className="form-grid">
             <label>
-              Pokémon per team
+              {c('Pokémon per team')}{' '}
               <select
-                aria-label="Pokémon per team"
+                aria-label={c('Pokémon per team')}
                 value={draft.teamSize}
                 onChange={(e) =>
                   update({
@@ -192,94 +197,96 @@ export function RulesScreen() {
               >
                 {[1, 2, 3, 4].map((v) => (
                   <option key={v} value={v}>
-                    {v} Pokémon
+                    {v} {c('Pokémon')}{' '}
                   </option>
                 ))}
               </select>
             </label>
             <label>
-              Active at once
+              {c('Active at once')}{' '}
               <select
-                aria-label="Active at once"
+                aria-label={c('Active at once')}
                 value={draft.activeSize}
                 onChange={(e) => update({ activeSize: +e.target.value })}
               >
                 {Array.from({ length: draft.teamSize }, (_, i) => i + 1).map((v) => (
                   <option key={v} value={v}>
-                    {v} per side
+                    {v} {c('per side')}{' '}
                   </option>
                 ))}
               </select>
             </label>
             <label>
-              Battle duration
+              {c('Battle duration')}{' '}
               <select
-                aria-label="Battle duration"
+                aria-label={c('Battle duration')}
                 value={draft.duration}
                 onChange={(e) => update({ duration: +e.target.value as MatchRules['duration'] })}
               >
-                <option value={60}>60 seconds</option>
-                <option value={120}>120 seconds</option>
-                <option value={180}>180 seconds</option>
-                <option value={0}>Unlimited</option>
+                <option value={60}>{c('60 seconds')}</option>
+                <option value={120}>{c('120 seconds')}</option>
+                <option value={180}>{c('180 seconds')}</option>
+                <option value={0}>{c('Unlimited')}</option>
               </select>
             </label>
             {state.mode === 'ai' && (
               <label>
-                AI difficulty
+                {c('AI difficulty')}{' '}
                 <select
-                  aria-label="AI difficulty"
+                  aria-label={c('AI difficulty')}
                   value={draft.difficulty}
                   onChange={(e) =>
                     update({ difficulty: e.target.value as MatchRules['difficulty'] })
                   }
                 >
-                  <option value="easy">Easy · Find your feet</option>
-                  <option value="normal">Normal · A fair challenge</option>
-                  <option value="hard">Hard · Bring your best</option>
+                  <option value="easy">{c('Easy · Find your feet')}</option>
+                  <option value="normal">{c('Normal · A fair challenge')}</option>
+                  <option value="hard">{c('Hard · Bring your best')}</option>
                 </select>
               </label>
             )}
           </div>
           <div className="form-divider" />
           <Toggle
-            label="Elemental matchups"
-            description="Fire, water, grass, electric, and poison types affect damage."
+            label={c('Elemental matchups')}
+            description={c('Fire, water, grass, electric, and poison types affect damage.')}
             checked={draft.elements}
             onChange={(elements) => update({ elements })}
           />
           <Toggle
-            label="Duplicate Pokémon"
-            description="Choose the same Pokémon more than once."
+            label={c('Duplicate Pokémon')}
+            description={c('Choose the same Pokémon more than once.')}
             checked={draft.duplicates}
             onChange={(duplicates) => update({ duplicates })}
           />
           <Toggle
-            label="Strategic switching"
-            description="Low-health fighters may swap with a healthy reserve."
+            label={c('Strategic switching')}
+            description={c('Low-health fighters may swap with a healthy reserve.')}
             checked={draft.switching}
             onChange={(switching) => update({ switching })}
           />
           <p className="hint">
-            Reserves always enter when an active teammate faints. At the time limit, total remaining
-            health percentage wins; surviving units break ties.
+            {c(
+              'Reserves always enter when an active teammate faints. At the time limit, total remaining health percentage wins; surviving units break ties.',
+            )}{' '}
           </p>
         </div>
         <div>
           <div className="panel-title">
             <Mountain size={19} />
-            <h3>Choose your arena</h3>
+            <h3>{c('Choose your arena')}</h3>
           </div>
           <ArenaPicker value={draft.arena} onChange={(arena) => update({ arena })} />
         </div>
       </div>
       <div className="flow-footer">
         <span>
-          <Clock3 size={16} /> {draft.teamSize} vs {draft.teamSize} · {draft.activeSize} active ·{' '}
-          {draft.duration ? `${draft.duration} seconds` : 'No time limit'}
+          <Clock3 size={16} /> {draft.teamSize} vs {draft.teamSize} · {draft.activeSize}{' '}
+          {c('active')} ·{' '}
+          {draft.duration ? `${draft.duration} ${c('seconds')}` : c('No time limit')}
         </span>
         <Button onClick={next}>
-          Choose your Pokémon <ArrowRight size={18} />
+          {c('Choose your Pokémon')} <ArrowRight size={18} />
         </Button>
       </div>
     </div>
@@ -287,6 +294,7 @@ export function RulesScreen() {
 }
 
 export function OnlineAccess() {
+  const c = useCopy();
   const state = useGame();
   const busy = state.connection === 'connecting';
   function valid() {
@@ -302,20 +310,20 @@ export function OnlineAccess() {
     <div className="page-wrap narrow">
       <Steps step={1} />
       <PageTitle
-        eyebrow="A LITTLE FRIENDLY COMPETITION"
-        title="Better together."
-        description="Create your own arena, or join a friend's invitation."
+        eyebrow={c('A LITTLE FRIENDLY COMPETITION')}
+        title={c('Better together.')}
+        description={c("Create your own arena, or join a friend's invitation.")}
         back={() => state.go('modes')}
       />
       <div className="panel online-entry">
         <Globe2 size={32} className="accent" />
         <label>
-          Your trainer name
+          {c('Your trainer name')}{' '}
           <input
             maxLength={24}
             value={state.name}
             onChange={(e) => state.set({ name: e.target.value })}
-            placeholder="Trainer name"
+            placeholder={c('Trainer name')}
             autoComplete="nickname"
           />
         </label>
@@ -328,19 +336,18 @@ export function OnlineAccess() {
             }
           }}
         >
-          Create a private room <ArrowRight size={17} />
+          {c('Create a private room')} <ArrowRight size={17} />
         </Button>
         <div className="or-divider">
           <span />
-          or join a friend
-          <span />
+          {c('or join a friend')} <span />
         </div>
         <label>
-          Invitation code
+          {c('Invitation code')}{' '}
           <input
             value={state.roomCode}
             onChange={(e) => state.set({ roomCode: e.target.value.trim() })}
-            placeholder="Paste your room code"
+            placeholder={c('Paste your room code')}
             spellCheck={false}
             autoCapitalize="off"
             maxLength={12}
@@ -353,11 +360,11 @@ export function OnlineAccess() {
             if (valid()) void connectRoom('join');
           }}
         >
-          {busy ? 'Connecting…' : 'Join room'}
+          {busy ? c('Connecting…') : c('Join room')}
           <Users size={17} />
         </Button>
         <p className="hint">
-          Your room is private. Share the code with one friend. No account needed.
+          {c('Your room is private. Share the code with one friend. No account needed.')}{' '}
         </p>
       </div>
     </div>
@@ -365,18 +372,20 @@ export function OnlineAccess() {
 }
 
 export function ArenasScreen() {
+  const c = useCopy();
   const state = useGame();
   return (
     <div className="page-wrap">
       <PageTitle
-        eyebrow="A WORLD WORTH EXPLORING"
-        title="Find your battleground."
-        description="Same fair footing. Three very different atmospheres."
+        eyebrow={c('A WORLD WORTH EXPLORING')}
+        title={c('Find your battleground.')}
+        description={c('Same fair footing. Three very different atmospheres.')}
         back={() => state.go('home')}
       />
       <div className="arena-explore">
-        {ARENAS.map((a, i) => {
-          const Icon = [Leaf, Flame, Waves][i];
+        {ARENAS.map((a) => {
+          const Icon =
+            { forest: Leaf, volcano: Flame, lake: Waves, ruins: Mountain }[a.id] ?? Mountain;
           return (
             <article className="panel" key={a.id}>
               <img src={a.thumbnail ?? `/assets/${a.id}.svg`} alt={a.name} />
@@ -384,7 +393,8 @@ export function ArenasScreen() {
                 <Icon size={22} />
                 <h2>{a.name}</h2>
                 <p className="muted">
-                  {a.subtitle}. A level arena with clear boundaries and safe starting positions.
+                  {a.subtitle}
+                  {c('. A level arena with clear boundaries and safe starting positions.')}{' '}
                 </p>
                 <Button
                   variant="outline"
@@ -393,7 +403,7 @@ export function ArenasScreen() {
                     state.go('rules');
                   }}
                 >
-                  Battle here <ArrowRight size={17} />
+                  {c('Battle here')} <ArrowRight size={17} />
                 </Button>
               </div>
             </article>

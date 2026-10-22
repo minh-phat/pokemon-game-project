@@ -19,6 +19,10 @@ type Screen =
   | 'codex'
   | 'arenas';
 interface GameStore {
+  language: 'vi' | 'en';
+  user: { id: string; email: string; name: string } | null;
+  authLoading: boolean;
+  accountView: 'login' | 'register' | 'profile' | null;
   screen: Screen;
   mode: 'ai' | 'online';
   rules: MatchRules;
@@ -46,6 +50,10 @@ interface GameStore {
 export const useGame = create<GameStore>()(
   persist(
     (set, get) => ({
+      language: 'vi',
+      user: null,
+      authLoading: true,
+      accountView: null,
       screen: 'home',
       mode: 'ai',
       rules: { ...DEFAULT_RULES },
@@ -79,6 +87,7 @@ export const useGame = create<GameStore>()(
       name: 'arena-preferences',
       skipHydration: true,
       partialize: (s) => ({
+        language: s.language,
         name: s.name,
         volume: s.volume,
         muted: s.muted,

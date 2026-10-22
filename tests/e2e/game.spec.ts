@@ -14,9 +14,10 @@ test('VS AI: selection, pause, animated combat, results, and play again', async 
   const roster = await (await request.get('http://localhost:3001/pokemon')).json();
   expect(roster).toHaveLength(6);
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /A little team/ })).toBeVisible();
+  await page.getByRole('button', { name: 'EN', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Summoner', exact: true })).toBeVisible();
   await page.screenshot({ path: 'test-results/home-desktop.png', fullPage: true });
-  await page.getByRole('button', { name: 'Let’s battle' }).click();
+  await page.getByRole('button', { name: 'Play Now' }).click();
   await page.getByRole('button', { name: /YOUR PACE/ }).click();
   await rules(page);
   for (const name of ['Pikachu', 'Charmander', 'Squirtle', 'Bulbasaur'])
@@ -63,7 +64,8 @@ test('Runedrake can be selected and rendered in battle', async ({ page }) => {
     (response) => response.url().endsWith('/assets/runedrake-sheet.png') && response.ok(),
   );
   await page.goto('/');
-  await page.getByRole('button', { name: 'Let’s battle' }).click();
+  await page.getByRole('button', { name: 'EN', exact: true }).click();
+  await page.getByRole('button', { name: 'Play Now' }).click();
   await page.getByRole('button', { name: /YOUR PACE/ }).click();
   await rules(page);
   await page.getByRole('button', { name: 'Inspect Runedrake' }).click();
@@ -71,8 +73,11 @@ test('Runedrake can be selected and rendered in battle', async ({ page }) => {
   await page.getByRole('button', { name: 'Add Runedrake' }).click();
   await page.getByRole('button', { name: 'Enter the arena' }).click();
   await sheet;
-  await expect(page.locator('canvas')).toHaveCount(1);
-  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled();
+  // Cold-start texture generation can block the browser while the scene boots.
+  await expect(page.locator('canvas')).toHaveCount(1, { timeout: 60000 });
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled({
+    timeout: 60000,
+  });
   expect(errors).toEqual([]);
 });
 
@@ -87,7 +92,9 @@ test('online: two trainers complete an authoritative match and vote for rematch'
   host.on('pageerror', (e) => errors.push(e.message));
   guest.on('pageerror', (e) => errors.push(e.message));
   await host.goto('/');
-  await host.getByRole('button', { name: /Online 1v1 PLAY TOGETHER/ }).click();
+  await host.getByRole('button', { name: 'EN', exact: true }).click();
+  await host.getByRole('button', { name: 'Play Now' }).click();
+  await host.getByRole('button', { name: /BETTER WITH A FRIEND/ }).click();
   await host.getByLabel('Your trainer name').fill('Alice');
   await host.getByRole('button', { name: 'Create a private room' }).click();
   await rules(host);
@@ -96,6 +103,7 @@ test('online: two trainers complete an authoritative match and vote for rematch'
   await expect(host.getByTestId('room-code')).toBeVisible();
   const code = (await host.getByTestId('room-code').textContent())!;
   await guest.goto(`/?room=${code}`);
+  await guest.getByRole('button', { name: 'EN', exact: true }).click();
   await guest.getByLabel('Your trainer name').fill('Bob');
   await guest.getByRole('button', { name: 'Join room', exact: true }).click();
   await expect(guest.getByTestId('room-code')).toHaveText(code);
@@ -138,9 +146,10 @@ test('online: two trainers complete an authoritative match and vote for rematch'
 test('mobile navigation, roster, arenas, and accessible settings', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
+  await page.getByRole('button', { name: 'EN', exact: true }).click();
   await page.screenshot({ path: 'test-results/home-mobile.png', fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.getByRole('button', { name: 'Pokédex', exact: true }).click();
+  await page.getByRole('button', { name: /Collect Pets/ }).click();
   await page.getByRole('button', { name: 'Inspect Bulbasaur', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Bulbasaur', exact: true }).last()).toBeVisible();
   await page.getByRole('button', { name: 'Open settings' }).click();
@@ -157,7 +166,8 @@ test('manual mode: select Pokémon, guard, dodge, cast, and return to auto', asy
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
-  await page.getByRole('button', { name: 'Let’s battle' }).click();
+  await page.getByRole('button', { name: 'EN', exact: true }).click();
+  await page.getByRole('button', { name: 'Play Now' }).click();
   await page.getByRole('button', { name: /YOUR PACE/ }).click();
   await page.getByLabel('Pokémon per team', { exact: true }).selectOption('2');
   await page.getByLabel('Active at once', { exact: true }).selectOption('2');

@@ -6,7 +6,8 @@ test('touch controls stay round, reachable and separated on phones and tablets',
   page,
 }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Let’s battle' }).click();
+  await page.getByRole('button', { name: 'EN', exact: true }).click();
+  await page.getByRole('button', { name: 'Play Now' }).click();
   await page.getByRole('button', { name: /YOUR PACE/ }).click();
   await page.getByLabel('Pokémon per team', { exact: true }).selectOption('4');
   await page.getByLabel('Active at once', { exact: true }).selectOption('4');

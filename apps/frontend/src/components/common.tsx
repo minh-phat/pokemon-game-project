@@ -1,15 +1,17 @@
 'use client';
+import { useCopy } from '@/lib/i18n';
 import { ArrowLeft, Check, ChevronRight } from 'lucide-react';
 import type { Element, SpeciesId } from '@arena/shared-types';
 import { ASSETS, ELEMENTS, POKEMON } from '@arena/game-data';
 import { Button } from './ui/button';
 import { useGame } from '@/lib/store';
 export function ElementBadge({ element }: { element: Element }) {
+  const c = useCopy();
   const e = ELEMENTS[element];
   return (
     <span className={`element-badge element-${element}`}>
       <span aria-hidden="true">{e.symbol}</span>
-      {e.label}
+      {c(e.label)}
     </span>
   );
 }
@@ -22,10 +24,11 @@ export function Portrait({
   className?: string;
   animated?: boolean;
 }) {
+  const c = useCopy();
   return animated ? (
     <div
       role="img"
-      aria-label={`${POKEMON[id].name} animated preview`}
+      aria-label={`${POKEMON[id].name} ${c('animated preview')}`}
       className={`sprite-preview ${className}`}
       style={{ backgroundImage: `url(${ASSETS.sprites[id]})` }}
     />
@@ -40,9 +43,10 @@ export function Portrait({
   );
 }
 export function Steps({ step }: { step: number }) {
+  const c = useCopy();
   return (
-    <div className="steps" aria-label={`Setup step ${step} of 3`}>
-      {['Battle mode', 'Match rules', 'Your team'].map((label, i) => (
+    <div className="steps" aria-label={c('Setup step {step} of 3').replace('{step}', String(step))}>
+      {[c('Battle mode'), c('Match rules'), c('Your team')].map((label, i) => (
         <span key={label} className={step === i + 1 ? 'current' : step > i + 1 ? 'complete' : ''}>
           <b>{step > i + 1 ? <Check size={12} /> : `0${i + 1}`}</b>
           {label}
@@ -63,11 +67,12 @@ export function PageTitle({
   description: string;
   back?: () => void;
 }) {
+  const c = useCopy();
   return (
     <div className="page-heading">
       {back && (
         <Button variant="ghost" size="sm" onClick={back}>
-          <ArrowLeft size={15} /> Back
+          <ArrowLeft size={15} /> {c('Back')}{' '}
         </Button>
       )}
       <p className="eyebrow">{eyebrow}</p>
@@ -77,6 +82,7 @@ export function PageTitle({
   );
 }
 export function TeamSlots({ compact = false }: { compact?: boolean }) {
+  const c = useCopy();
   const { team, rules, set } = useGame();
   return (
     <div className={`team-slots ${compact ? 'compact' : ''}`}>
@@ -89,8 +95,10 @@ export function TeamSlots({ compact = false }: { compact?: boolean }) {
           onClick={() => set({ team: team.filter((_, j) => j !== i) })}
           aria-label={
             team[i]
-              ? `Remove ${POKEMON[team[i]].name} from slot ${i + 1}`
-              : `Empty team slot ${i + 1}`
+              ? c('Remove {name} from slot {slot}')
+                  .replace('{name}', POKEMON[team[i]].name)
+                  .replace('{slot}', String(i + 1))
+              : c('Empty team slot {slot}').replace('{slot}', String(i + 1))
           }
         >
           {team[i] ? (
@@ -102,7 +110,9 @@ export function TeamSlots({ compact = false }: { compact?: boolean }) {
           ) : (
             <>
               <span className="slot-ball">+</span>
-              <span>Slot {i + 1}</span>
+              <span>
+                {c('Slot')} {i + 1}
+              </span>
             </>
           )}
         </button>

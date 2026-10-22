@@ -5,7 +5,8 @@ test('citadel loads eight fighters and exposes camera controls on desktop and mo
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
-  await page.getByRole('button', { name: 'Let’s battle' }).click();
+  await page.getByRole('button', { name: 'EN', exact: true }).click();
+  await page.getByRole('button', { name: 'Play Now' }).click();
   await page.getByRole('button', { name: /YOUR PACE/ }).click();
   await page.getByLabel('Pokémon per team', { exact: true }).selectOption('4');
   await page.getByLabel('Active at once', { exact: true }).selectOption('4');

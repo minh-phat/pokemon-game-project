@@ -1,10 +1,20 @@
 'use client';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useGame } from '@/lib/store';
+import { useLanguage } from '@/lib/i18n';
+import { leaveRoom } from '@/lib/network';
 import { Button } from './ui/button';
 import { Dialog } from './ui/dialog';
 
 type User = { id: string; email: string; name: string };
+class AuthError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
 async function authRequest(action: string, body?: unknown): Promise<{ user: User | null }> {
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'}/auth/${action}`,
@@ -13,171 +23,212 @@ async function authRequest(action: string, body?: unknown): Promise<{ user: User
       credentials: 'include',
       cache: 'no-store',
       headers: { 'Content-Type': 'application/json', 'X-Arena-Request': '1' },
+      signal: AbortSignal.timeout(12000),
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     },
   );
   const data = await response.json();
   if (!response.ok)
-    throw new Error(
-      typeof data.message === 'string' ? data.message : 'Không thể thực hiện yêu cầu.',
-    );
+    throw new AuthError(response.status, typeof data.message === 'string' ? data.message : '');
   return data;
 }
+
+/** Single session controller, shared by the welcome screen, lobby and game header. */
 export function Account() {
-  const [user, setUser] = useState<User | null>(null);
-  const [open, setOpen] = useState(false);
-  const [register, setRegister] = useState(false);
+  const { user, accountView, set } = useGame();
+  const { t } = useLanguage();
+  const register = accountView === 'register';
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<unknown>(null);
   useEffect(() => {
     let active = true;
     void authRequest('me')
       .then(({ user }) => {
-        if (!active) return;
-        setUser(user);
-        if (user) useGame.getState().set({ name: user.name });
+        if (active) useGame.getState().set({ user, ...(user ? { name: user.name } : {}) });
       })
       .catch(() => {})
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) useGame.getState().set({ authLoading: false });
       });
     return () => {
       active = false;
     };
   }, []);
+  useEffect(() => {
+    setError(null);
+  }, [accountView]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy) return;
     const data = new FormData(event.currentTarget);
     if (register && data.get('password') !== data.get('confirmPassword')) {
-      setError('Mật khẩu xác nhận không khớp.');
+      setError('mismatch');
       return;
     }
     setBusy(true);
-    setError('');
+    setError(null);
     try {
       const { user } = await authRequest(register ? 'register' : 'login', {
         email: data.get('email'),
         password: data.get('password'),
         name: data.get('name'),
       });
-      setUser(user);
-      if (user) useGame.getState().set({ name: user.name });
-      setOpen(false);
+      if (!user) throw new Error('No session returned');
+      set({ user, name: user.name, accountView: null });
+      if (useGame.getState().sessionId) leaveRoom();
+      useGame.getState().go('home');
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Không thể kết nối máy chủ.');
+      setError(error);
     } finally {
       setBusy(false);
     }
   }
   async function logout() {
     setBusy(true);
-    setError('');
+    setError(null);
     try {
       await authRequest('logout', {});
-      setUser(null);
-      setOpen(false);
+      if (useGame.getState().sessionId) leaveRoom();
+      set({ user: null, name: 'Trainer', accountView: null, team: [], snapshot: null });
+      useGame.getState().go('home');
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Không thể đăng xuất.');
+      setError(error);
     } finally {
       setBusy(false);
     }
   }
+  const errorMessage =
+    error === 'mismatch'
+      ? t('Mật khẩu xác nhận không khớp.', 'Passwords do not match.')
+      : error instanceof AuthError
+        ? error.status === 401
+          ? t('Email hoặc mật khẩu không đúng.', 'Incorrect email or password.')
+          : error.status === 409
+            ? t('Email đã được đăng ký.', 'This email is already registered.')
+            : error.status >= 500
+              ? t(
+                  'Dịch vụ tài khoản tạm thời không khả dụng. Vui lòng thử lại sau.',
+                  'The account service is temporarily unavailable. Please try again later.',
+                )
+              : t(
+                  error.message || 'Yêu cầu không hợp lệ.',
+                  'Please check your details and try again.',
+                )
+        : t(
+            'Không thể kết nối máy chủ. Vui lòng thử lại.',
+            'Unable to reach the server. Please try again.',
+          );
   return (
-    <>
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={loading}
-        onClick={() => {
-          setError('');
-          setOpen(true);
-        }}
-      >
-        {user ? user.name : 'Đăng nhập'}
-      </Button>
-      <Dialog
-        open={open}
-        onOpenChange={(value) => {
-          if (!busy) {
-            setOpen(value);
-            setError('');
-          }
-        }}
-        title={user ? 'Tài khoản của bạn' : register ? 'Tạo tài khoản' : 'Chào mừng trở lại'}
-        description={
-          user
-            ? 'Thông tin huấn luyện viên của bạn.'
-            : 'Tham gia Pokémon Arena cùng tài khoản của bạn.'
-        }
-      >
-        {user ? (
-          <div className="account-form">
-            <strong>{user.name}</strong>
-            <p>{user.email}</p>
-            {error && <p role="alert">{error}</p>}
-            <Button disabled={busy} onClick={() => void logout()}>
-              {busy ? 'Đang xử lý…' : 'Đăng xuất'}
-            </Button>
-          </div>
-        ) : (
-          <form className="account-form" onSubmit={submit} key={String(register)}>
-            {register && (
-              <label>
-                Tên huấn luyện viên
-                <input name="name" autoComplete="nickname" required minLength={2} maxLength={30} />
-              </label>
-            )}
+    <Dialog
+      open={accountView !== null}
+      onOpenChange={(open) => {
+        if (!busy && !open) set({ accountView: null });
+      }}
+      title={
+        user
+          ? t('Tài khoản của bạn', 'Your account')
+          : register
+            ? t('Tạo tài khoản', 'Create an account')
+            : t('Chào mừng trở lại', 'Welcome back')
+      }
+      description={
+        user
+          ? t('Thông tin nhà triệu hồi của bạn.', 'Your summoner profile.')
+          : t(
+              'Bắt đầu hành trình trong thế giới Triệu Hồi Sư.',
+              'Start your journey in the world of Summoner.',
+            )
+      }
+    >
+      {user ? (
+        <div className="account-form">
+          <strong>{user.name}</strong>
+          <p>{user.email}</p>
+          {!!error && (
+            <p className="account-error" role="alert">
+              {errorMessage}
+            </p>
+          )}
+          <Button disabled={busy} onClick={() => void logout()}>
+            {busy ? t('Đang xử lý…', 'Please wait…') : t('Đăng xuất', 'Log out')}
+          </Button>
+        </div>
+      ) : (
+        <form className="account-form" onSubmit={submit} key={String(register)} aria-busy={busy}>
+          {register && (
             <label>
-              Email
-              <input name="email" type="email" autoComplete="email" required maxLength={254} />
-            </label>
-            <label>
-              Mật khẩu
+              {t('Tên nhà triệu hồi', 'Summoner name')}
               <input
-                name="password"
+                name="name"
+                autoComplete="nickname"
+                required
+                minLength={2}
+                maxLength={30}
+                disabled={busy}
+              />
+            </label>
+          )}
+          <label>
+            Email
+            <input
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              maxLength={254}
+              disabled={busy}
+            />
+          </label>
+          <label>
+            {t('Mật khẩu', 'Password')}
+            <input
+              name="password"
+              type="password"
+              autoComplete={register ? 'new-password' : 'current-password'}
+              required
+              minLength={8}
+              maxLength={128}
+              disabled={busy}
+            />
+          </label>
+          {register && (
+            <label>
+              {t('Xác nhận mật khẩu', 'Confirm password')}
+              <input
+                name="confirmPassword"
                 type="password"
-                autoComplete={register ? 'new-password' : 'current-password'}
+                autoComplete="new-password"
                 required
                 minLength={8}
                 maxLength={128}
+                disabled={busy}
               />
             </label>
-            {register && (
-              <label>
-                Xác nhận mật khẩu
-                <input
-                  name="confirmPassword"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  minLength={8}
-                  maxLength={128}
-                />
-              </label>
-            )}
-            {error && (
-              <p className="account-error" role="alert">
-                {error}
-              </p>
-            )}
-            <Button type="submit" disabled={busy}>
-              {busy ? 'Đang xử lý…' : register ? 'Đăng ký' : 'Đăng nhập'}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={busy}
-              onClick={() => {
-                setRegister(!register);
-                setError('');
-              }}
-            >
-              {register ? 'Đã có tài khoản? Đăng nhập' : 'Chưa có tài khoản? Đăng ký'}
-            </Button>
-          </form>
-        )}
-      </Dialog>
-    </>
+          )}
+          {!!error && (
+            <p className="account-error" role="alert">
+              {errorMessage}
+            </p>
+          )}
+          <Button type="submit" disabled={busy}>
+            {busy
+              ? t('Đang xử lý…', 'Please wait…')
+              : register
+                ? t('Đăng Ký', 'Sign Up')
+                : t('Đăng Nhập', 'Log In')}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={busy}
+            onClick={() => set({ accountView: register ? 'login' : 'register' })}
+          >
+            {register
+              ? t('Đã có tài khoản? Đăng nhập', 'Already have an account? Log in')
+              : t('Chưa có tài khoản? Đăng ký', 'New here? Sign up')}
+          </Button>
+        </form>
+      )}
+    </Dialog>
   );
 }

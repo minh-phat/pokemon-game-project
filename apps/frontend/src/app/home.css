@@ -1,0 +1,1243 @@
+/* The welcome screen and player lobby share a landscape, touch-first game stage. */
+.fantasy-app {
+  --background: #0b142b;
+  --surface: #141f38;
+  --surface-high: #1b2b48;
+  --foreground: #fff6df;
+  --muted: #b5c5dc;
+  --line: #4c5470;
+  --accent: #ffda83;
+  --accent-dark: #312712;
+  min-height: 100dvh;
+  background: var(--background);
+}
+body:has(.fantasy-app) {
+  background: #080f21;
+}
+.fantasy-app.home-shell {
+  max-width: none;
+}
+.fantasy-home {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: 100svh;
+  height: 100dvh;
+  min-height: 320px;
+  overflow: hidden;
+  color: #fff4df;
+  container-type: size;
+  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+}
+.fantasy-scene {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: url('/assets/home/landing.webp') center / cover no-repeat;
+}
+.player-home .fantasy-scene {
+  background-image: url('/assets/home/lobby.webp');
+}
+.fantasy-scene::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #04112c33, transparent 40%, #050b2140);
+}
+.fantasy-home button {
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.fantasy-home button:active {
+  transform: translateY(1px);
+}
+.fantasy-home button:disabled {
+  opacity: 0.55;
+}
+.fantasy-frame {
+  position: relative;
+  border: 2px solid #e6b565;
+  border-radius: 5px;
+  background: linear-gradient(135deg, #1c2341f2, #08132ef5 70%);
+  box-shadow:
+    0 0 0 2px #422b23,
+    0 0 0 3px #f9d78d,
+    inset 0 0 0 2px #694c38,
+    inset 0 0 18px #0008,
+    0 5px 8px #0008;
+}
+.fantasy-frame::before,
+.fantasy-frame::after {
+  content: '';
+  position: absolute;
+  width: clamp(5px, 0.55cqw, 9px);
+  height: clamp(5px, 0.55cqw, 9px);
+  background: #ffe3a0;
+  border: 1px solid #714323;
+  transform: rotate(45deg);
+  pointer-events: none;
+  z-index: 2;
+}
+.fantasy-frame::before {
+  top: -5px;
+  left: -5px;
+}
+.fantasy-frame::after {
+  bottom: -5px;
+  right: -5px;
+}
+.fantasy-home button:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+.fantasy-home button:focus-visible {
+  outline: 3px solid #83e3ff;
+  outline-offset: 5px;
+  z-index: 5;
+}
+.fantasy-emblem {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(22px, 3.1cqw, 52px);
+  line-height: 1;
+  filter: drop-shadow(2px 3px 0 #1c101e);
+  flex-shrink: 0;
+}
+.landing-header {
+  position: absolute;
+  inset: max(9px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) auto
+    max(12px, env(safe-area-inset-left));
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: 3%;
+}
+.landing-nav {
+  display: flex;
+  margin-right: auto;
+  margin-left: 18%;
+  width: 54%;
+  height: clamp(40px, 6.2cqh, 64px);
+  padding: 3px;
+}
+.landing-nav button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8cqw;
+  background: none;
+  border: 0;
+  border-right: 1px solid #a88b5e66;
+  white-space: nowrap;
+  font-size: clamp(11px, 1.45cqw, 24px);
+  font-weight: 700;
+  padding: 0 1cqw;
+  text-shadow: 1px 2px #080c20;
+}
+.landing-nav button:last-child {
+  border-right: 0;
+}
+.landing-nav svg {
+  width: 1.9cqw;
+  min-width: 16px;
+  height: auto;
+  color: #ffe1a0;
+}
+.landing-nav button.active {
+  background: linear-gradient(#6f431e, #271b1c);
+  outline: 1px solid #ffdf8c;
+  box-shadow:
+    inset 0 0 10px #eead3a80,
+    0 0 8px #e8ae5670;
+}
+.fantasy-utilities {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.language-picker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 1px solid #cfaa6d;
+  border-radius: 4px;
+  background: #0c1734e8;
+  padding: 2px;
+  color: #a8b5ce;
+}
+.language-picker button {
+  min-width: 32px;
+  min-height: 32px;
+  border: 0;
+  background: transparent;
+  color: #c9d6ea;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 3px;
+}
+.language-picker button[aria-pressed='true'] {
+  color: #ffda83;
+  background: #ffd77b19;
+}
+.language-picker > span {
+  font-size: 10px;
+  opacity: 0.5;
+}
+.fantasy-icon-button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 38px;
+  background: #0c1734e8;
+  border: 1px solid #cfaa6d;
+  border-radius: 4px;
+}
+.fantasy-icon-button svg {
+  width: 18px;
+}
+.summoner-hero {
+  position: absolute;
+  top: 10%;
+  left: 29%;
+  width: 44%;
+  text-align: center;
+}
+.summoner-crest {
+  height: 10cqh;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffe5a0;
+  filter: drop-shadow(0 0 10px #0bb7ff);
+}
+.summoner-crest svg {
+  width: 12cqw;
+  height: 13cqh;
+  stroke-width: 1;
+}
+.summoner-crest span {
+  position: absolute;
+  color: #87f4ff;
+  font-size: 12cqh;
+  text-shadow: 0 0 15px #009dff;
+}
+.summoner-hero h1 {
+  position: relative;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(38px, 6.5cqw, 114px);
+  font-weight: 900;
+  white-space: nowrap;
+  color: #ffdc7c;
+  letter-spacing: -0.045em;
+  line-height: 1.2;
+  text-shadow:
+    0 -2px #fff5c6,
+    2px 0 #65301b,
+    -2px 0 #65301b,
+    0 3px #793710,
+    0 5px #36192a,
+    3px 6px 0 #090c24,
+    0 0 24px #057afb;
+}
+.summoner-hero > p {
+  font-size: clamp(11px, 1.38cqw, 24px);
+  font-weight: 600;
+  line-height: 1.35;
+  color: #fff9ea;
+  margin: 1.5cqh -6% 0;
+  text-shadow:
+    0 2px 3px #05102b,
+    0 0 10px #041027;
+}
+.fantasy-divider {
+  display: flex;
+  gap: 1cqw;
+  align-items: center;
+  justify-content: center;
+  color: #ffe39b;
+  margin: 1cqh auto 1.5cqh;
+  width: 60%;
+  font-size: clamp(8px, 1cqw, 16px);
+}
+.fantasy-divider::before,
+.fantasy-divider::after {
+  content: '';
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #ffde8c);
+  flex: 1;
+}
+.fantasy-divider::after {
+  transform: rotate(180deg);
+}
+.landing-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1.2cqw;
+  margin: 0 -2%;
+}
+.fantasy-action {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.7cqw;
+  min-height: 44px;
+  height: 7.3cqh;
+  padding: 8px 1.2cqw;
+  font-size: clamp(12px, 1.65cqw, 28px);
+  font-weight: 800;
+  white-space: nowrap;
+  text-shadow: 1px 2px #050e29;
+  flex: 1;
+}
+.fantasy-action svg {
+  width: 2.1cqw;
+  min-width: 18px;
+  height: auto;
+}
+.fantasy-action.blue {
+  background: linear-gradient(#1768c4, #073886);
+  border-color: #b9eaff;
+  box-shadow:
+    0 0 0 2px #123767,
+    0 0 0 3px #d9e8ee,
+    inset 0 0 0 2px #2e88d4,
+    0 5px 8px #0008;
+}
+.fantasy-action.gold,
+.play-card {
+  background: linear-gradient(110deg, #ffca58, #ffe9a3 55%, #e9a53a);
+  color: #452511;
+  text-shadow: 0 1px #fff0bb;
+  border-color: #ffe8a0;
+  box-shadow:
+    0 0 0 2px #a95a22,
+    0 0 0 4px #ffe7a3,
+    inset 0 0 0 3px #bd772b,
+    inset 0 0 20px #ffb931,
+    0 5px 12px #0008;
+}
+.landing-actions .gold {
+  flex: 1.3;
+}
+.landing-actions .gold svg {
+  width: 3cqw;
+}
+.moon-event {
+  position: absolute;
+  right: 2.5%;
+  bottom: 22%;
+  width: 30%;
+  min-height: 15%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  padding: 3.5cqh 1.4cqw 1.2cqh;
+  background:
+    linear-gradient(90deg, #10172ff5 10%, #0a173566 100%),
+    url('/assets/home/landing.webp') 100% 30% / 180% auto;
+}
+.event-ribbon {
+  position: absolute;
+  left: -6px;
+  top: 0;
+  background: linear-gradient(#f14048, #a70e2d);
+  box-shadow: 1px 2px #390d20;
+  padding: 0.2cqh 2.3cqw 0.2cqh 1.2cqw;
+  clip-path: polygon(0 0, 100% 0, 93% 50%, 100% 100%, 0 100%);
+  font-size: clamp(10px, 1.25cqw, 21px);
+  font-weight: 700;
+}
+.moon-event > strong {
+  font-size: clamp(16px, 2cqw, 34px);
+  line-height: 1.25;
+  text-shadow: 2px 2px #110815;
+  color: #ffe7b8;
+}
+.moon-event > span:not(.event-ribbon) {
+  width: 85%;
+  font-size: clamp(9px, 1.1cqw, 18px);
+}
+.moon-event small {
+  font-size: clamp(9px, 1cqw, 16px);
+  color: #ffd879;
+}
+.moon-event > svg {
+  position: absolute;
+  right: 2%;
+  top: 45%;
+  color: #ffdb7d;
+  width: 2cqw;
+}
+.landing-features {
+  position: absolute;
+  inset: auto max(14px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom))
+    max(14px, env(safe-area-inset-left));
+  height: 16.5%;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.3cqw;
+}
+.feature-tile {
+  text-align: left;
+  padding: 1cqh 1.3cqw;
+  overflow: visible;
+  background:
+    linear-gradient(90deg, #07122af7 35%, #08152b88),
+    url('/assets/home/lobby.webp') 50% 50% / 220%;
+}
+.feature-pets {
+  background-position: 46% 65%;
+}
+.feature-battle {
+  background-position: 14% 82%;
+}
+.feature-upgrade {
+  background-position: 60% 70%;
+}
+.feature-world {
+  background-image:
+    linear-gradient(90deg, #07122aee 25%, #08152b33), url('/assets/home/landing.webp');
+  background-position: 100% 40%;
+}
+.feature-tile > strong {
+  display: flex;
+  align-items: center;
+  gap: 0.7cqw;
+  font-size: clamp(11px, 1.35cqw, 23px);
+  line-height: 1.25;
+  white-space: nowrap;
+  padding-bottom: 0.8cqh;
+  border-bottom: 1px solid #bb935e66;
+}
+.feature-tile .fantasy-emblem {
+  font-size: clamp(18px, 2cqw, 34px);
+}
+.feature-tile p {
+  font-size: clamp(9px, 1cqw, 17px);
+  line-height: 1.45;
+  width: 80%;
+  padding-top: 0.7cqh;
+  color: #d3eeff;
+  text-shadow: 0 2px #050d24;
+}
+.feature-arrow {
+  position: absolute;
+  right: 0.5cqw;
+  bottom: 2cqh;
+  width: 1.5cqw;
+  color: #ffcf6e;
+}
+.player-header {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  left: max(14px, env(safe-area-inset-left));
+  right: max(14px, env(safe-area-inset-right));
+  display: flex;
+  align-items: flex-start;
+  gap: 2.5cqw;
+}
+.player-profile {
+  display: flex;
+  align-items: center;
+  width: 22%;
+  height: 9cqh;
+  min-height: 48px;
+  padding: 0.5cqh 0.7cqw;
+  gap: 0.8cqw;
+  text-align: left;
+}
+.player-avatar {
+  display: block;
+  height: 10cqh;
+  width: 6cqw;
+  min-height: 48px;
+  min-width: 42px;
+  margin-left: -0.6cqw;
+  border: 2px solid #eabc6d;
+  box-shadow: 0 0 0 2px #503224;
+  background: url('/assets/home/landing.webp') 23% 48% / 750%;
+}
+.player-profile > span:last-child {
+  flex: 1;
+  min-width: 0;
+}
+.player-profile strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: clamp(13px, 1.8cqw, 30px);
+  line-height: 1.2;
+}
+.player-profile small {
+  display: flex;
+  justify-content: space-between;
+  gap: 5px;
+  color: #f8d57b;
+  font-size: clamp(8px, 0.9cqw, 15px);
+  white-space: nowrap;
+}
+.player-level {
+  display: block;
+  height: 0.7cqh;
+  min-height: 3px;
+  border: 1px solid #98775e;
+  background: #0a1128;
+  margin-top: 0.4cqh;
+}
+.player-resources {
+  display: flex;
+  gap: 1.4cqw;
+  width: 43%;
+}
+.resource-pill {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  height: 5cqh;
+  min-height: 36px;
+  padding: 0.4cqh 0.5cqw;
+  gap: 0.4cqw;
+}
+.resource-pill .fantasy-emblem {
+  font-size: clamp(21px, 2.5cqw, 42px);
+}
+.resource-pill strong {
+  font-size: clamp(15px, 1.7cqw, 29px);
+}
+.resource-add {
+  color: #ffda7b;
+  border: 1px solid #9f805b;
+  background: #2e2b3d;
+  line-height: 1;
+  font-size: clamp(20px, 2.1cqw, 35px);
+  padding: 0 0.3cqw;
+}
+.player-tools {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 1cqw;
+  margin-left: auto;
+}
+.player-tools .fantasy-utilities {
+  position: absolute;
+  right: 0;
+  top: calc(7cqh + 7px);
+  z-index: 2;
+}
+.tool-button {
+  width: 4cqw;
+  min-width: 36px;
+  height: 6cqh;
+  min-height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 4px;
+}
+.tool-button svg {
+  width: 2.7cqw;
+  min-width: 22px;
+  height: auto;
+}
+.tool-button .fantasy-emblem {
+  font-size: clamp(20px, 2.7cqw, 45px);
+}
+.player-side-nav {
+  position: absolute;
+  left: max(15px, env(safe-area-inset-left));
+  top: 15%;
+  width: 6.3%;
+  min-width: 46px;
+  display: grid;
+  padding: 1cqh 0;
+}
+.player-side-nav button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  padding: 1.2cqh 0.2cqw;
+  min-height: 48px;
+  gap: 0.7cqh;
+}
+.player-side-nav button + button {
+  border-top: 1px solid #a68b663d;
+}
+.player-side-nav span:not(.fantasy-emblem) {
+  font-size: clamp(9px, 1.13cqw, 19px);
+  line-height: 1.2;
+}
+.player-main-menu {
+  position: absolute;
+  right: max(15px, env(safe-area-inset-right));
+  top: 16%;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  width: 30%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.76fr) minmax(
+      0,
+      1.12fr
+    );
+  gap: 2cqh;
+}
+.player-main-menu > *,
+.player-small-menu > * {
+  min-width: 0;
+  min-height: 0;
+}
+.player-menu-card {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  min-height: 0;
+  padding: 0.7cqh 1cqw;
+  gap: 0.9cqw;
+}
+.player-menu-card > .fantasy-emblem {
+  width: 7cqw;
+  font-size: clamp(40px, 6.6cqw, 110px);
+}
+.player-menu-card > span:not(.fantasy-emblem):not(.menu-pet) {
+  min-width: 0;
+  flex: 1;
+}
+.player-menu-card strong {
+  display: block;
+  font-size: clamp(20px, 2.9cqw, 49px);
+  font-weight: 900;
+  line-height: 1.15;
+  text-shadow: 2px 2px #321b1b;
+}
+.player-menu-card small {
+  display: block;
+  color: #f4d5a2;
+  font-size: clamp(9px, 1.15cqw, 19px);
+  line-height: 1.3;
+  margin-top: 0.7cqh;
+}
+.play-card strong {
+  font-size: clamp(27px, 3.7cqw, 62px);
+  text-shadow: 0 2px #fff2c8;
+}
+.play-card small {
+  color: #69401e;
+}
+.player-menu-card > svg {
+  color: #ffdc7a;
+  width: 1.7cqw;
+  min-width: 12px;
+}
+.play-card > svg {
+  color: #9a5e1c;
+}
+.menu-pet {
+  width: 7cqw;
+  height: 100%;
+  background: url('/assets/home/lobby.webp') 46% 68% / 790%;
+  border-radius: 35%;
+  box-shadow: inset 0 0 12px 8px #172039;
+}
+.pets-card,
+.bag-card {
+  background:
+    linear-gradient(90deg, #1a2037 45%, #182c4899),
+    url('/assets/home/landing.webp') 100% 48% / 180%;
+}
+.player-small-menu {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.3cqw;
+}
+.player-small-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5cqw;
+  gap: 0.5cqw;
+}
+.player-small-menu strong {
+  font-size: clamp(12px, 1.6cqw, 27px);
+  white-space: nowrap;
+}
+.player-small-menu .fantasy-emblem {
+  font-size: clamp(25px, 3.3cqw, 55px);
+}
+.player-small-menu svg {
+  width: 1.2cqw;
+  color: #f6ca73;
+}
+.dragon-event {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  border-color: #a8e2ff;
+  background: radial-gradient(at 20% 60%, #167fce, #08204c 60%, #060f2d);
+  box-shadow:
+    0 0 0 2px #13497b,
+    0 0 0 3px #a1d0f3,
+    inset 0 0 0 2px #2a6e99,
+    0 5px 8px #0008;
+  padding: 0.6cqw;
+  overflow: hidden;
+}
+.dragon-event > img {
+  width: 43%;
+  height: 100%;
+  object-fit: contain;
+  filter: hue-rotate(165deg) saturate(1.3) drop-shadow(0 0 9px #45c2ff88);
+}
+.dragon-event > span {
+  flex: 1;
+}
+.dragon-event strong {
+  font-size: clamp(12px, 1.6cqw, 27px);
+  line-height: 1.2;
+  display: block;
+}
+.dragon-event small {
+  display: block;
+  color: #8fefff;
+  font-size: clamp(9px, 1.1cqw, 18px);
+  margin-top: 0.7cqh;
+}
+.dragon-event b {
+  display: block;
+  color: #ffdc7c;
+  font-size: clamp(10px, 1.2cqw, 20px);
+}
+.event-dots {
+  display: block;
+  font-size: clamp(9px, 1cqw, 16px);
+  letter-spacing: 0.4cqw;
+  color: #ffcf75;
+  padding-top: 0.8cqh;
+}
+.player-bottom-nav {
+  position: absolute;
+  left: max(20px, env(safe-area-inset-left));
+  bottom: max(15px, env(safe-area-inset-bottom));
+  width: 57%;
+  height: 10.5%;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1.6cqw;
+}
+.player-bottom-nav button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6cqh;
+  padding: 0.6cqh 0.4cqw;
+}
+.player-bottom-nav button > span:last-child {
+  font-size: clamp(10px, 1.3cqw, 22px);
+  white-space: nowrap;
+}
+.rotate-hint {
+  display: none;
+}
+.home-info {
+  display: grid;
+  gap: 25px;
+  padding-top: 20px;
+}
+.home-info .fantasy-action {
+  min-height: 48px;
+  font-size: 18px;
+}
+.home-info .fantasy-action svg {
+  width: 22px;
+}
+.home-shell .notification {
+  position: fixed;
+  z-index: 60;
+  top: max(12px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  max-width: min(90vw, 560px);
+  width: max-content;
+  background: #0b1936f5;
+  color: #ffedc2;
+  border: 1px solid #ddb46d;
+  border-radius: 6px;
+  box-shadow: 0 5px 30px #000b;
+}
+.fantasy-app .site-header {
+  border-color: #b7975f66;
+}
+.fantasy-app .brand {
+  font-family: Georgia, serif;
+  color: #ffe2a0;
+  font-size: 20px;
+  letter-spacing: -0.5px;
+}
+.fantasy-app .brand-ball {
+  display: none;
+}
+.fantasy-app .local-status {
+  display: none;
+}
+.fantasy-app .site-header nav {
+  margin-left: 0;
+}
+.fantasy-app .button-primary {
+  color: #352515;
+  background: linear-gradient(#ffe5a4, #e7b665);
+}
+.fantasy-app .button-outline {
+  border-color: #8b795a;
+}
+.fantasy-app .mode-choice,
+.fantasy-app .panel {
+  background-color: #142039;
+}
+body:has(.fantasy-app) .dialog-content {
+  background: linear-gradient(135deg, #1a2947, #0b142b);
+  border: 2px solid #dab777;
+  color: #fff3dc;
+  box-shadow:
+    0 0 0 3px #493526,
+    0 20px 80px #000b;
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+}
+body:has(.fantasy-app) .dialog-content .muted {
+  color: #bbcae0;
+}
+body:has(.fantasy-app) .dialog-content .button-primary {
+  background: linear-gradient(#ffe5a4, #e7b665);
+  color: #352515;
+}
+body:has(.fantasy-app) .dialog-content .button-ghost {
+  color: #ffdf9d;
+}
+body:has(.fantasy-app) .account-form input {
+  background: #09162c;
+  color: #fff3dc;
+  border: 1px solid #7b839a;
+}
+body:has(.fantasy-app) .account-error {
+  color: #ffaaa4;
+}
+.settings-language {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .landing-header {
+    top: max(6px, env(safe-area-inset-top));
+  }
+  .landing-nav {
+    margin-left: 10%;
+    width: 62%;
+    height: 36px;
+  }
+  .summoner-hero {
+    top: 12%;
+    left: 29%;
+    width: 46%;
+  }
+  .summoner-crest {
+    height: 8cqh;
+  }
+  .summoner-hero h1 {
+    font-size: 5.6cqw;
+  }
+  .summoner-hero > p {
+    font-size: 1.55cqw;
+    margin-top: 0.4cqh;
+  }
+  .fantasy-divider {
+    margin: 0.3cqh auto 1.5cqh;
+  }
+  .fantasy-action {
+    min-height: 40px;
+    padding: 3px 0.8cqw;
+  }
+  .moon-event {
+    bottom: 24%;
+    padding-top: 5cqh;
+    min-height: 17%;
+  }
+  .moon-event > span:not(.event-ribbon) {
+    display: none;
+  }
+  .landing-features {
+    height: 17.5%;
+    bottom: max(8px, env(safe-area-inset-bottom));
+  }
+  .feature-tile p {
+    font-size: 1.3cqw;
+    line-height: 1.2;
+    padding-top: 0.6cqh;
+    width: 88%;
+  }
+  .feature-tile > strong {
+    font-size: 1.5cqw;
+    gap: 0.4cqw;
+  }
+  .feature-tile .fantasy-emblem {
+    font-size: 2.2cqw;
+  }
+  .player-header {
+    top: max(8px, env(safe-area-inset-top));
+    gap: 2cqw;
+  }
+  .player-tools .fantasy-utilities {
+    top: 43px;
+    gap: 3px;
+  }
+  .player-tools .language-picker button {
+    min-height: 24px;
+    min-width: 26px;
+    font-size: 10px;
+  }
+  .player-tools .fantasy-icon-button {
+    height: 30px;
+    width: 30px;
+  }
+  .player-main-menu {
+    top: 23%;
+    gap: 2cqh;
+    grid-template-rows: minmax(0, 1.05fr) minmax(0, 1fr) minmax(0, 0.95fr) minmax(0, 0.72fr) minmax(
+        0,
+        0.95fr
+      );
+    bottom: max(9px, env(safe-area-inset-bottom));
+  }
+  .player-menu-card strong {
+    font-size: 2.8cqw;
+  }
+  .player-menu-card small {
+    font-size: 1.2cqw;
+    margin-top: 0.4cqh;
+  }
+  .player-menu-card > .fantasy-emblem {
+    font-size: 5cqw;
+    width: 5.5cqw;
+  }
+  .player-side-nav {
+    top: 21%;
+    width: 7%;
+  }
+  .player-side-nav button {
+    min-height: 0;
+    padding: 1.2cqh 0.3cqw;
+  }
+  .player-side-nav .fantasy-emblem {
+    font-size: 3cqw;
+  }
+  .player-side-nav span:not(.fantasy-emblem) {
+    font-size: 1.2cqw;
+  }
+  .player-bottom-nav {
+    height: 13%;
+    bottom: max(9px, env(safe-area-inset-bottom));
+  }
+  .player-bottom-nav .fantasy-emblem {
+    font-size: 3cqw;
+  }
+  .player-bottom-nav button > span:last-child {
+    font-size: 1.4cqw;
+  }
+  .dragon-event strong {
+    font-size: 1.5cqw;
+  }
+  .dragon-event small,
+  .dragon-event b {
+    font-size: 1.15cqw;
+    margin-top: 0;
+  }
+  .event-dots {
+    display: none;
+  }
+  body:has(.fantasy-app) .dialog-content {
+    padding: 22px 30px;
+  }
+  .account-form {
+    gap: 10px;
+    margin-top: 14px;
+  }
+}
+@media (orientation: portrait) {
+  .fantasy-home {
+    min-height: 700px;
+  }
+  .fantasy-scene {
+    background-position: 32% center;
+  }
+  .landing-header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .landing-nav {
+    width: 100%;
+    margin-left: 0;
+    order: 2;
+    height: 44px;
+  }
+  .landing-nav button {
+    font-size: 11px;
+    gap: 6px;
+  }
+  .landing-nav svg {
+    width: 16px;
+  }
+  .summoner-hero {
+    top: 17%;
+    left: 5%;
+    width: 90%;
+  }
+  .summoner-crest {
+    height: 50px;
+  }
+  .summoner-crest svg {
+    width: 100px;
+    height: 90px;
+  }
+  .summoner-crest span {
+    font-size: 90px;
+  }
+  .summoner-hero h1 {
+    font-size: 13cqw;
+  }
+  .summoner-hero > p {
+    font-size: 12px;
+    margin-inline: 0;
+  }
+  .fantasy-divider {
+    margin: 9px auto;
+  }
+  .landing-actions {
+    gap: 10px;
+    margin: 0;
+  }
+  .fantasy-action {
+    min-height: 44px;
+    height: auto;
+    font-size: 11px;
+    gap: 5px;
+    padding: 6px;
+  }
+  .fantasy-action svg,
+  .landing-actions .gold svg {
+    width: 17px;
+    min-width: 17px;
+  }
+  .moon-event {
+    right: 5%;
+    bottom: 29%;
+    width: 58%;
+    min-height: 90px;
+    padding: 22px 10px 8px;
+  }
+  .moon-event > strong {
+    font-size: 20px;
+  }
+  .moon-event > span:not(.event-ribbon) {
+    font-size: 10px;
+  }
+  .landing-features {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    height: 23%;
+    bottom: 25px;
+  }
+  .feature-tile {
+    padding: 8px 10px;
+  }
+  .feature-tile > strong {
+    font-size: 11px;
+    gap: 6px;
+    padding-bottom: 4px;
+  }
+  .feature-tile p {
+    font-size: 10px;
+    line-height: 1.25;
+    width: 100%;
+    padding-top: 4px;
+  }
+  .player-profile {
+    width: 48%;
+    height: 52px;
+  }
+  .player-profile strong {
+    font-size: 16px;
+  }
+  .player-profile small {
+    font-size: 8px;
+  }
+  .player-avatar {
+    height: 54px;
+    width: 45px;
+  }
+  .player-resources {
+    position: absolute;
+    top: 72px;
+    left: 0;
+    width: 100%;
+    gap: 12px;
+  }
+  .resource-pill {
+    min-height: 35px;
+    padding: 5px;
+  }
+  .player-tools {
+    gap: 9px;
+  }
+  .player-tools .fantasy-utilities {
+    top: 120px;
+  }
+  .player-side-nav {
+    top: 23%;
+    width: 52px;
+  }
+  .player-side-nav button {
+    min-height: 65px;
+  }
+  .player-side-nav span:not(.fantasy-emblem) {
+    font-size: 9px;
+  }
+  .player-main-menu {
+    top: auto;
+    bottom: 100px;
+    height: 42%;
+    width: 73%;
+    gap: 12px;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr 0.8fr;
+  }
+  .player-menu-card {
+    padding: 7px;
+    gap: 6px;
+  }
+  .player-menu-card > .fantasy-emblem {
+    width: 36px;
+    font-size: 34px;
+  }
+  .player-menu-card strong {
+    font-size: 22px;
+  }
+  .player-menu-card small {
+    font-size: 10px;
+  }
+  .play-card {
+    grid-column: 1/-1;
+  }
+  .play-card strong {
+    font-size: 30px;
+  }
+  .pets-card,
+  .bag-card {
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+  }
+  .pets-card small,
+  .bag-card small,
+  .player-menu-card > svg,
+  .menu-pet {
+    display: none;
+  }
+  .player-small-menu {
+    grid-column: 1/-1;
+    gap: 12px;
+  }
+  .player-small-menu strong {
+    font-size: 12px;
+  }
+  .dragon-event {
+    display: none;
+  }
+  .player-bottom-nav {
+    width: auto;
+    right: 16px;
+    left: 16px;
+    height: 58px;
+    bottom: 25px;
+    gap: 10px;
+  }
+  .player-bottom-nav button > span:last-child {
+    font-size: 9px;
+  }
+  .player-bottom-nav .fantasy-emblem {
+    font-size: 24px;
+  }
+  .rotate-hint {
+    position: fixed;
+    z-index: 50;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px max(8px, env(safe-area-inset-bottom));
+    background: #081329f2;
+    border-top: 1px solid #c49c58;
+    font-size: 10px;
+  }
+  .rotate-hint > svg {
+    width: 17px;
+    transform: rotate(90deg);
+    color: #ffda83;
+  }
+  .rotate-hint button {
+    border: 0;
+    background: transparent;
+    padding: 3px;
+  }
+  .rotate-hint button svg {
+    width: 15px;
+    height: 15px;
+  }
+  .fantasy-app .site-header {
+    height: auto;
+    padding-block: 14px;
+    flex-wrap: wrap;
+  }
+  .fantasy-app .site-header .header-actions {
+    flex-wrap: wrap;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fantasy-home *,
+  .fantasy-home *::before,
+  .fantasy-home *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+.reduce-motion .fantasy-home * {
+  animation: none !important;
+  transition: none !important;
+}
+
+.player-home .play-card {
+  color: #452511;
+}
+
+.sprite-emblem {
+  width: 1em;
+  height: 1em;
+  background-image: url('/assets/home/menu-icons.webp');
+  background-repeat: no-repeat;
+  background-size: 400% 400%;
+  image-rendering: auto;
+}

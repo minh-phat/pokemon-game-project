@@ -2,6 +2,7 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useLanguage } from '@/lib/i18n';
 export function Dialog({
   open,
   onOpenChange,
@@ -15,6 +16,7 @@ export function Dialog({
   description: string;
   children: ReactNode;
 }) {
+  const { t } = useLanguage();
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
@@ -25,7 +27,7 @@ export function Dialog({
           {children}
           <DialogPrimitive.Close
             className="dialog-close button button-ghost button-icon"
-            aria-label="Close dialog"
+            aria-label={t('Đóng hộp thoại', 'Close dialog')}
           >
             <X size={19} />
           </DialogPrimitive.Close>

@@ -1,4 +1,5 @@
 'use client';
+import { useCopy } from '@/lib/i18n';
 import { Check, Copy, Crown, Link, LoaderCircle, Settings2, Users, WifiOff } from 'lucide-react';
 import { useGame } from '@/lib/store';
 import { leaveRoom, sendRoom } from '@/lib/network';
@@ -6,6 +7,7 @@ import { ARENAS, POKEMON } from '@arena/game-data';
 import { Button } from './ui/button';
 import { PageTitle, Portrait } from './common';
 export function LobbyScreen() {
+  const c = useCopy();
   const state = useGame();
   const lobby = state.lobby;
   if (!lobby)
@@ -13,14 +15,14 @@ export function LobbyScreen() {
       <div className="page-wrap narrow">
         <PageTitle
           eyebrow="ONLINE 1V1"
-          title={state.connection === 'lost' ? 'Room unavailable' : 'Finding your arena…'}
+          title={state.connection === 'lost' ? c('Room unavailable') : c('Finding your arena…')}
           description={
             state.connection === 'lost'
-              ? 'Return home to create or join a new room.'
-              : 'Connecting to the game server.'
+              ? c('Return home to create or join a new room.')
+              : c('Connecting to the game server.')
           }
         />
-        <Button onClick={leaveRoom}>Return home</Button>
+        <Button onClick={leaveRoom}>{c('Return home')}</Button>
       </div>
     );
   const me = lobby.players.find((p) => p.id === state.sessionId),
@@ -31,7 +33,7 @@ export function LobbyScreen() {
       await navigator.clipboard.writeText(
         link ? `${location.origin}/?room=${lobby!.code}` : lobby!.code,
       );
-      state.set({ notice: link ? 'Invitation link copied.' : 'Room code copied.' });
+      state.set({ notice: link ? c('Invitation link copied.') : c('Room code copied.') });
     } catch {
       state.set({ notice: `Copy this invitation code: ${lobby!.code}` });
     }
@@ -39,9 +41,9 @@ export function LobbyScreen() {
   return (
     <div className="page-wrap">
       <PageTitle
-        eyebrow="YOUR OWN LITTLE ARENA"
-        title="Good battles need good company."
-        description="Choose your team, invite a friend, and ready up."
+        eyebrow={c('YOUR OWN LITTLE ARENA')}
+        title={c('Good battles need good company.')}
+        description={c('Choose your team, invite a friend, and ready up.')}
         back={leaveRoom}
       />
       <div className="lobby-layout">
@@ -51,20 +53,20 @@ export function LobbyScreen() {
               <Users size={22} />
             </span>
             <div>
-              <span className="eyebrow">PRIVATE ROOM CODE</span>
+              <span className="eyebrow">{c('PRIVATE ROOM CODE')}</span>
               <strong data-testid="room-code">{lobby.code}</strong>
             </div>
             <Button
               size="icon"
               variant="ghost"
-              aria-label="Copy room code"
+              aria-label={c('Copy room code')}
               onClick={() => void copy()}
             >
               <Copy size={19} />
             </Button>
             <Button variant="outline" size="sm" onClick={() => void copy(true)}>
               <Link size={16} />
-              Copy invite
+              {c('Copy invite')}{' '}
             </Button>
           </div>
           <div className="lobby-players">
@@ -78,18 +80,18 @@ export function LobbyScreen() {
                     </span>
                     <div>
                       <h3>
-                        {player ? player.name : 'Waiting for a friend…'}
-                        {player?.id === state.sessionId && <small>YOU</small>}
+                        {player ? player.name : c('Waiting for a friend…')}
+                        {player?.id === state.sessionId && <small>{c('YOU')}</small>}
                       </h3>
                       <span className="muted small">
                         {player?.id === lobby.hostId ? (
                           <>
-                            <Crown size={12} /> Room host
+                            <Crown size={12} /> {c('Room host')}{' '}
                           </>
                         ) : player ? (
-                          'Challenger'
+                          c('Challenger')
                         ) : (
-                          'Share your invitation to get started'
+                          c('Share your invitation to get started')
                         )}
                       </span>
                     </div>
@@ -100,10 +102,10 @@ export function LobbyScreen() {
                         ) : player.ready ? (
                           <>
                             <Check size={14} />
-                            Ready
+                            {c('Ready')}{' '}
                           </>
                         ) : (
-                          'Choosing team'
+                          c('Choosing team')
                         )}
                       </span>
                     )}
@@ -131,7 +133,7 @@ export function LobbyScreen() {
                         state.go('roster');
                       }}
                     >
-                      {player.team.length ? 'Edit your team' : 'Choose your Pokémon'}
+                      {player.team.length ? c('Edit your team') : c('Choose your Pokémon')}
                     </Button>
                   )}
                 </div>
@@ -144,37 +146,45 @@ export function LobbyScreen() {
           <h3>{arena.name}</h3>
           <dl>
             <div>
-              <dt>Team size</dt>
-              <dd>{lobby.rules.teamSize} Pokémon</dd>
+              <dt>{c('Team size')}</dt>
+              <dd>
+                {lobby.rules.teamSize} {c('Pokémon')}
+              </dd>
             </div>
             <div>
-              <dt>Active at once</dt>
-              <dd>{lobby.rules.activeSize} per side</dd>
+              <dt>{c('Active at once')}</dt>
+              <dd>
+                {lobby.rules.activeSize} {c('per side')}
+              </dd>
             </div>
             <div>
-              <dt>Time limit</dt>
-              <dd>{lobby.rules.duration ? `${lobby.rules.duration} seconds` : 'Unlimited'}</dd>
+              <dt>{c('Time limit')}</dt>
+              <dd>
+                {lobby.rules.duration ? `${lobby.rules.duration} ${c('seconds')}` : c('Unlimited')}
+              </dd>
             </div>
             <div>
-              <dt>Elemental matchups</dt>
-              <dd>{lobby.rules.elements ? 'On' : 'Off'}</dd>
+              <dt>{c('Elemental matchups')}</dt>
+              <dd>{lobby.rules.elements ? c('On') : c('Off')}</dd>
             </div>
             <div>
-              <dt>Duplicates</dt>
-              <dd>{lobby.rules.duplicates ? 'Allowed' : 'Off'}</dd>
+              <dt>{c('Duplicates')}</dt>
+              <dd>{lobby.rules.duplicates ? c('Allowed') : c('Off')}</dd>
             </div>
             <div>
-              <dt>Switching</dt>
-              <dd>{lobby.rules.switching ? 'On' : 'Off'}</dd>
+              <dt>{c('Switching')}</dt>
+              <dd>{lobby.rules.switching ? c('On') : c('Off')}</dd>
             </div>
           </dl>
           {host && (
             <Button variant="ghost" size="sm" onClick={() => state.go('rules')}>
               <Settings2 size={15} />
-              Edit match rules
+              {c('Edit match rules')}{' '}
             </Button>
           )}
-          <p className="hint">The battle starts automatically when both trainers are ready.</p>
+          <p className="hint">
+            {c('The battle starts automatically when both trainers are ready.')}
+          </p>
           <Button
             disabled={!me?.team.length || state.connection !== 'connected'}
             onClick={() => sendRoom('ready', !me?.ready)}
@@ -182,11 +192,11 @@ export function LobbyScreen() {
             {me?.ready ? (
               <>
                 <Check size={17} />
-                Ready · cancel
+                {c('Ready · cancel')}{' '}
               </>
             ) : (
               <>
-                Ready for battle <Check size={17} />
+                {c('Ready for battle')} <Check size={17} />
               </>
             )}
           </Button>
