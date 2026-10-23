@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import { useCopy } from '@/lib/i18n';
 import { ArrowRight, Check, Heart, Plus, Shield, Swords, Zap } from 'lucide-react';
 import { POKEMON, ROSTER } from '@arena/game-data';
@@ -9,6 +10,16 @@ import { ElementBadge, PageTitle, Portrait, Steps, TeamSlots } from './common';
 export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean }) {
   const c = useCopy();
   const state = useGame();
+  const [side, setSide] = useState<'team' | 'aiTeam'>('team');
+  const choosingAI = !inspectOnly && state.mode === 'ai' && side === 'aiTeam';
+  const team = choosingAI ? state.aiTeam : state.team;
+  function togglePokemon(id: typeof state.inspected) {
+    if (!state.rules.duplicates && team.includes(id)) {
+      state.set({ [choosingAI ? 'aiTeam' : 'team']: team.filter((value) => value !== id) });
+    } else if (team.length < state.rules.teamSize) {
+      state.set({ [choosingAI ? 'aiTeam' : 'team']: [...team, id] });
+    }
+  }
   const selected = POKEMON[state.inspected];
   const busy = state.connection === 'connecting';
   async function confirm() {
@@ -18,7 +29,8 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
         sendRoom('team', state.team);
         state.go('lobby');
       } else await connectRoom('create');
-    } else state.go('battle');
+    } else if (state.aiTeam.length === state.rules.teamSize) state.go('battle');
+    else setSide('aiTeam');
   }
   return (
     <div className="page-wrap roster-page">
@@ -36,11 +48,29 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
         }
         back={() => state.go(inspectOnly ? 'home' : state.sessionId ? 'lobby' : 'rules')}
       />
+      {!inspectOnly && state.mode === 'ai' && (
+        <div className="flow-footer" role="group" aria-label={c('Choose a team')}>
+          <Button
+            variant={choosingAI ? 'outline' : 'secondary'}
+            aria-pressed={!choosingAI}
+            onClick={() => setSide('team')}
+          >
+            {c('Your team')} · {state.team.length}/{state.rules.teamSize}
+          </Button>
+          <Button
+            variant={choosingAI ? 'secondary' : 'outline'}
+            aria-pressed={choosingAI}
+            onClick={() => setSide('aiTeam')}
+          >
+            {c('AI team')} · {state.aiTeam.length}/{state.rules.teamSize}
+          </Button>
+        </div>
+      )}
       <div className="roster-layout">
         <div>
           <div className="roster-grid">
             {ROSTER.map((p) => {
-              const count = state.team.filter((id) => id === p.id).length;
+              const count = team.filter((id) => id === p.id).length;
               return (
                 <article
                   className={`roster-card ${p.element} ${selected.id === p.id ? 'inspecting' : ''} ${count ? 'chosen' : ''}`}
@@ -74,9 +104,9 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
                       size="sm"
                       disabled={
                         ((!state.rules.duplicates && !count) || state.rules.duplicates) &&
-                        state.team.length >= state.rules.teamSize
+                        team.length >= state.rules.teamSize
                       }
-                      onClick={() => state.togglePokemon(p.id)}
+                      onClick={() => togglePokemon(p.id)}
                     >
                       {count && !state.rules.duplicates ? (
                         <>
@@ -179,22 +209,28 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
       ) : (
         <div className="team-builder panel">
           <div>
-            <p className="eyebrow">{c('YOUR TEAM')}</p>
+            <p className="eyebrow">{choosingAI ? c('AI team') : c('YOUR TEAM')}</p>
             <h3>
               {c('{count} of {total} ready')
-                .replace('{count}', String(state.team.length))
+                .replace('{count}', String(team.length))
                 .replace('{total}', String(state.rules.teamSize))}
             </h3>
           </div>
-          <TeamSlots compact />
+          <TeamSlots compact ai={choosingAI} />
           <Button
-            disabled={state.team.length !== state.rules.teamSize || busy}
+            disabled={
+              team.length !== state.rules.teamSize ||
+              state.team.length !== state.rules.teamSize ||
+              busy
+            }
             onClick={() => void confirm()}
           >
             {busy
               ? c('Creating room…')
               : state.mode === 'ai'
-                ? c('Enter the arena')
+                ? state.aiTeam.length === state.rules.teamSize
+                  ? c('Enter the arena')
+                  : c('Choose AI Pokémon')
                 : c('Confirm team')}
             <ArrowRight size={18} />
           </Button>

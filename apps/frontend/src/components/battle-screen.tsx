@@ -11,9 +11,9 @@ import {
   WifiOff,
   Zap,
 } from 'lucide-react';
-import { initializeBattle, seededRandom } from '@arena/game-core';
-import { ARENAS, POKEMON, ROSTER } from '@arena/game-data';
-import type { Fighter, ManualBattleCommand, SpeciesId } from '@arena/shared-types';
+import { initializeBattle } from '@arena/game-core';
+import { ARENAS, POKEMON } from '@arena/game-data';
+import type { Fighter, ManualBattleCommand } from '@arena/shared-types';
 import { useGame } from '@/lib/store';
 import { battleFeed } from '@/lib/battle-feed';
 import { leaveRoom, selectManualFighter, sendBattleCommand, sendManualMode } from '@/lib/network';
@@ -128,20 +128,16 @@ export function BattleScreen() {
       current.go('roster');
       return;
     }
-    const seed = crypto.getRandomValues(new Uint32Array(1))[0],
-      random = seededRandom(seed);
-    const pool = ROSTER.map((p) => p.id);
-    const opponents: SpeciesId[] = [];
-    for (let i = 0; i < current.rules.teamSize; i++) {
-      const index = Math.floor(random() * pool.length);
-      opponents.push(pool[index]);
-      if (!current.rules.duplicates) pool.splice(index, 1);
+    if (current.aiTeam.length !== current.rules.teamSize) {
+      current.go('roster');
+      return;
     }
+    const seed = crypto.getRandomValues(new Uint32Array(1))[0];
     const engine = initializeBattle(
       {
         rules: current.rules,
         players: ['you', 'ai'],
-        teams: [current.team, opponents],
+        teams: [current.team, current.aiTeam],
         aiTeams: [1],
       },
       seed,

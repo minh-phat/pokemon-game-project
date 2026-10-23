@@ -27,6 +27,7 @@ interface GameStore {
   mode: 'ai' | 'online';
   rules: MatchRules;
   team: SpeciesId[];
+  aiTeam: SpeciesId[];
   inspected: SpeciesId;
   name: string;
   roomCode: string;
@@ -58,6 +59,7 @@ export const useGame = create<GameStore>()(
       mode: 'ai',
       rules: { ...DEFAULT_RULES },
       team: [],
+      aiTeam: [],
       inspected: 'pikachu',
       name: 'Trainer',
       roomCode: '',

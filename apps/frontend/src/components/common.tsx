@@ -81,9 +81,10 @@ export function PageTitle({
     </div>
   );
 }
-export function TeamSlots({ compact = false }: { compact?: boolean }) {
+export function TeamSlots({ compact = false, ai = false }: { compact?: boolean; ai?: boolean }) {
   const c = useCopy();
-  const { team, rules, set } = useGame();
+  const { team: playerTeam, aiTeam, rules, set } = useGame();
+  const team = ai ? aiTeam : playerTeam;
   return (
     <div className={`team-slots ${compact ? 'compact' : ''}`}>
       {Array.from({ length: rules.teamSize }, (_, i) => (
@@ -92,7 +93,7 @@ export function TeamSlots({ compact = false }: { compact?: boolean }) {
           type="button"
           className={`team-slot ${team[i] ? 'filled' : ''}`}
           disabled={!team[i]}
-          onClick={() => set({ team: team.filter((_, j) => j !== i) })}
+          onClick={() => set({ [ai ? 'aiTeam' : 'team']: team.filter((_, j) => j !== i) })}
           aria-label={
             team[i]
               ? c('Remove {name} from slot {slot}')

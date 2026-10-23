@@ -204,7 +204,7 @@ export function RulesScreen() {
       state.set({ error: parsed.error.issues[0].message });
       return;
     }
-    state.set({ rules: parsed.data, team: [], error: '' });
+    state.set({ rules: parsed.data, team: [], aiTeam: [], error: '' });
     if (state.mode === 'online' && state.sessionId) sendRoom('rules', parsed.data);
     state.go('roster');
   }

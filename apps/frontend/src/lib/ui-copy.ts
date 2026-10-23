@@ -1,4 +1,7 @@
 export const vietnameseCopy: Record<string, string> = {
+  'Choose a team': 'Chọn đội hình',
+  'AI team': 'Đội AI',
+  'Choose AI Pokémon': 'Chọn Pokémon cho AI',
   'EVERY GREAT BATTLE STARTS HERE': 'HÀNH TRÌNH BẮT ĐẦU TỪ ĐÂY',
   'How will you play?': 'Bạn muốn chơi thế nào?',
   'A moment to yourself, or a little friendly competition.':
