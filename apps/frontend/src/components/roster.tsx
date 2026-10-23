@@ -127,7 +127,7 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
               { label: c('Health'), value: selected.hp, max: 240, Icon: Heart },
               { label: c('Attack'), value: selected.attack, max: 40, Icon: Swords },
               { label: c('Defense'), value: selected.defense, max: 45, Icon: Shield },
-              { label: c('Speed'), value: selected.speed, max: 220, Icon: Zap },
+              { label: c('Speed'), value: selected.speed, max: 250, Icon: Zap },
               { label: c('Sprint speed'), value: selected.sprintSpeed, max: 330, Icon: Zap },
               {
                 label: c('Stamina'),
