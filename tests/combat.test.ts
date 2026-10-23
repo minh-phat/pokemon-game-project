@@ -56,6 +56,57 @@ describe('rules and contracts', () => {
   });
 });
 describe('damage and hit geometry', () => {
+  it.each(speciesIds)('%s basic attack uses its own Attack percentage', (species) => {
+    const definition = POKEMON[species];
+    const originalAttack = definition.attack;
+    try {
+      for (const attack of [100, 200]) {
+        definition.attack = attack;
+        const e = battle([[species], ['charmander']], { elements: false });
+        const [a, b] = e.state.fighters;
+        a.x = 400;
+        b.x = 455;
+        a.depth = b.depth = 0;
+        a.thinkIn = b.thinkIn = 100;
+        a.invulnerable = b.invulnerable = 0;
+        const move = definition.skills[0];
+        const hp = b.hp;
+        expect(e.beginSkill(a, move.id)).toBe(true);
+        step(e, move.startup + 0.04);
+        expect(hp - b.hp).toBe(
+          Math.round(
+            (((attack * move.damagePercent) / 100) * 100) / (100 + POKEMON.charmander.defense),
+          ),
+        );
+      }
+    } finally {
+      definition.attack = originalAttack;
+    }
+  });
+  it.each(['burn', 'leech'] as const)(
+    '%s ticks use the source Attack and guard reduction',
+    (kind) => {
+      const originalAttack = POKEMON.bulbasaur.attack;
+      try {
+        for (const attack of [100, 200]) {
+          POKEMON.bulbasaur.attack = attack;
+          const e = battle([['bulbasaur'], ['charmander']]);
+          const [a, b] = e.state.fighters;
+          a.thinkIn = b.thinkIn = 100;
+          a.hp = 50;
+          b.guarded = true;
+          b.effects = [{ kind, duration: 2, strength: 20, sourceId: a.id, pulse: 1 }];
+          const hp = b.hp;
+          e.updateBattle(FIXED_DELTA);
+          expect(hp - b.hp).toBe(attack * 0.2 * 0.8);
+          expect(a.hp).toBe(kind === 'leech' ? 50 + attack * 0.2 * 0.8 : 50);
+        }
+      } finally {
+        POKEMON.bulbasaur.attack = originalAttack;
+      }
+    },
+  );
+
   it('fires three fast Ember Glyph seals in a triangular spread from Runedrake', () => {
     expect(POKEMON.runedrake.skills[1].id).toBe('ember-glyph');
     expect(POKEMON.charmander.skills.some((skill) => skill.id === 'ember')).toBe(true);
@@ -79,7 +130,7 @@ describe('damage and hit geometry', () => {
     ).toBe(true);
     expect(shots.every((p) => p.life > 0.9)).toBe(true);
   });
-  it.each([1, 2, 3])('deals exactly 8 damage per Ember Glyph seal when %i hit', (hits) => {
+  it.each([1, 2, 3])('scales each Ember Glyph seal with Attack when %i hit', (hits) => {
     const e = battle([['runedrake'], ['charmander']]);
     const [a, b] = e.state.fighters;
     a.x = 200;
@@ -101,7 +152,10 @@ describe('damage and hit geometry', () => {
     });
     const hp = b.hp;
     e.updateBattle(FIXED_DELTA);
-    expect(hp - b.hp).toBe(8 * hits);
+    expect(hp - b.hp).toBe(
+      calculateDamage(32, POKEMON.runedrake.attack, POKEMON.charmander.defense, 'fire', 'fire') *
+        hits,
+    );
     expect(
       e.state.events.filter((event) => event.kind === 'damage' && event.text.startsWith('Hỏa Ấn')),
     ).toHaveLength(hits);
@@ -128,7 +182,7 @@ describe('damage and hit geometry', () => {
     }
   });
   it.each(['pikachu', 'charmander', 'squirtle', 'bulbasaur', 'eevee', 'runedrake'] as SpeciesId[])(
-    'dashes to and binds %s for exactly 30 damage',
+    'dashes to and binds %s for three Attack-based damage pulses',
     (species) => {
       const e = battle([['runedrake'], [species]]);
       const [a, b] = e.state.fighters;
@@ -139,6 +193,13 @@ describe('damage and hit geometry', () => {
       a.invulnerable = b.invulnerable = 0;
       expect(POKEMON.runedrake.skills[2].id).toBe('cursed-scroll-bind');
       const hp = b.hp;
+      const pulseDamage = calculateDamage(
+        40,
+        POKEMON.runedrake.attack,
+        POKEMON[species].defense,
+        'normal',
+        POKEMON[species].element,
+      );
       expect(e.beginSkill(a, 'cursed-scroll-bind')).toBe(true);
       step(e, 0.18);
       expect(a.x).toBeGreaterThan(590);
@@ -150,12 +211,12 @@ describe('damage and hit geometry', () => {
       expect(a.cast?.bound).toBe(true);
       expect(b.hp).toBe(hp);
       step(e, 0.16);
-      expect(b.hp).toBe(hp - 10);
+      expect(b.hp).toBe(hp - pulseDamage);
       step(e, 1);
       expect(a.cast?.bound).toBe(true);
-      expect(b.hp).toBe(hp - 20);
+      expect(b.hp).toBe(hp - 2 * pulseDamage);
       step(e, 1);
-      expect(b.hp).toBe(hp - 30);
+      expect(b.hp).toBe(hp - 3 * pulseDamage);
       step(e, 0.25);
       expect(a.cast?.skillId).not.toBe('cursed-scroll-bind');
     },
@@ -401,6 +462,16 @@ describe('damage and hit geometry', () => {
     expect(a.facing).toBe(-1);
     expect(b.hp).toBeLessThan(secondHit);
   });
+  it.each([
+    [50, 40, 20],
+    [100, 40, 40],
+    [150, 40, 60],
+    [150, 80, 120],
+    [0, 40, 0],
+    [100, 0, 0],
+  ])('uses %i%% of %i Attack to deal %i unmitigated damage', (percent, attack, expected) => {
+    expect(calculateDamage(percent, attack, 0, 'normal', 'normal', false)).toBe(expected);
+  });
   it('scales damage with attack, defense, effectiveness, and guard', () => {
     const normal = calculateDamage(25, 25, 20, 'fire', 'grass', false);
     expect(calculateDamage(25, 25, 40, 'fire', 'grass', false)).toBeLessThan(normal);
@@ -496,7 +567,7 @@ describe('skills and state', () => {
   it.each(
     Object.values(POKEMON).flatMap((p) =>
       p.skills
-        .filter((s) => s.id !== 'counter-pounce' && s.damage > 0)
+        .filter((s) => s.id !== 'counter-pounce' && s.damagePercent > 0)
         .map((s) => ({ species: p.id, skill: s.id })),
     ),
   )('$species activates $skill and resolves a real hit', ({ species, skill }) => {
@@ -562,7 +633,7 @@ describe('skills and state', () => {
     a.hp = 50;
     a.thinkIn = b.thinkIn = 100;
     b.hp = 3;
-    b.effects = [{ kind: 'leech', duration: 2, strength: 4, sourceId: a.id, pulse: 0.99 }];
+    b.effects = [{ kind: 'leech', duration: 2, strength: 16, sourceId: a.id, pulse: 0.99 }];
     e.updateBattle(FIXED_DELTA);
     expect(b.state).toBe('Fainted');
     expect(b.active).toBe(false);
@@ -922,7 +993,7 @@ describe('basic guard', () => {
         f = e.state.fighters[0];
       e.setGuard(f, true);
       const expected = calculateDamage(
-        SKILLS.waterGun.damage,
+        SKILLS.waterGun.damagePercent,
         POKEMON.squirtle.attack,
         POKEMON[species].defense,
         'water',
@@ -946,7 +1017,7 @@ describe('basic guard', () => {
     f.effects.push({ kind: 'shield', duration: 2, strength: 0.55 });
     expect(shoot(e)).toBe(
       calculateDamage(
-        SKILLS.waterGun.damage,
+        SKILLS.waterGun.damagePercent,
         POKEMON.squirtle.attack,
         POKEMON.pikachu.defense,
         'water',
@@ -960,7 +1031,13 @@ describe('basic guard', () => {
     const e = guardedBattle(),
       f = e.state.fighters[0];
     e.setGuard(f, true);
-    f.effects.push({ kind: 'burn', duration: 2, strength: 5, pulse: 1 });
+    f.effects.push({
+      kind: 'burn',
+      duration: 2,
+      strength: 20,
+      sourceId: e.state.fighters[1].id,
+      pulse: 1,
+    });
     const hp = f.hp;
     e.updateBattle(FIXED_DELTA);
     expect(hp - f.hp).toBe(4);

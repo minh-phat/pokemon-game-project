@@ -16,7 +16,7 @@ function skill(
   name: string,
   element: Element,
   behavior: SkillDefinition['behavior'],
-  damage: number,
+  damagePercent: number,
   energy: number,
   cooldown: number,
   range: number,
@@ -30,7 +30,7 @@ function skill(
     element,
     behavior,
     damageType: behavior === 'melee' ? 'physical' : 'special',
-    damage,
+    damagePercent,
     energy,
     cooldown,
     range,
@@ -60,7 +60,7 @@ function skill(
   };
 }
 export const SKILLS = {
-  springTackle: skill('spring-tackle', 'Húc Lò Xo', 'water', 'melee', 15, 0, 1.3, 125, {
+  springTackle: skill('spring-tackle', 'Húc Lò Xo', 'water', 'melee', 60, 0, 1.3, 125, {
     description: 'Nén cơ thể như lò xo rồi bật tới húc đối thủ.',
     startup: 0.3,
     active: 0.22,
@@ -68,7 +68,7 @@ export const SKILLS = {
     knockback: 135,
     movement: { speed: 390, duration: 0.22, delay: 0.3 },
   }),
-  waterOrb: skill('water-orb', 'Cầu Nước', 'water', 'projectile', 22, 15, 2.8, 520, {
+  waterOrb: skill('water-orb', 'Cầu Nước', 'water', 'projectile', 88, 15, 2.8, 520, {
     description: 'Phồng má rồi bắn một quả cầu nước nhỏ từ miệng.',
     startup: 0.36,
     projectileSpeed: 480,
@@ -82,8 +82,9 @@ export const SKILLS = {
     animation: 'guard',
     effects: [{ kind: 'shield', duration: 3, strength: 0.65 }],
   }),
-  liquidWrap: skill('liquid-wrap', 'Bao Phủ Thủy Dịch', 'water', 'melee', 30, 32, 8, 340, {
-    description: 'Lao tới bao phủ toàn thân đối thủ bằng nước, giữ bất động 3 giây.',
+  liquidWrap: skill('liquid-wrap', 'Bao Phủ Thủy Dịch', 'water', 'melee', 120, 32, 8, 340, {
+    description:
+      'Lao tới bao phủ toàn thân đối thủ bằng nước, giữ bất động 3 giây và gây tổng cộng 120% Tấn công sát thương.',
     startup: 0.3,
     active: 3,
     recovery: 0.25,
@@ -101,18 +102,18 @@ export const SKILLS = {
     animation: 'idle',
     effects: [{ kind: 'invisible', duration: 5, strength: 1 }],
   }),
-  quickAttack: skill('quick-attack', 'Quick Attack', 'normal', 'melee', 13, 0, 0.9, 88, {
+  quickAttack: skill('quick-attack', 'Quick Attack', 'normal', 'melee', 52, 0, 0.9, 88, {
     description: 'A fast lunge that closes the gap.',
     knockback: 70,
     recovery: 0.16,
     movement: { speed: 320, duration: 0.18 },
   }),
-  thunderbolt: skill('thunderbolt', 'Thunderbolt', 'electric', 'projectile', 24, 20, 3.4, 520, {
+  thunderbolt: skill('thunderbolt', 'Thunderbolt', 'electric', 'projectile', 96, 20, 3.4, 520, {
     description: 'A quick electric bolt with a brief stun.',
     projectileSpeed: 660,
     effects: [{ kind: 'stun', duration: 0.3, strength: 1 }],
   }),
-  electroBall: skill('electro-ball', 'Electro Ball', 'electric', 'projectile', 40, 45, 10, 600, {
+  electroBall: skill('electro-ball', 'Electro Ball', 'electric', 'projectile', 160, 45, 10, 600, {
     description:
       'A large, slow electric orb. Nearby arcs deal 30% damage; both hits paralyze for 2 seconds.',
     projectileSpeed: 210,
@@ -122,13 +123,13 @@ export const SKILLS = {
     electricAura: { reach: 42, damageScale: 0.3 },
     usage: { minRange: 120, priority: 1.5 },
   }),
-  thunderWave: skill('thunder-wave', 'Thunder Wave', 'electric', 'debuff', 7, 14, 5, 430, {
+  thunderWave: skill('thunder-wave', 'Thunder Wave', 'electric', 'debuff', 28, 14, 5, 430, {
     description: 'A low wave of electricity that slows its target.',
     hitbox: { width: 42, height: 18, altitude: 13 },
     effects: [{ kind: 'slow', duration: 2.6, strength: 0.48 }],
     usage: { minRange: 120, priority: 1.2 },
   }),
-  voltTackle: skill('volt-tackle', 'Volt Tackle', 'electric', 'melee', 34, 32, 6, 150, {
+  voltTackle: skill('volt-tackle', 'Volt Tackle', 'electric', 'melee', 136, 32, 6, 150, {
     description: 'An electrified dash with heavy knockback.',
     startup: 0.28,
     knockback: 260,
@@ -136,24 +137,25 @@ export const SKILLS = {
     animation: 'dash',
     movement: { speed: 480, duration: 0.3 },
   }),
-  scratch: skill('scratch', 'Scratch', 'normal', 'melee', 15, 0, 1, 83, {
+  scratch: skill('scratch', 'Scratch', 'normal', 'melee', 60, 0, 1, 83, {
     description: 'A sharp close-range strike.',
   }),
-  ember: skill('ember', 'Ember', 'fire', 'projectile', 19, 14, 2.6, 440, {
-    description: 'A small fireball that burns over time.',
-    effects: [{ kind: 'burn', duration: 2, strength: 2 }],
+  ember: skill('ember', 'Ember', 'fire', 'projectile', 76, 14, 2.6, 440, {
+    description: 'A small fireball that burns for 8% ATK per second.',
+    effects: [{ kind: 'burn', duration: 2, strength: 8 }],
   }),
   emberGlyph: skill(
     'ember-glyph',
     'Hỏa Ấn Tốc Lực (Ember Glyph)',
     'fire',
     'projectile',
-    8,
+    32,
     18,
     3.2,
     620,
     {
-      description: 'Three small flaming glyphs fly in a fast triangular spread over long range.',
+      description:
+        'Three small flaming glyphs fly in a fast triangular spread over long range, each dealing 32% ATK damage.',
       startup: 0.34,
       projectileSpeed: 650,
       hitbox: { width: 24, height: 24, altitude: 29 },
@@ -162,48 +164,49 @@ export const SKILLS = {
       usage: { minRange: 140, priority: 1.3 },
     },
   ),
-  flamethrower: skill('flamethrower', 'Flamethrower', 'fire', 'area', 32, 30, 5.5, 230, {
+  flamethrower: skill('flamethrower', 'Flamethrower', 'fire', 'area', 128, 30, 5.5, 230, {
     description: 'A sweeping cone of flame. Hits enemies in front.',
     hitbox: { width: 230, height: 58, altitude: 30 },
     startup: 0.5,
     usage: { minRange: 0, priority: 1.5 },
   }),
-  flameBurst: skill('flame-burst', 'Flame Burst', 'fire', 'projectile', 35, 34, 6.4, 480, {
+  flameBurst: skill('flame-burst', 'Flame Burst', 'fire', 'projectile', 140, 34, 6.4, 480, {
     description: 'A high fireball with explosive power.',
     hitbox: { width: 38, height: 26, altitude: 42 },
     startup: 0.6,
     knockback: 190,
     usage: { minRange: 100, priority: 1.4 },
   }),
-  infernoStream: skill('inferno-stream', 'Inferno Stream', 'fire', 'area', 7, 42, 10, 270, {
-    description: 'A three-second cone of fire, hitting every half-second. Burns for five seconds.',
+  infernoStream: skill('inferno-stream', 'Inferno Stream', 'fire', 'area', 28, 42, 10, 270, {
+    description:
+      'A three-second cone of fire, hitting every half-second. Burns for 12% ATK per second for five seconds.',
     startup: 0.35,
     active: 3,
     recovery: 0.35,
     hitbox: { width: 210, height: 62, altitude: 31 },
     knockback: 0,
-    effects: [{ kind: 'burn', duration: 5, strength: 3 }],
+    effects: [{ kind: 'burn', duration: 5, strength: 12 }],
     channel: { interval: 0.5, halfAngle: 22 },
     usage: { minRange: 70, priority: 1.7 },
   }),
-  dragonLaser: skill('dragon-laser', 'Hỏa Long Lazer', 'fire', 'area', 8, 45, 10, 650, {
+  dragonLaser: skill('dragon-laser', 'Hỏa Long Lazer', 'fire', 'area', 32, 45, 10, 650, {
     description:
-      'Charge fire in its mouth, then sustain a narrow laser. Opposing beams meet and push against each other.',
+      'Charge fire in its mouth, then sustain a narrow laser. Opposing beams meet and push against each other. Burns for 8% ATK per second.',
     startup: 0.75,
     active: 2.4,
     recovery: 0.35,
     hitbox: { width: 34, height: 38, altitude: 30 },
     knockback: 0,
-    effects: [{ kind: 'burn', duration: 1.5, strength: 2 }],
+    effects: [{ kind: 'burn', duration: 1.5, strength: 8 }],
     beam: { width: 34, interval: 0.4, clashPower: 1 },
     events: [],
     usage: { minRange: 150, priority: 1.75 },
   }),
-  tackle: skill('tackle', 'Tackle', 'normal', 'melee', 13, 0, 1.15, 88, {
+  tackle: skill('tackle', 'Tackle', 'normal', 'melee', 52, 0, 1.15, 88, {
     description: 'A sturdy body check.',
     knockback: 160,
   }),
-  tailWhip: skill('tail-whip', 'Tail Whip', 'normal', 'melee', 13, 0, 1.15, 160, {
+  tailWhip: skill('tail-whip', 'Tail Whip', 'normal', 'melee', 52, 0, 1.15, 160, {
     description: 'Sweeps its long tail forward to strike at medium range.',
     startup: 0.22,
     active: 0.16,
@@ -215,13 +218,13 @@ export const SKILLS = {
     'Trầm Mộc Chấn Lực (Cursed Scroll Bind)',
     'normal',
     'melee',
-    30,
+    120,
     30,
     7,
     340,
     {
       description:
-        'Dash at a medium-range foe, coil tighter for three seconds, and squeeze for 30 total damage. Oversized foes cannot be bound.',
+        'Dash at a medium-range foe, coil tighter for three seconds, and squeeze for 120% ATK total damage. Oversized foes cannot be bound.',
       startup: 0.24,
       active: 3,
       recovery: 0.22,
@@ -231,17 +234,17 @@ export const SKILLS = {
       usage: { minRange: 65, priority: 1.55 },
     },
   ),
-  waterGun: skill('water-gun', 'Water Gun', 'water', 'projectile', 20, 14, 2.8, 500, {
+  waterGun: skill('water-gun', 'Water Gun', 'water', 'projectile', 80, 14, 2.8, 500, {
     description: 'A focused stream of water.',
     projectileSpeed: 560,
   }),
-  bubbleBeam: skill('bubble-beam', 'Bubble Beam', 'water', 'debuff', 24, 24, 4.5, 480, {
+  bubbleBeam: skill('bubble-beam', 'Bubble Beam', 'water', 'debuff', 96, 24, 4.5, 480, {
     description: 'A low stream of bubbles that slows pursuit.',
     hitbox: { width: 48, height: 19, altitude: 14 },
     effects: [{ kind: 'slow', duration: 2, strength: 0.4 }],
     usage: { minRange: 90, priority: 1.3 },
   }),
-  rapidSpin: skill('rapid-spin', 'Rapid Spin', 'water', 'buff', 21, 24, 5, 115, {
+  rapidSpin: skill('rapid-spin', 'Rapid Spin', 'water', 'buff', 84, 24, 5, 115, {
     description: 'Guard in your shell, spin, and strike nearby foes.',
     animation: 'guard',
     effects: [{ kind: 'shield', duration: 1.8, strength: 0.55 }],
@@ -253,21 +256,21 @@ export const SKILLS = {
     startup: 0.15,
     active: 0.3,
   }),
-  vineWhip: skill('vine-whip', 'Vine Whip', 'grass', 'melee', 14, 0, 1.25, 170, {
+  vineWhip: skill('vine-whip', 'Vine Whip', 'grass', 'melee', 56, 0, 1.25, 170, {
     description: 'A vine lashes out beyond ordinary melee range.',
     hitbox: { width: 170, height: 35, altitude: 25 },
   }),
-  razorLeaf: skill('razor-leaf', 'Razor Leaf', 'grass', 'projectile', 22, 17, 3, 540, {
+  razorLeaf: skill('razor-leaf', 'Razor Leaf', 'grass', 'projectile', 88, 17, 3, 540, {
     description: 'A fast leaf thrown from a safe distance.',
     projectileSpeed: 550,
     usage: { minRange: 80, priority: 1.3 },
   }),
-  leechSeed: skill('leech-seed', 'Leech Seed', 'grass', 'debuff', 8, 23, 6, 480, {
-    description: 'A seed drains health back to Bulbasaur.',
-    effects: [{ kind: 'leech', duration: 4, strength: 4 }],
+  leechSeed: skill('leech-seed', 'Leech Seed', 'grass', 'debuff', 32, 23, 6, 480, {
+    description: 'A seed drains 16% ATK health per second back to Bulbasaur.',
+    effects: [{ kind: 'leech', duration: 4, strength: 16 }],
     usage: { minRange: 100, priority: 1.5 },
   }),
-  solarBeam: skill('solar-beam', 'Solar Beam', 'grass', 'projectile', 46, 42, 8, 680, {
+  solarBeam: skill('solar-beam', 'Solar Beam', 'grass', 'projectile', 184, 42, 8, 680, {
     description: 'Charge sunlight into a powerful, high beam.',
     startup: 0.9,
     projectileSpeed: 850,
@@ -275,23 +278,23 @@ export const SKILLS = {
     knockback: 200,
     usage: { minRange: 200, priority: 1.8 },
   }),
-  sludgeBomb: skill('sludge-bomb', 'Sludge Bomb', 'poison', 'projectile', 24, 30, 7, 440, {
+  sludgeBomb: skill('sludge-bomb', 'Sludge Bomb', 'poison', 'projectile', 96, 30, 7, 440, {
     description:
-      'Lob a toxic sludge bomb. The hit deals damage and leaves a wide poison pool for 5 seconds; a miss leaves the same pool where it lands.',
+      'Lob a toxic sludge bomb. The hit deals damage and leaves a wide poison pool for 5 seconds; a miss leaves the same pool where it lands. The pool deals 16% ATK every half-second.',
     projectileSpeed: 430,
     hitbox: { width: 34, height: 30, altitude: 27 },
     knockback: 0,
-    groundHazard: { radius: 108, duration: 5, interval: 0.5, damage: 4 },
+    groundHazard: { radius: 108, duration: 5, interval: 0.5, damagePercent: 16 },
     usage: { minRange: 100, priority: 1.55 },
   }),
-  eeveeStrike: skill('eevee-strike', 'Quick Paw', 'normal', 'melee', 13, 0, 0.8, 82, {
+  eeveeStrike: skill('eevee-strike', 'Quick Paw', 'normal', 'melee', 52, 0, 0.8, 82, {
     description: 'A quick close-range front-paw strike.',
     startup: 0.1,
     active: 0.1,
     recovery: 0.16,
     knockback: 60,
   }),
-  swift: skill('swift', 'Swift', 'normal', 'projectile', 7, 20, 3.6, 520, {
+  swift: skill('swift', 'Swift', 'normal', 'projectile', 28, 20, 3.6, 520, {
     description: 'Five rotating stars launch in sequence and steer briefly toward the target.',
     startup: 0.22,
     active: 0.52,
@@ -306,7 +309,7 @@ export const SKILLS = {
     })),
     usage: { minRange: 90, priority: 1.25 },
   }),
-  shadowStep: skill('shadow-step', 'Shadow Step', 'normal', 'melee', 20, 28, 6, 320, {
+  shadowStep: skill('shadow-step', 'Shadow Step', 'normal', 'melee', 80, 28, 6, 320, {
     description:
       'Curve around the target, ignore collision damage for one second, then strike from behind.',
     startup: 0.18,
@@ -317,9 +320,9 @@ export const SKILLS = {
     knockback: 95,
     usage: { minRange: 0, priority: 1.4 },
   }),
-  counterPounce: skill('counter-pounce', 'Counter Pounce', 'normal', 'buff', 28, 25, 8, 130, {
+  counterPounce: skill('counter-pounce', 'Counter Pounce', 'normal', 'buff', 112, 25, 8, 130, {
     description:
-      'Guard for up to three seconds. Reduce the triggering hit by 70%, then pounce for 28 damage.',
+      'Guard for up to three seconds. Reduce the triggering hit by 70%, then pounce for 112% ATK damage.',
     startup: 0,
     active: 3,
     recovery: 0.1,
@@ -327,8 +330,9 @@ export const SKILLS = {
     events: [],
     usage: { minRange: 0, priority: 1.25 },
   }),
-  starfallRush: skill('starfall-rush', 'Starfall Rush', 'normal', 'melee', 8, 50, 12, 330, {
-    description: 'Four 8-damage zigzag strikes followed by an 18-damage knockback landing.',
+  starfallRush: skill('starfall-rush', 'Starfall Rush', 'normal', 'melee', 32, 50, 12, 330, {
+    finisherDamagePercent: 72,
+    description: 'Four zigzag strikes at 32% ATK each followed by a 72% ATK knockback landing.',
     startup: 0.38,
     active: 1.28,
     recovery: 0.28,

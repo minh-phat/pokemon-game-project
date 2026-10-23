@@ -91,6 +91,7 @@ export type StatusKind = 'stun' | 'slow' | 'leech' | 'burn' | 'shield' | 'invisi
 export interface StatusEffect {
   kind: StatusKind;
   duration: number;
+  /** Burn/leech: % of source Attack per second. Other statuses keep their own units. */
   strength: number;
   sourceId?: string;
   pulse?: number;
@@ -102,7 +103,9 @@ export interface SkillDefinition {
   element: Element;
   behavior: 'melee' | 'projectile' | 'area' | 'buff' | 'debuff';
   damageType: 'physical' | 'special';
-  damage: number;
+  /** Percentage of the caster's Attack; 100 means 100% ATK. */
+  damagePercent: number;
+  finisherDamagePercent?: number;
   energy: number;
   cooldown: number;
   range: number;
@@ -122,7 +125,7 @@ export interface SkillDefinition {
   beam?: { width: number; interval: number; clashPower: number };
   electricAura?: { reach: number; damageScale: number };
   movement?: { speed: number; duration: number; delay?: number };
-  groundHazard?: { radius: number; duration: number; interval: number; damage: number };
+  groundHazard?: { radius: number; duration: number; interval: number; damagePercent: number };
   homing?: { turnRate: number; duration: number };
 }
 export interface PokemonDefinition {

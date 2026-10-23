@@ -50,7 +50,7 @@ new Phaser.Game({
             aimX: -1,
             aimDepth: 0,
             cast: null,
-            effects: [{ kind: 'burn', duration: 4, strength: 3 }],
+            effects: [{ kind: 'burn', duration: 4, strength: 12 }],
           } as unknown as Fighter,
           {
             id: 'bind-preview',

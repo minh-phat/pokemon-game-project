@@ -886,7 +886,7 @@ export class BattleEngine {
         const mask = 1 << (pulse + 1);
         if (cast.elapsed + 1e-9 >= s.startup + pulse + 1 && !(cast.fired & mask)) {
           cast.fired |= mask;
-          this.hit(f, target, s, 10);
+          this.hit(f, target, s, s.damagePercent / 3);
         }
       }
     }
@@ -943,7 +943,7 @@ export class BattleEngine {
             target.y <= 42 &&
             Math.hypot(target.x - f.x, target.depth - f.depth) <= s.range + 20
           )
-            this.hit(f, target, s, 28);
+            this.hit(f, target, s);
           this.animate(f, 'land');
         }
         if (age >= 0.8) f.cast = null;
@@ -992,7 +992,7 @@ export class BattleEngine {
               name: i === 4 ? 'Starfall Rush · finale' : s.name,
               knockback: i === 4 ? 220 : 0,
             },
-            i === 4 ? 18 : 8,
+            i === 4 ? s.finisherDamagePercent : s.damagePercent,
           );
       }
       if (cast.elapsed >= s.startup + s.active + s.recovery) f.cast = null;
@@ -1330,7 +1330,7 @@ export class BattleEngine {
             continue;
           }
           if (f.invulnerable <= 0) {
-            this.hit(owner, f, skill, skill.id === 'ember-glyph' ? skill.damage : undefined, {
+            this.hit(owner, f, skill, undefined, {
               x: p.previousX,
               depth: p.previousDepth,
             });
@@ -1358,7 +1358,7 @@ export class BattleEngine {
           this.hit(owner, f, {
             ...skill,
             name: `${skill.name} · arc`,
-            damage: skill.damage * damageScale,
+            damagePercent: skill.damagePercent * damageScale,
           });
           (p.auraHitIds ??= []).push(f.id);
         }
@@ -1413,7 +1413,7 @@ export class BattleEngine {
         const damage = Math.min(
           target.hp,
           calculateDamage(
-            config.damage,
+            config.damagePercent,
             POKEMON[source.species].attack,
             POKEMON[target.species].defense,
             skill.element,
@@ -1469,7 +1469,7 @@ export class BattleEngine {
     source: Fighter,
     target: Fighter,
     s: SkillDefinition,
-    flatDamage?: number,
+    damagePercent = s.damagePercent,
     origin?: { x: number; depth: number },
   ) {
     this.constrain(source);
@@ -1488,18 +1488,15 @@ export class BattleEngine {
       .reduce((v, e) => Math.max(v, e.strength), 0);
     const guard = Math.max(counter ? 0.7 : target.guarded ? BASIC_GUARD_REDUCTION : 0, shield);
     const amount = Math.round(
-      (flatDamage === undefined
-        ? calculateDamage(
-            s.damage,
-            POKEMON[source.species].attack,
-            POKEMON[target.species].defense,
-            s.element,
-            POKEMON[target.species].element,
-            this.state.rules.elements,
-            guard,
-          )
-        : flatDamage * (1 - guard)) *
-        (source.species === 'eevee' && (source.adaptiveCharge ?? 0) > 0 ? 1.15 : 1),
+      calculateDamage(
+        damagePercent,
+        POKEMON[source.species].attack,
+        POKEMON[target.species].defense,
+        s.element,
+        POKEMON[target.species].element,
+        this.state.rules.elements,
+        guard,
+      ) * (source.species === 'eevee' && (source.adaptiveCharge ?? 0) > 0 ? 1.15 : 1),
     );
     if (source.species === 'eevee' && (source.adaptiveCharge ?? 0) > 0) source.adaptiveCharge = 0;
     target.hp = Math.max(0, target.hp - amount);
@@ -1548,16 +1545,19 @@ export class BattleEngine {
         effect.pulse = (effect.pulse ?? 0) + dt;
         if (effect.pulse >= 1) {
           effect.pulse -= 1;
+          const source = this.state.fighters.find((s) => s.id === effect.sourceId);
           const damage = Math.min(
             f.hp,
-            effect.strength * (f.guarded ? 1 - BASIC_GUARD_REDUCTION : 1),
+            Math.round(
+              (((source ? POKEMON[source.species].attack : 0) * effect.strength) / 100) *
+                (f.guarded ? 1 - BASIC_GUARD_REDUCTION : 1),
+            ),
           );
           f.hp -= damage;
           this.event('damage', f, effect.kind, {
             value: damage,
             element: effect.kind === 'burn' ? 'fire' : 'grass',
           });
-          const source = this.state.fighters.find((s) => s.id === effect.sourceId);
           if (source) {
             source.damageDealt += damage;
             if (effect.kind === 'leech' && source.hp > 0) {

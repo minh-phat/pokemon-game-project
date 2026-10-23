@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { initializeBattle, FIXED_DELTA } from '@arena/game-core';
+import { initializeBattle, FIXED_DELTA, calculateDamage } from '@arena/game-core';
 import { decideAction } from '@arena/game-ai';
+import { POKEMON, SKILLS } from '@arena/game-data';
 import { DEFAULT_RULES } from '@arena/shared-types';
 
 function battle(opponent: 'charmander' | 'squirtle' = 'charmander') {
@@ -21,6 +22,15 @@ function battle(opponent: 'charmander' | 'squirtle' = 'charmander') {
   eevee.invulnerable = enemy.invulnerable = 0;
   eevee.thinkIn = enemy.thinkIn = 100;
   return { engine, eevee, enemy };
+}
+function damage(percent: number) {
+  return calculateDamage(
+    percent,
+    POKEMON.eevee.attack,
+    POKEMON.charmander.defense,
+    'normal',
+    'fire',
+  );
 }
 function step(engine: ReturnType<typeof battle>['engine'], seconds: number) {
   for (let i = 0; i < Math.round(seconds * 60); i++) engine.updateBattle(FIXED_DELTA);
@@ -88,7 +98,7 @@ describe('Eevee combat', () => {
     expect(eevee.adaptiveCharge).toBe(0);
   });
 
-  it('lets Counter Pounce expire, but reduces a triggering hit and returns exactly 28', () => {
+  it('lets Counter Pounce expire, but reduces a triggering hit and returns Attack-based damage', () => {
     const miss = battle();
     expect(miss.engine.beginSkill(miss.eevee, 'counter-pounce')).toBe(true);
     step(miss.engine, 3.2);
@@ -109,7 +119,7 @@ describe('Eevee combat', () => {
     step(normal.engine, 0.22);
     expect(guardedDamage).toBeLessThan((165 - normal.eevee.hp) * 0.4);
     step(engine, 0.7);
-    expect(enemy.hp).toBe(152);
+    expect(enemy.hp).toBe(180 - damage(SKILLS.counterPounce.damagePercent));
   });
 
   it('makes Shadow Step safe during the dash and lets targets escape later Starfall strikes', () => {
@@ -144,17 +154,20 @@ describe('Eevee combat', () => {
     expect(rush.engine.beginSkill(rush.eevee, 'starfall-rush')).toBe(true);
     step(rush.engine, 0.76);
     const earlyDamage = 180 - rush.enemy.hp;
-    expect(earlyDamage).toBe(16);
+    expect(earlyDamage).toBe(2 * damage(SKILLS.starfallRush.damagePercent));
     rush.enemy.x += 240;
     step(rush.engine, 1.3);
     expect(180 - rush.enemy.hp).toBe(earlyDamage);
   });
 
-  it('finishes Starfall Rush with four small hits and one 18-point knockback hit', () => {
+  it('finishes Starfall Rush with four small hits and an Attack-based knockback finisher', () => {
     const { engine, eevee, enemy } = battle();
     expect(engine.beginSkill(eevee, 'starfall-rush')).toBe(true);
     step(engine, 1.65);
-    expect(180 - enemy.hp).toBe(50);
+    expect(180 - enemy.hp).toBe(
+      4 * damage(SKILLS.starfallRush.damagePercent) +
+        damage(SKILLS.starfallRush.finisherDamagePercent!),
+    );
     expect(Math.hypot(enemy.vx, enemy.vDepth)).toBeGreaterThan(100);
   });
 

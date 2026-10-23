@@ -185,7 +185,7 @@ export function decideAction(
   if (
     f.species === 'eevee' &&
     threat &&
-    SKILL_BY_ID[threat.p.skillId]?.damage >= 25 &&
+    SKILL_BY_ID[threat.p.skillId]?.damagePercent >= 100 &&
     !f.cooldowns['shadow-step'] &&
     f.energy >= SKILL_BY_ID['shadow-step'].energy &&
     f.y < 2
@@ -243,7 +243,7 @@ export function decideAction(
           (state.rules.elements
             ? (EFFECTIVENESS[s.element]?.[POKEMON[target.species].element] ?? 1)
             : 1) +
-        s.damage / 65 +
+        ((s.damagePercent / 100) * def.attack) / 65 +
         random() * 0.65 +
         (s.behavior === 'buff' && hpRatio < 0.5 ? 0.65 : 0),
     }))

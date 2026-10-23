@@ -24,7 +24,7 @@ export function fighterBox(f: Fighter): Rect {
   };
 }
 export function calculateDamage(
-  base: number,
+  damagePercent: number,
   attack: number,
   defense: number,
   element: Element,
@@ -32,11 +32,11 @@ export function calculateDamage(
   enabled = true,
   guard = 0,
 ): number {
+  if (damagePercent <= 0 || attack <= 0) return 0;
   return Math.max(
     1,
     Math.round(
-      base *
-        (0.72 + attack / 70) *
+      ((attack * damagePercent) / 100) *
         (100 / (100 + defense)) *
         (enabled ? (EFFECTIVENESS[element]?.[target] ?? 1) : 1) *
         (1 - guard),

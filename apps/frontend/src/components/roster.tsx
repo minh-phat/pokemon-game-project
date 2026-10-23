@@ -190,7 +190,7 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
                   <strong>{s.name}</strong>
                   <p>{s.description}</p>
                   <small>
-                    {s.damage} {c('power')} · {s.energy} {c('energy')} · {s.cooldown}s{' '}
+                    {s.damagePercent}% {c('Attack')} · {s.energy} {c('energy')} · {s.cooldown}s{' '}
                     {c('cooldown')}
                   </small>
                 </div>
