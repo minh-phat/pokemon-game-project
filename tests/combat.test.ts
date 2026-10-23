@@ -1014,6 +1014,93 @@ describe('basic guard', () => {
   );
 });
 
+describe('casting while taking damage', () => {
+  function setup(skillId = 'ember', elapsed = 0) {
+    const e = battle([['pikachu'], ['charmander']], { switching: false });
+    const [a, b] = e.state.fighters;
+    a.x = 200;
+    b.x = 600;
+    for (const f of [a, b]) {
+      f.thinkIn = 999;
+      f.invulnerable = 0;
+      f.depth = 0;
+    }
+    expect(e.beginSkill(b, skillId)).toBe(true);
+    step(e, elapsed);
+    return e;
+  }
+  function strike(e: ReturnType<typeof battle>, skillId: string) {
+    const [a, b] = e.state.fighters;
+    e.state.projectiles.push({
+      id: 'incoming-hit',
+      ownerId: a.id,
+      team: a.team,
+      skillId,
+      x: b.x,
+      previousX: b.x,
+      depth: b.depth,
+      y: 28,
+      vx: 0,
+      width: 28,
+      height: 26,
+      life: 1,
+    });
+    e.updateBattle(FIXED_DELTA);
+  }
+  it.each(['ember-glyph', 'ember', 'thunder-wave', 'volt-tackle'])(
+    'finishes preparing and fires after being hit by %s',
+    (incoming) => {
+      const e = setup();
+      const b = e.state.fighters[1];
+      const cast = b.cast;
+      const hp = b.hp;
+      const animation = b.animation;
+      strike(e, incoming);
+      expect(b.hp).toBeLessThan(hp);
+      expect(b.cast).toBe(cast);
+      expect(b.state).toBe('CastSkill');
+      expect(b.animation).toBe(animation);
+      step(e, 0.4);
+      expect(e.state.projectiles.some((p) => p.ownerId === b.id && p.skillId === 'ember')).toBe(
+        true,
+      );
+      step(e, SKILLS.ember.startup + SKILLS.ember.active + SKILLS.ember.recovery - cast!.elapsed);
+      expect(b.cast).toBeNull();
+    },
+  );
+  it('continues an active channel after taking damage', () => {
+    const e = setup('inferno-stream', 0.5);
+    const b = e.state.fighters[1];
+    const cast = b.cast!;
+    const ticks = cast.channelTicks ?? 0;
+    strike(e, 'ember');
+    step(e, 0.5);
+    expect(b.cast).toBe(cast);
+    expect(cast.channelTicks).toBeGreaterThan(ticks);
+  });
+  it.each(['thunderbolt', 'electro-ball'])(
+    'cancels a preparing move immediately when %s paralyzes the caster',
+    (incoming) => {
+      const e = setup();
+      const b = e.state.fighters[1];
+      strike(e, incoming);
+      expect(b.cast).toBeNull();
+      expect(b.state).toBe('Stunned');
+      expect(e.beginSkill(b, 'ember')).toBe(false);
+      step(e, 0.4);
+      expect(e.state.projectiles.some((p) => p.ownerId === b.id)).toBe(false);
+    },
+  );
+  it('still cancels the move when damage makes the caster faint', () => {
+    const e = setup();
+    const b = e.state.fighters[1];
+    b.hp = 1;
+    strike(e, 'ember');
+    expect(b.cast).toBeNull();
+    expect(b.state).toBe('Fainted');
+  });
+});
+
 describe('Electro Ball', () => {
   function setup(offset = 0) {
     const e = battle(undefined, { switching: false });

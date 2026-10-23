@@ -1516,25 +1516,20 @@ export class BattleEngine {
       target.cast!.counterTargetId = source.id;
       target.vy = 320;
       this.animate(target, 'jump');
-    } else if (
-      !(
-        target.species === 'eevee' &&
-        target.cast?.skillId === 'starfall-rush' &&
-        target.cast.elapsed >= 0.46
-      )
-    )
-      target.cast = null;
+    }
     target.moveIntent = 0;
     target.moveDepth = 0;
-    target.state = counter ? 'Attack' : target.guarded ? 'Guard' : 'Recover';
-    if (!counter)
+    if (!target.cast) {
+      target.state = target.guarded ? 'Guard' : 'Recover';
       this.animate(target, target.guarded ? 'guard' : s.knockback > 170 ? 'knockback' : 'hit');
+    }
     if (s.behavior !== 'buff')
       for (const effect of s.effects) {
         target.effects = target.effects.filter((e) => e.kind !== effect.kind);
         target.effects.push({ ...effect, sourceId: source.id, pulse: 0 });
       }
     if (target.effects.some((e) => e.kind === 'stun')) {
+      target.cast = null;
       target.guarded = false;
       target.state = 'Stunned';
       this.animate(target, 'hit');
