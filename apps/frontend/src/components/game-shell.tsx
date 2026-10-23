@@ -27,7 +27,7 @@ import { Dialog } from './ui/dialog';
 export function GameShell() {
   const state = useGame();
   const { language, t } = useLanguage();
-  const isHome = state.screen === 'home';
+  const isHome = state.screen === 'home' || state.screen === 'modes';
   useEffect(() => {
     document.documentElement.lang = language;
   }, [language]);
@@ -196,9 +196,7 @@ export function GameShell() {
             </Button>
           </div>
         )}
-        {state.screen === 'home' && (
-          <Home isAppMode={isAppMode} onEnterFullscreen={() => void toggleFullscreen()} />
-        )}
+        {isHome && <Home isAppMode={isAppMode} onEnterFullscreen={() => void toggleFullscreen()} />}
         {state.screen === 'modes' && <ModeSelection />}
         {state.screen === 'rules' && <RulesScreen />}
         {state.screen === 'roster' && <RosterScreen />}

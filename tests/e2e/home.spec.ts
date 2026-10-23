@@ -189,3 +189,46 @@ test('portrait remains usable and offers a dismissible landscape hint', async ({
   await page.getByRole('button', { name: /HÀNH TRÌNH CỦA RIÊNG BẠN/ }).click();
   await expect(page.getByRole('heading', { name: 'Thiết lập trận đấu.' })).toBeVisible();
 });
+
+test('play opens a responsive mode popup, locks story mode and preserves both playable routes', async ({
+  page,
+}) => {
+  await mockAccount(page);
+  await page.goto('/');
+  const play = page.getByRole('button', { name: 'Chơi Ngay', exact: true });
+  await play.click();
+  const dialog = page.getByRole('dialog', { name: 'Bạn muốn chơi thế nào?' });
+  await expect(dialog).toBeVisible();
+  await expect(page.locator('.fantasy-home')).toBeAttached();
+  await expect(dialog.getByRole('button', { name: /Cốt truyện/ })).toBeDisabled();
+  for (const [width, height] of [
+    [1440, 900],
+    [390, 844],
+    [640, 360],
+  ]) {
+    await page.setViewportSize({ width, height });
+    const fits = await dialog.evaluate((element) => {
+      const r = element.getBoundingClientRect();
+      return (
+        r.left >= 0 &&
+        r.top >= 0 &&
+        r.right <= innerWidth &&
+        r.bottom <= innerHeight &&
+        element.scrollWidth <= element.clientWidth
+      );
+    });
+    expect(fits).toBe(true);
+    await page.screenshot({ path: `test-results/play-mode-${width}x${height}.png` });
+  }
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(play).toBeVisible();
+  await play.click();
+  await dialog.getByRole('button', { name: /Đấu PvP/ }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Cùng nhau chiến đấu.' })).toBeVisible();
+  await page.getByRole('button', { name: 'Quay lại', exact: true }).click();
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /Đấu với máy/ }).click();
+  await expect(page.getByRole('heading', { name: 'Thiết lập trận đấu.' })).toBeVisible();
+});

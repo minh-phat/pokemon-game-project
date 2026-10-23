@@ -1358,3 +1358,411 @@ body:has(.fantasy-app) .dialog-content .dialog-close {
   background-size: 400% 400%;
   image-rendering: auto;
 }
+
+/* Adventure selection floats over the home scene. */
+body:has(.fantasy-app) .dialog-content.play-mode-dialog {
+  width: calc(100% - 36px);
+  max-width: 1010px;
+  padding: 38px 30px 20px;
+  border-image-source: url('/assets/home/frame-champion.svg');
+  background-image:
+    radial-gradient(ellipse at 50% 0, #31405a80, transparent 65%), linear-gradient(#121f36, #091328);
+  text-align: center;
+  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+  scrollbar-width: thin;
+  scrollbar-color: #b59358 #101c35;
+}
+.play-mode-dialog .dialog-title {
+  margin: 8px 30px 10px;
+  font-family: Georgia, 'Times New Roman', serif;
+  color: #ffe1a0;
+  font-size: clamp(25px, 3.2vw, 38px);
+  text-shadow:
+    0 2px #512e24,
+    2px 3px #030b1d;
+}
+.play-mode-dialog > .muted {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.mode-dialog-ornament {
+  position: absolute;
+  top: 9px;
+  left: calc(50% - 15px);
+  width: 30px;
+  color: #ffe3a2;
+  font-size: 26px;
+  text-shadow: 0 0 16px #e9ad5388;
+}
+.mode-dialog-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 15px auto 23px;
+  width: 62%;
+  color: #d9af65;
+  font-size: 9px;
+}
+.mode-dialog-divider::before,
+.mode-dialog-divider::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(90deg, transparent, #aa865a);
+}
+.mode-dialog-divider::after {
+  transform: rotate(180deg);
+}
+.play-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 19px;
+}
+.play-mode-card {
+  --mode-accent: #ffdb8d;
+  --pixel-frame-width: 17px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 4px;
+  color: #fff4df;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    filter 160ms ease;
+}
+.play-mode-online {
+  --mode-accent: #a6e5ff;
+  --pixel-frame: url('/assets/home/frame-blue.svg');
+}
+.play-mode-story {
+  --mode-accent: #c6bedf;
+  --pixel-frame: url('/assets/home/frame-blue.svg');
+  cursor: not-allowed;
+}
+.play-mode-card:hover:enabled {
+  transform: translateY(-5px);
+  filter: brightness(1.12);
+}
+.play-mode-card:active:enabled {
+  transform: translateY(-1px);
+}
+.play-mode-card:focus-visible {
+  outline: 3px solid #a6e5ff;
+  outline-offset: 5px;
+}
+.mode-card-art {
+  position: relative;
+  display: block;
+  height: 160px;
+  border-bottom: 2px solid #a6845066;
+  background:
+    linear-gradient(0deg, #111d36, #111d3600 65%),
+    url('/assets/home/lobby.webp') 35% 65% / cover;
+  image-rendering: pixelated;
+}
+.play-mode-online .mode-card-art {
+  background-image: linear-gradient(0deg, #111d36, #07253d22 65%), url('/assets/ruins-map.png');
+  background-position:
+    center,
+    50% 45%;
+}
+.play-mode-story .mode-card-art {
+  background-image: linear-gradient(0deg, #111d36, #16103133 65%), url('/assets/home/landing.webp');
+  background-position:
+    center,
+    85% 35%;
+  filter: saturate(0.65);
+}
+.mode-card-number {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  color: #fff1cf;
+  font: 12px monospace;
+  text-shadow: 1px 2px #08132b;
+}
+.mode-card-emblem {
+  position: absolute;
+  bottom: 8px;
+  left: calc(50% - 30px);
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  color: var(--mode-accent);
+  border: 4px solid transparent;
+  border-image: url('/assets/home/frame-gold.svg') 32 / 15px / 0 stretch;
+  background: #101c35e8;
+  background-clip: padding-box;
+  filter: drop-shadow(0 3px 0 #030918);
+}
+.play-mode-online .mode-card-emblem,
+.play-mode-story .mode-card-emblem {
+  border-image-source: url('/assets/home/frame-blue.svg');
+}
+.mode-coming-soon {
+  position: absolute;
+  top: 10px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 7px;
+  border: 1px solid #b6a2d383;
+  background: #1a1a33e8;
+  color: #e2d6fa;
+  font-size: 10px;
+  font-weight: 700;
+}
+.mode-art-spark {
+  position: absolute;
+  color: #ffe5ad;
+  text-shadow: 0 0 10px #ffd985;
+}
+.spark-one {
+  left: 22%;
+  top: 30%;
+  font-size: 20px;
+}
+.spark-two {
+  right: 20%;
+  top: 50%;
+  font-size: 14px;
+}
+.mode-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 14px 13px 12px;
+}
+.mode-card-tag {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.1px;
+  line-height: 1.6;
+  color: var(--mode-accent);
+}
+.mode-card-title {
+  margin-top: 5px;
+  font-size: 25px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: #fff1d6;
+  text-shadow: 1px 2px #050a18;
+}
+.mode-card-description {
+  margin: 9px 0 16px;
+  color: #bdcbe0;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.mode-card-detail {
+  margin-top: auto;
+  padding: 11px 0;
+  border-top: 1px solid #7287a333;
+  color: var(--mode-accent);
+  font-size: 10px;
+}
+.mode-card-action {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  min-height: 43px;
+  padding: 8px;
+  border: 3px solid transparent;
+  border-image: url('/assets/home/frame-gold.svg') 32 / 12px / 0 stretch;
+  background: linear-gradient(#ffe7a7 0 45%, #efc576 45% 90%, #ad753c 90%);
+  background-clip: padding-box;
+  color: #452a16;
+  font-size: 13px;
+  font-weight: 800;
+  text-shadow: 0 1px #fff1be;
+}
+.play-mode-online .mode-card-action {
+  border-image-source: url('/assets/home/frame-blue.svg');
+  background-image: linear-gradient(#255b8d 0 45%, #1a416a 45% 90%, #102544 90%);
+  color: #d8f2ff;
+  text-shadow: 0 1px #07142a;
+}
+.play-mode-story .mode-card-action {
+  border-image-source: url('/assets/home/frame-blue.svg');
+  background: #1d293f;
+  background-clip: padding-box;
+  color: #a8b4ca;
+  text-shadow: none;
+}
+.mode-dialog-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin: 19px 0 0;
+  color: #9eafc8;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.mode-dialog-footer > span {
+  color: #e9c27f;
+  font-size: 19px;
+}
+@media (max-width: 620px) {
+  body:has(.fantasy-app) .dialog-content.play-mode-dialog {
+    padding: 34px 15px 16px;
+  }
+  .play-mode-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .play-mode-card {
+    flex-direction: row;
+  }
+  .mode-card-art {
+    width: 28%;
+    height: auto;
+    flex-shrink: 0;
+    border-bottom: 0;
+    border-right: 1px solid #a6845066;
+  }
+  .mode-card-emblem {
+    width: 46px;
+    height: 46px;
+    left: calc(50% - 23px);
+    bottom: calc(50% - 23px);
+  }
+  .mode-card-emblem svg {
+    width: 25px;
+  }
+  .mode-card-body {
+    padding: 10px;
+  }
+  .mode-card-title {
+    font-size: 22px;
+  }
+  .mode-card-tag {
+    font-size: 8px;
+    letter-spacing: 0.5px;
+  }
+  .mode-card-description {
+    font-size: 11px;
+    margin: 6px 0 9px;
+    line-height: 1.5;
+  }
+  .mode-coming-soon {
+    top: auto;
+    bottom: 8px;
+    right: 3px;
+    left: 3px;
+    justify-content: center;
+    font-size: 8px;
+    padding-inline: 2px;
+    gap: 3px;
+  }
+  .mode-card-detail {
+    font-size: 9px;
+    padding: 7px 0;
+  }
+  .mode-dialog-footer {
+    font-size: 10px;
+  }
+}
+@media (max-height: 500px) and (min-width: 621px) {
+  body:has(.fantasy-app) .dialog-content.play-mode-dialog {
+    padding: 18px 20px 10px;
+  }
+  .mode-dialog-ornament {
+    display: none;
+  }
+  .play-mode-dialog .dialog-title {
+    font-size: 25px;
+    margin: 0 30px 4px;
+  }
+  .play-mode-dialog > .muted {
+    font-size: 11px;
+  }
+  .mode-dialog-divider {
+    margin: 5px auto 10px;
+  }
+  .play-mode-grid {
+    gap: 12px;
+  }
+  .mode-card-art {
+    height: 72px;
+  }
+  .mode-card-emblem {
+    height: 42px;
+    width: 42px;
+    left: calc(50% - 21px);
+    bottom: 3px;
+  }
+  .mode-card-emblem svg {
+    width: 24px;
+  }
+  .mode-card-body {
+    padding: 7px 9px;
+  }
+  .mode-card-tag {
+    font-size: 7px;
+    letter-spacing: 0.6px;
+  }
+  .mode-card-title {
+    font-size: 20px;
+    margin-top: 2px;
+  }
+  .mode-card-description {
+    font-size: 10px;
+    line-height: 1.4;
+    margin: 5px 0 8px;
+  }
+  .mode-card-detail {
+    font-size: 9px;
+    padding: 6px 0;
+  }
+  .mode-card-action {
+    min-height: 34px;
+    padding: 5px;
+    font-size: 11px;
+  }
+  .mode-dialog-footer {
+    margin-top: 8px;
+    font-size: 9px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .play-mode-card {
+    transition: none;
+  }
+}
+body:has(.reduce-motion) .play-mode-card {
+  transition: none;
+}
+@media (max-height: 400px) and (min-width: 621px) {
+  .mode-card-art {
+    height: 60px;
+  }
+  .mode-card-description {
+    display: none;
+  }
+  .mode-card-detail {
+    margin-top: 8px;
+  }
+  .mode-dialog-footer {
+    margin-top: 6px;
+  }
+}
+@media (max-height: 400px) and (min-width: 621px) {
+  .mode-card-action {
+    white-space: nowrap;
+    gap: 5px;
+    font-size: 10px;
+  }
+  .play-mode-ai .mode-card-action > svg:first-child,
+  .play-mode-online .mode-card-action > svg:first-child,
+  .mode-coming-soon,
+  .mode-dialog-footer {
+    display: none;
+  }
+}

@@ -1,9 +1,10 @@
 'use client';
-import { useCopy } from '@/lib/i18n';
+import { useCopy, useLanguage } from '@/lib/i18n';
 import { useState } from 'react';
 import {
   ArrowRight,
-  Bot,
+  BookOpen,
+  LockKeyhole,
   Check,
   Clock3,
   Flame,
@@ -19,77 +20,117 @@ import { PlayerNameSchema, RulesSchema, type MatchRules } from '@arena/shared-ty
 import { useGame } from '@/lib/store';
 import { connectRoom, sendRoom } from '@/lib/network';
 import { Button } from './ui/button';
+import { Dialog } from './ui/dialog';
 import { PageTitle, Steps } from './common';
 
 export function ModeSelection() {
-  const c = useCopy();
+  const { t } = useLanguage();
   const { set, go } = useGame();
+  const modes = [
+    {
+      mode: 'ai' as const,
+      title: t('Đấu với máy', 'VS AI'),
+      text: t(
+        'Rèn luyện kỹ năng, thử đội hình và chinh phục đấu trường theo cách của bạn.',
+        'Hone your skills, try new teams and conquer the arena at your own pace.',
+      ),
+      icon: Swords,
+      tag: t('HÀNH TRÌNH CỦA RIÊNG BẠN', 'YOUR PACE. YOUR ADVENTURE.'),
+      detail: t('1–4 linh thú · 3 độ khó', '1–4 companions · 3 difficulty levels'),
+      action: t('Vào luyện tập', 'Start training'),
+    },
+    {
+      mode: 'online' as const,
+      title: t('Đấu PvP', 'Online 1v1'),
+      text: t(
+        'Mời bạn bè, tập hợp linh thú và cùng so tài trong những trận đấu trực tuyến.',
+        'Invite a friend, gather your companions and face off in live online battles.',
+      ),
+      icon: Users,
+      tag: t('SO TÀI CÙNG BẠN BÈ', 'BETTER WITH A FRIEND.'),
+      detail: t('Online 1v1 · Phòng riêng', 'Online 1v1 · Private rooms'),
+      action: t('Vào đấu trường', 'Enter PvP'),
+    },
+    {
+      mode: 'story' as const,
+      title: t('Cốt truyện', 'Story mode'),
+      text: t(
+        'Băng qua những vùng đất bí ẩn, gặp gỡ linh thú và viết nên huyền thoại của bạn.',
+        'Journey through mysterious lands, meet magical companions and write your own legend.',
+      ),
+      icon: BookOpen,
+      tag: t('MỘT HUYỀN THOẠI ĐANG CHỜ', 'A LEGEND AWAITS.'),
+      detail: t('Hành trình mới đang được viết…', 'A new adventure is being written…'),
+      action: t('Sắp ra mắt', 'Coming soon'),
+    },
+  ];
   return (
-    <div className="page-wrap">
-      <Steps step={1} />
-      <PageTitle
-        eyebrow={c('EVERY GREAT BATTLE STARTS HERE')}
-        title={c('How will you play?')}
-        description={c('A moment to yourself, or a little friendly competition.')}
-        back={() => go('home')}
-      />
-      <div className="mode-selection">
-        {[
-          {
-            mode: 'ai' as const,
-            title: c('VS AI'),
-            text: c('Find your perfect team. Try new combinations against three levels of AI.'),
-            icon: Bot,
-            features: [
-              c('1–4 Pokémon per team'),
-              c('Three difficulty levels'),
-              c('Pause whenever you like'),
-            ],
-            tag: c('YOUR PACE. YOUR ADVENTURE.'),
-          },
-          {
-            mode: 'online' as const,
-            title: c('Online 1v1'),
-            text: c(
-              'Invite a friend, choose your teammates, and let their instincts do the talking.',
-            ),
-            icon: Users,
-            features: [
-              c('Private invitation rooms'),
-              c('Both players build a team'),
-              c('Live, synchronized battles'),
-            ],
-            tag: c('BETTER WITH A FRIEND.'),
-          },
-        ].map((m) => (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) go('home');
+      }}
+      className="play-mode-dialog"
+      title={t('Bạn muốn chơi thế nào?', 'How will you play?')}
+      description={t(
+        'Chọn hành trình của bạn. Đấu trường đang chờ!',
+        'Choose your adventure. The arena awaits!',
+      )}
+    >
+      <div className="mode-dialog-ornament" aria-hidden="true">
+        ✦
+      </div>
+      <div className="mode-dialog-divider" aria-hidden="true">
+        <span>◆</span>
+      </div>
+      <div className="play-mode-grid">
+        {modes.map((m, index) => (
           <button
             key={m.mode}
-            className="mode-choice"
+            className={`fantasy-frame play-mode-card play-mode-${m.mode}`}
+            disabled={m.mode === 'story'}
             onClick={() => {
+              if (m.mode === 'story') return;
               set({ mode: m.mode, team: [], snapshot: null });
               go(m.mode === 'ai' ? 'rules' : 'online');
             }}
           >
-            <m.icon size={38} />
-            <span className="eyebrow">{m.tag}</span>
-            <h2>{m.title}</h2>
-            <p className="muted">{m.text}</p>
-            <ul>
-              {m.features.map((f) => (
-                <li key={f}>
-                  <Check size={15} />
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <span className="button button-primary">
-              {c('Choose')} {m.title}
-              <ArrowRight size={17} />
+            <span className="mode-card-art" aria-hidden="true">
+              <span className="mode-card-number">0{index + 1}</span>
+              {m.mode === 'story' ? (
+                <span className="mode-coming-soon">
+                  <LockKeyhole size={12} />
+                  {m.action}
+                </span>
+              ) : null}
+              <span className="mode-card-emblem">
+                <m.icon size={32} />
+              </span>
+              <span className="mode-art-spark spark-one">✦</span>
+              <span className="mode-art-spark spark-two">✧</span>
+            </span>
+            <span className="mode-card-body">
+              <span className="mode-card-tag">{m.tag}</span>
+              <span className="mode-card-title">{m.title}</span>
+              <span className="mode-card-description">{m.text}</span>
+              <span className="mode-card-detail">{m.detail}</span>
+              <span className="mode-card-action">
+                {m.mode === 'story' ? <LockKeyhole size={15} /> : <Swords size={16} />}
+                {m.action}
+                {m.mode !== 'story' && <ArrowRight size={16} />}
+              </span>
             </span>
           </button>
         ))}
       </div>
-    </div>
+      <p className="mode-dialog-footer">
+        <span aria-hidden="true">✧</span>
+        {t(
+          'Mỗi đội hình, một câu chuyện. Mỗi trận đấu, một huyền thoại.',
+          'Every team has a story. Every battle builds a legend.',
+        )}
+      </p>
+    </Dialog>
   );
 }
 

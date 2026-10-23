@@ -9,19 +9,21 @@ export function Dialog({
   title,
   description,
   children,
+  className,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   description: string;
   children: ReactNode;
+  className?: string;
 }) {
   const { t } = useLanguage();
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="dialog-backdrop" />
-        <DialogPrimitive.Content className="dialog-content">
+        <DialogPrimitive.Content className={`dialog-content ${className ?? ''}`}>
           <DialogPrimitive.Title className="dialog-title">{title}</DialogPrimitive.Title>
           <DialogPrimitive.Description className="muted">{description}</DialogPrimitive.Description>
           {children}
