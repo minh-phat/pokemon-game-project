@@ -28,7 +28,7 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
         title={inspectOnly ? c('Little legends.') : c('Choose your companions.')}
         description={
           inspectOnly
-            ? c('Six personalities. Find your kind of fighter.')
+            ? c('Find your kind of fighter.')
             : c('Pick {count} Pokémon. Their instincts will take it from here.').replace(
                 '{count}',
                 String(state.rules.teamSize),

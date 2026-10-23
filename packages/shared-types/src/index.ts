@@ -7,6 +7,7 @@ export const speciesIds = [
   'bulbasaur',
   'eevee',
   'runedrake',
+  'water-slime',
 ] as const;
 export const SpeciesSchema = z.enum(speciesIds);
 export type SpeciesId = z.infer<typeof SpeciesSchema>;
@@ -86,7 +87,7 @@ export const ANIMATIONS = [
   'victory',
 ] as const;
 export type AnimationName = (typeof ANIMATIONS)[number];
-export type StatusKind = 'stun' | 'slow' | 'leech' | 'burn' | 'shield';
+export type StatusKind = 'stun' | 'slow' | 'leech' | 'burn' | 'shield' | 'invisible';
 export interface StatusEffect {
   kind: StatusKind;
   duration: number;
@@ -120,7 +121,7 @@ export interface SkillDefinition {
   channel?: { interval: number; halfAngle: number };
   beam?: { width: number; interval: number; clashPower: number };
   electricAura?: { reach: number; damageScale: number };
-  movement?: { speed: number; duration: number };
+  movement?: { speed: number; duration: number; delay?: number };
   groundHazard?: { radius: number; duration: number; interval: number; damage: number };
   homing?: { turnRate: number; duration: number };
 }
@@ -203,6 +204,7 @@ export interface Cast {
   originDepth?: number;
   lockX?: number;
   lockDepth?: number;
+  lockY?: number;
   bound?: boolean;
   bindEligible?: boolean;
 }
@@ -402,3 +404,8 @@ export type AIAction =
       depthDirection?: number;
     }
   | { type: 'wait' };
+
+/** Fade-in is visible; after half a second enemies lose their target. */
+export function isConcealed(f: Pick<Fighter, 'effects'>): boolean {
+  return f.effects.some((e) => e.kind === 'invisible' && e.duration <= 4.5 && e.duration > 0);
+}

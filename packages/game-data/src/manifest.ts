@@ -2,6 +2,7 @@ export const ASSETS = {
   favicon: '/assets/favicon.svg',
   previews: ['forest', 'volcano', 'lake'].map((id) => `/assets/${id}.svg`),
   portraits: {
+    'water-slime': '/assets/water-slime.png',
     pikachu: '/assets/pikachu.svg',
     charmander: '/assets/charmander.svg',
     squirtle: '/assets/squirtle.svg',
@@ -10,6 +11,7 @@ export const ASSETS = {
     runedrake: '/assets/runedrake.png',
   },
   sprites: {
+    'water-slime': '/assets/water-slime-sheet.png',
     pikachu: '/assets/pikachu-sheet.svg',
     charmander: '/assets/charmander-sheet.svg',
     squirtle: '/assets/squirtle-sheet.svg',

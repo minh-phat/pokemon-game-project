@@ -1,3 +1,4 @@
+import { isConcealed } from '@arena/shared-types';
 import {
   STAMINA_RULES,
   type AIAction,
@@ -43,7 +44,9 @@ export function decideMovement(
   preferredDistance = POKEMON[f.species].ai.preferredDistance,
   targetId?: string | null,
 ): Extract<AIAction, { type: 'move' }> {
-  const enemies = state.fighters.filter((v) => v.active && v.hp > 0 && v.team !== f.team);
+  const enemies = state.fighters.filter(
+    (v) => v.active && v.hp > 0 && v.team !== f.team && !isConcealed(v),
+  );
   const target =
     enemies.find((v) => v.id === targetId) ??
     enemies.sort(
@@ -90,7 +93,9 @@ export function decideMovement(
 /** In manual mode AI handles positioning and the free basic attack only. */
 export function decideManualAction(f: Fighter, state: BattleSnapshot): AIAction {
   const basic = POKEMON[f.species].skills[0];
-  const enemies = state.fighters.filter((v) => v.active && v.hp > 0 && v.team !== f.team);
+  const enemies = state.fighters.filter(
+    (v) => v.active && v.hp > 0 && v.team !== f.team && !isConcealed(v),
+  );
   const target =
     enemies.find((v) => v.id === f.targetId) ??
     enemies.sort(
@@ -128,7 +133,9 @@ export function decideAction(
     return { type: 'wait' };
   const def = POKEMON[f.species],
     tuning = DIFFICULTY[difficulty];
-  const enemies = state.fighters.filter((v) => v.active && v.hp > 0 && v.team !== f.team);
+  const enemies = state.fighters.filter(
+    (v) => v.active && v.hp > 0 && v.team !== f.team && !isConcealed(v),
+  );
   const target = enemies.sort(
     (a, b) =>
       Math.hypot(a.x - f.x, a.depth - f.depth) - Math.hypot(b.x - f.x, b.depth - f.depth) ||

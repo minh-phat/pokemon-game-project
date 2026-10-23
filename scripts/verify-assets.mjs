@@ -11,6 +11,9 @@ const expected = [
   ]),
   ...['normal', 'electric', 'fire', 'water', 'grass'].map((id) => `${id}.wav`),
   'favicon.svg',
+  'water-slime.png',
+  'water-slime-sheet.png',
+  'water-slime-wrap.png',
   'eevee.png',
   'eevee-sheet.png',
   'runedrake.png',
@@ -65,5 +68,9 @@ for (const id of [
     throw new Error(`Invalid Eevee VFX sheet ${id}`);
 }
 console.log(
-  `Verified ${expected.length} assets, four vector sprite sheets, and Eevee and Runedrake raster sprite sheets.`,
+  `Verified ${expected.length} assets, four vector sprite sheets, and Eevee, Runedrake and Water Slime raster sprite sheets.`,
 );
+
+const slime = await sharp(resolve('apps/frontend/public/assets/water-slime-sheet.png')).metadata();
+if (slime.width !== 960 || slime.height !== 2400 || !slime.hasAlpha)
+  throw new Error('Invalid Water Slime sprite sheet');

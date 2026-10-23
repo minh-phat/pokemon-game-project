@@ -496,7 +496,7 @@ describe('skills and state', () => {
   it.each(
     Object.values(POKEMON).flatMap((p) =>
       p.skills
-        .filter((s) => s.id !== 'counter-pounce')
+        .filter((s) => s.id !== 'counter-pounce' && s.damage > 0)
         .map((s) => ({ species: p.id, skill: s.id })),
     ),
   )('$species activates $skill and resolves a real hit', ({ species, skill }) => {

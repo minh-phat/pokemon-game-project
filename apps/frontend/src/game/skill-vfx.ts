@@ -44,6 +44,7 @@ export class SkillVfx {
   private sprite(key: string) {
     const sprite = this.scene.add.sprite(0, 0, key, 0).setDepth(12);
     if (
+      key !== 'water-slime-wrap-art' &&
       key !== 'electro-ball-art' &&
       key !== 'ember-glyph-art' &&
       key !== 'runedrake' &&
@@ -82,6 +83,7 @@ export class SkillVfx {
     else effect.sprite.anims.resume();
     if (
       this.reduced &&
+      key !== 'water-slime-wrap-art' &&
       key !== 'electro-ball-art' &&
       key !== 'ember-glyph-art' &&
       key !== 'runedrake' &&
@@ -179,6 +181,43 @@ export class SkillVfx {
       }
       if (!f.cast) continue;
       const skill = SKILL_BY_ID[f.cast.skillId];
+      if (skill.id === 'liquid-wrap') {
+        const target = snapshot.fighters.find((v) => v.id === f.cast?.targetId);
+        if (f.cast.bound && target) {
+          const age = Math.max(0, f.cast.elapsed - skill.startup);
+          const enter = Math.min(1, age / 0.22);
+          const release = Math.min(
+            1,
+            Math.max(
+              0,
+              (skill.startup + skill.active + skill.recovery - f.cast.elapsed) / skill.recovery,
+            ),
+          );
+          const wobble = reduced ? 0 : Math.sin(age * 9) * 0.035;
+          const size = POKEMON[target.species].collision;
+          const id = `liquid-wrap-${f.id}`;
+          this.place(
+            id,
+            'water-slime-wrap-art',
+            target.x,
+            520 + target.depth - target.y - size.height * 0.6,
+            (size.width + 86) * (0.65 + 0.35 * enter) * (1 + wobble),
+            (size.height + 96) * (0.65 + 0.35 * enter) * (1 - wobble),
+            0,
+          );
+          this.attached
+            .get(id)!
+            .sprite.setAlpha(0.6 * enter * release)
+            .setDepth(14 + target.depth / 300);
+          live.add(id);
+          if (emit)
+            this.emitters
+              .get('water')!
+              .emitParticleAt(target.x, 520 + target.depth - target.y - size.height, 2);
+        }
+        continue;
+      }
+      if (['spring-tackle', 'water-veil', 'liquid-guard', 'water-orb'].includes(skill.id)) continue;
       if (skill.id === 'tail-whip') continue;
       if (skill.beam) {
         const mouthX = x + f.aimX * 45;
@@ -506,17 +545,19 @@ export class SkillVfx {
       const angle = Math.atan2(p.vDepth ?? 0, p.vx);
       const id = `projectile-${p.id}`;
       const width =
-        skill.id === 'swift'
-          ? 48
-          : skill.id === 'solar-beam'
-            ? 160
-            : skill.id === 'sludge-bomb'
-              ? 104
-              : skill.id === 'flame-burst'
-                ? 100
-                : skill.id === 'ember-glyph'
-                  ? 94
-                  : Math.max(76, p.width * 2);
+        skill.id === 'water-orb'
+          ? 36
+          : skill.id === 'swift'
+            ? 48
+            : skill.id === 'solar-beam'
+              ? 160
+              : skill.id === 'sludge-bomb'
+                ? 104
+                : skill.id === 'flame-burst'
+                  ? 100
+                  : skill.id === 'ember-glyph'
+                    ? 94
+                    : Math.max(76, p.width * 2);
       const auraSize = skill.electricAura
         ? ((p.width + skill.electricAura.reach * 2) * 128) / 116
         : null;
@@ -531,11 +572,13 @@ export class SkillVfx {
         y,
         auraSize ?? width,
         auraSize ??
-          (skill.id === 'sludge-bomb'
-            ? 104
-            : skill.id === 'ember-glyph'
-              ? 47
-              : Math.max(60, p.height * 2.3)),
+          (skill.id === 'water-orb'
+            ? 36
+            : skill.id === 'sludge-bomb'
+              ? 104
+              : skill.id === 'ember-glyph'
+                ? 47
+                : Math.max(60, p.height * 2.3)),
         angle,
       );
       if (skill.id === 'swift')

@@ -1,3 +1,5 @@
+import { isConcealed } from '@arena/shared-types';
+import { slimePose, slimeOpacity } from './water-slime';
 import { drawRuins } from './ruins-arena';
 import * as Phaser from 'phaser';
 import { ANIMATIONS, type Fighter, type MatchRules } from '@arena/shared-types';
@@ -39,6 +41,7 @@ export function createArenaScene(
     preload() {
       const arena = ARENAS.find((a) => a.id === arenaId)!;
       this.load.image('electro-ball-art', '/assets/electro-ball-art.png');
+      this.load.image('water-slime-wrap-art', '/assets/water-slime-wrap.png');
       this.load.image('ember-glyph-art', '/assets/runedrake-ember-glyph.png');
       this.load.image('runedrake-bind-rig', '/assets/runedrake-bind-rig.png');
       for (const id of [
@@ -115,7 +118,7 @@ export function createArenaScene(
             repeat: a.repeat,
           });
         }
-      for (const id of ['eevee', 'runedrake'])
+      for (const id of ['eevee', 'runedrake', 'water-slime'])
         this.textures.get(id).setFilter(Phaser.Textures.FilterMode.NEAREST);
       this.textures.get('ember-glyph-art').setFilter(Phaser.Textures.FilterMode.NEAREST);
       for (const id of [
@@ -289,6 +292,26 @@ export function createArenaScene(
           old && old.active === f.active ? Phaser.Math.Linear(old.depth, f.depth, alpha) : f.depth;
         const ground = 520 + depth;
         const faint = f.hp <= 0;
+        const hidden = !faint && f.team !== myTeam && isConcealed(f);
+        const opacity = slimeOpacity(f, f.team === myTeam);
+        const slime =
+          f.species === 'water-slime'
+            ? slimePose(f, settings.reducedMotion)
+            : { x: 1, y: 1, lift: 0 };
+        const liquidBinding = f.cast?.skillId === 'liquid-wrap' && f.cast.bound;
+        const liquidFade = liquidBinding
+          ? Math.max(
+              0,
+              1 - (f.cast!.elapsed - SKILL_BY_ID['liquid-wrap'].startup) / 0.18,
+              Math.min(
+                1,
+                (f.cast!.elapsed -
+                  SKILL_BY_ID['liquid-wrap'].startup -
+                  SKILL_BY_ID['liquid-wrap'].active) /
+                  SKILL_BY_ID['liquid-wrap'].recovery,
+              ),
+            )
+          : 1;
         const faintAlpha = faint ? Math.max(0, 1 - f.animationTime / 1.6) : 1;
         const hoverHeight = POKEMON[f.species].hoverHeight ?? 0;
         const grounded = faint || f.effects.some((effect) => effect.kind === 'stun');
@@ -332,17 +355,20 @@ export function createArenaScene(
           .setVisible(faintAlpha > 0 && entryFade > 0)
           .setPosition(
             x + glyphWobble * 70 + Math.sin(bindAge * 22) * bindPulse * 1.5,
-            ground - altitude,
+            ground - altitude - slime.lift,
           )
           .setRotation(glyphWobble)
           .setScale(
-            baseScale * (1 - 0.13 * bindProgress - 0.045 * bindPulse),
-            baseScale * (1 + 0.035 * bindProgress),
+            baseScale * (1 - 0.13 * bindProgress - 0.045 * bindPulse) * slime.x,
+            baseScale * (1 + 0.035 * bindProgress) * slime.y,
           )
           .setDepth(10 + (ground - 300) / 300)
           .setFlipX(f.facing < 0)
           .setAlpha(
-            (f.invulnerable > 0 ? 0.55 + Math.sin(time / 35) * 0.2 : faintAlpha) * entryFade,
+            (f.invulnerable > 0 ? 0.55 + Math.sin(time / 35) * 0.2 : faintAlpha) *
+              entryFade *
+              opacity *
+              liquidFade,
           );
         const animation = `${f.species}-${f.animation}`;
         if (animation !== v.lastAnimation) {
@@ -366,15 +392,40 @@ export function createArenaScene(
               ? 0xbbddff
               : 0xffffff,
         );
+        if (f.species === 'water-slime' && f.cast && !settings.paused) {
+          const skill = SKILL_BY_ID[f.cast.skillId];
+          const row =
+            f.cast.skillId === 'spring-tackle'
+              ? 5
+              : f.cast.skillId === 'water-orb'
+                ? 6
+                : f.cast.skillId === 'liquid-guard'
+                  ? 10
+                  : f.cast.skillId === 'liquid-wrap'
+                    ? 7
+                    : 0;
+          const duration = skill.startup + skill.active + skill.recovery;
+          const frame =
+            row === 10
+              ? f.cast.elapsed < 0.3
+                ? Math.min(2, Math.floor(f.cast.elapsed * 10))
+                : 2 + (Math.floor(f.cast.elapsed * 8) % 4)
+              : Math.min(
+                  5,
+                  Math.floor((f.cast.elapsed / (row === 7 ? skill.startup : duration)) * 6),
+                );
+          v.sprite.anims.pause();
+          v.sprite.setFrame(row * 6 + frame);
+        }
         v.shadow
-          .setVisible(hoverHeight > 0 ? faintAlpha > 0 : !faint)
+          .setVisible(!hidden && !liquidBinding && (hoverHeight > 0 ? faintAlpha > 0 : !faint))
           .setPosition(x, ground + 2)
           .setScale(Math.max(0.45, 1 - altitude / 300))
           .setAlpha(hoverHeight > 0 ? Math.max(0, 1 - altitude / 260) * faintAlpha : 1);
         const selected = f.team === myTeam && snapshot.manualTeams[f.team] && controlledId === f.id;
-        const targeted = !faint && f.id === targetId;
+        const targeted = !faint && !hidden && f.id === targetId;
         v.ring
-          .setVisible(!faint)
+          .setVisible(!faint && !hidden && !liquidBinding)
           .setPosition(x, ground + 1)
           .setStrokeStyle(
             selected || targeted ? 3 : 2,
@@ -382,11 +433,13 @@ export function createArenaScene(
             selected || targeted ? 0.95 : 0.55,
           )
           .setScale(selected || targeted ? 1.35 : 1);
-        v.label.setVisible(!faint).setPosition(x, ground - 96 - altitude);
+        v.label
+          .setVisible(!faint && !hidden && !liquidBinding)
+          .setPosition(x, ground - 96 - altitude);
         v.targetMarker.setVisible(targeted).setPosition(x, ground - 119 - altitude);
         const def = POKEMON[f.species];
         v.bars.clear();
-        if (!faint) {
+        if (!faint && !hidden && !liquidBinding) {
           v.bars
             .fillStyle(0x172e2b, 0.75)
             .fillRoundedRect(x - 31, ground - 84 - altitude, 62, 7, 3);
@@ -418,7 +471,10 @@ export function createArenaScene(
         }
       }
       this.skillVfx.update(
-        snapshot,
+        {
+          ...snapshot,
+          fighters: snapshot.fighters.filter((f) => f.team === myTeam || !isConcealed(f)),
+        },
         previous,
         alpha,
         delta,
@@ -429,6 +485,8 @@ export function createArenaScene(
       for (const event of snapshot.events) {
         if (event.id <= this.lastEvent) continue;
         this.lastEvent = event.id;
+        const eventFighter = snapshot.fighters.find((f) => f.id === event.fighterId);
+        if (eventFighter && eventFighter.team !== myTeam && isConcealed(eventFighter)) continue;
         const eventHover = hoverByFighter.get(event.fighterId) ?? 0;
         this.skillVfx.event(event, eventHover);
         if (event.kind === 'damage' || event.kind === 'heal') {

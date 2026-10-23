@@ -60,6 +60,47 @@ function skill(
   };
 }
 export const SKILLS = {
+  springTackle: skill('spring-tackle', 'Húc Lò Xo', 'water', 'melee', 15, 0, 1.3, 125, {
+    description: 'Nén cơ thể như lò xo rồi bật tới húc đối thủ.',
+    startup: 0.3,
+    active: 0.22,
+    recovery: 0.25,
+    knockback: 135,
+    movement: { speed: 390, duration: 0.22, delay: 0.3 },
+  }),
+  waterOrb: skill('water-orb', 'Cầu Nước', 'water', 'projectile', 22, 15, 2.8, 520, {
+    description: 'Phồng má rồi bắn một quả cầu nước nhỏ từ miệng.',
+    startup: 0.36,
+    projectileSpeed: 480,
+    hitbox: { width: 22, height: 22, altitude: 30 },
+  }),
+  liquidGuard: skill('liquid-guard', 'Thủy Cầu Phòng Thủ', 'water', 'buff', 0, 22, 7, 160, {
+    description: 'Hóa thành khối nước tròn mềm, giảm 65% sát thương trong 3 giây.',
+    startup: 0.18,
+    active: 3,
+    recovery: 0.2,
+    animation: 'guard',
+    effects: [{ kind: 'shield', duration: 3, strength: 0.65 }],
+  }),
+  liquidWrap: skill('liquid-wrap', 'Bao Phủ Thủy Dịch', 'water', 'melee', 30, 32, 8, 340, {
+    description: 'Lao tới bao phủ toàn thân đối thủ bằng nước, giữ bất động 3 giây.',
+    startup: 0.3,
+    active: 3,
+    recovery: 0.25,
+    animation: 'dash',
+    knockback: 0,
+    events: [],
+    usage: { minRange: 65, priority: 1.55 },
+  }),
+  waterVeil: skill('water-veil', 'Tàng Hình', 'water', 'buff', 0, 28, 11, 600, {
+    description:
+      'Mờ dần trong nửa giây, rồi tàng hình 4,5 giây. Chủ sở hữu vẫn nhìn thấy mờ; vẫn có thể trúng đòn.',
+    startup: 0,
+    active: 0.5,
+    recovery: 0.1,
+    animation: 'idle',
+    effects: [{ kind: 'invisible', duration: 5, strength: 1 }],
+  }),
   quickAttack: skill('quick-attack', 'Quick Attack', 'normal', 'melee', 13, 0, 0.9, 88, {
     description: 'A fast lunge that closes the gap.',
     knockback: 70,
@@ -313,6 +354,36 @@ const runedrakeAnimations: PokemonDefinition['animations'] = {
   run: { ...animations.run, frameRate: 10 },
 };
 export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
+  'water-slime': {
+    id: 'water-slime',
+    name: 'Water Slime',
+    number: 'X02',
+    element: 'water',
+    role: 'Liquid trickster',
+    description: 'Slime nước mềm mại có thể co giãn, bao phủ đối thủ và tan biến trong tầm mắt.',
+    color: '#55ddea',
+    hp: 185,
+    energy: 100,
+    maxStamina: 100,
+    attack: 25,
+    defense: 25,
+    speed: 192,
+    sprintSpeed: 240,
+    acceleration: 1050,
+    jumpStrength: 410,
+    dodgeCooldown: 1.9,
+    attackRange: 125,
+    collision: { width: 48, height: 48 },
+    skills: [
+      SKILLS.springTackle,
+      SKILLS.waterOrb,
+      SKILLS.liquidGuard,
+      SKILLS.liquidWrap,
+      SKILLS.waterVeil,
+    ],
+    animations,
+    ai: { aggression: 0.7, dodge: 0.75, guard: 0.65, preferredDistance: 150, retreat: 0.45 },
+  },
   pikachu: {
     id: 'pikachu',
     name: 'Pikachu',

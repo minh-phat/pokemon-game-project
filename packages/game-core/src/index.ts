@@ -1,3 +1,4 @@
+import { isConcealed } from '@arena/shared-types';
 import { terrainContact, terrainMove, terrainWaypoint } from './terrain';
 export * from './terrain';
 import {
@@ -245,7 +246,14 @@ export class BattleEngine {
     }
     if (command.type === 'target') {
       const target = this.state.fighters.find((v) => v.id === command.targetId);
-      if (!target || target.team === team || !target.active || target.hp <= 0) return false;
+      if (
+        !target ||
+        target.team === team ||
+        !target.active ||
+        target.hp <= 0 ||
+        isConcealed(target)
+      )
+        return false;
       f.targetId = target.id;
       return true;
     }
@@ -364,7 +372,9 @@ export class BattleEngine {
       if (f.actionTime === 0) {
         f.crouched = false;
       }
-      const enemies = this.state.fighters.filter((v) => v.team !== f.team && v.hp > 0 && v.active);
+      const enemies = this.state.fighters.filter(
+        (v) => v.team !== f.team && v.hp > 0 && v.active && !isConcealed(v),
+      );
       const target =
         (this.isManuallyControlled(f) && enemies.find((v) => v.id === f.targetId)) ||
         enemies.sort(
@@ -436,6 +446,28 @@ export class BattleEngine {
       this.trySwitch(f);
     }
     this.resolveBodies();
+    // Liquid binding pins all movement axes after physics, independent of fighter order.
+    for (const source of this.state.fighters) {
+      const cast = source.cast;
+      if (
+        source.hp <= 0 ||
+        !source.active ||
+        cast?.skillId !== 'liquid-wrap' ||
+        !cast.bound ||
+        cast.elapsed > SKILL_BY_ID[cast.skillId].startup + SKILL_BY_ID[cast.skillId].active
+      )
+        continue;
+      const target = this.state.fighters.find(
+        (v) => v.id === cast.targetId && v.active && v.hp > 0,
+      );
+      if (!target) continue;
+      target.x = cast.lockX!;
+      target.depth = cast.lockDepth!;
+      target.y = cast.lockY!;
+      target.vx = target.vy = target.vDepth = 0;
+      target.moveIntent = target.moveDepth = 0;
+      target.actionTime = Math.max(target.actionTime, 2 * FIXED_DELTA);
+    }
     for (const f of this.state.fighters) if (f.active) this.constrain(f);
     this.beamTick();
     this.groundHazardTick(dt);
@@ -630,9 +662,9 @@ export class BattleEngine {
     )
       return false;
     const bindTarget =
-      s.id === 'cursed-scroll-bind'
+      s.id === 'cursed-scroll-bind' || s.id === 'liquid-wrap'
         ? this.state.fighters
-            .filter((v) => v.team !== f.team && v.active && v.hp > 0)
+            .filter((v) => v.team !== f.team && v.active && v.hp > 0 && !isConcealed(v))
             .sort(
               (a, b) =>
                 (a.id === f.targetId ? -1 : b.id === f.targetId ? 1 : 0) ||
@@ -644,7 +676,7 @@ export class BattleEngine {
     f.energy -= s.energy;
     f.cooldowns[s.id] = s.cooldown;
     const target = this.state.fighters
-      .filter((v) => v.active && v.hp > 0 && v.team !== f.team)
+      .filter((v) => v.active && v.hp > 0 && v.team !== f.team && !isConcealed(v))
       .sort(
         (a, b) =>
           Math.hypot(a.x - f.x, a.depth - f.depth) - Math.hypot(b.x - f.x, b.depth - f.depth),
@@ -666,7 +698,7 @@ export class BattleEngine {
       targetId: bindTarget?.id ?? f.targetId ?? target?.id,
       originX: f.x,
       originDepth: f.depth,
-      ...(s.id === 'cursed-scroll-bind' && {
+      ...((s.id === 'cursed-scroll-bind' || s.id === 'liquid-wrap') && {
         bindEligible:
           !!chosenTarget &&
           bindDistance <= s.range &&
@@ -674,9 +706,14 @@ export class BattleEngine {
           POKEMON[chosenTarget.species].collision.height <= 90,
       }),
       ...(autoBasic && { autoBasic: true }),
-      lockX: s.id === 'cursed-scroll-bind' ? f.x + bindDirectionX * bindTravel : target?.x,
+      lockX:
+        s.id === 'cursed-scroll-bind' || s.id === 'liquid-wrap'
+          ? f.x + bindDirectionX * bindTravel
+          : target?.x,
       lockDepth:
-        s.id === 'cursed-scroll-bind' ? f.depth + bindDirectionDepth * bindTravel : target?.depth,
+        s.id === 'cursed-scroll-bind' || s.id === 'liquid-wrap'
+          ? f.depth + bindDirectionDepth * bindTravel
+          : target?.depth,
     };
     if (s.id === 'shadow-step') f.dodgeEarned = false;
     f.moveIntent = 0;
@@ -693,7 +730,7 @@ export class BattleEngine {
       s = SKILL_BY_ID[cast.skillId];
     cast.elapsed += dt;
     if (f.species === 'eevee' && this.eeveeCastTick(f, cast, s)) return;
-    if (s.id === 'cursed-scroll-bind') {
+    if (s.id === 'cursed-scroll-bind' || s.id === 'liquid-wrap') {
       this.cursedScrollBindTick(f, cast, s, dt);
       return;
     }
@@ -829,6 +866,11 @@ export class BattleEngine {
         POKEMON[target.species].collision.height <= 90
       ) {
         cast.bound = true;
+        if (s.id === 'liquid-wrap') {
+          cast.lockX = target.x;
+          cast.lockDepth = target.depth;
+          cast.lockY = target.y;
+        }
         target.cast = null;
         target.vx = target.vDepth = 0;
         target.moveIntent = target.moveDepth = 0;
@@ -1142,7 +1184,12 @@ export class BattleEngine {
     if (f.stamina < f.maxStamina * STAMINA_RULES.lowThreshold) f.sprinting = false;
     const speed = (f.sprinting ? def.sprintSpeed : def.speed) * staminaScale;
     const movement = f.cast ? SKILL_BY_ID[f.cast.skillId].movement : undefined;
-    if (movement && f.cast!.elapsed <= movement.duration && !stunned) {
+    if (
+      movement &&
+      f.cast!.elapsed >= (movement.delay ?? 0) &&
+      f.cast!.elapsed <= (movement.delay ?? 0) + movement.duration &&
+      !stunned
+    ) {
       f.vx = f.aimX * movement.speed * staminaScale;
       f.vDepth = f.aimDepth * movement.speed * staminaScale;
     } else if (f.actionTime === 0 || stunned) {
@@ -1220,7 +1267,9 @@ export class BattleEngine {
       }
       p.age = (p.age ?? 0) + dt;
       if (skill.homing && p.age <= skill.homing.duration) {
-        const target = this.state.fighters.find((f) => f.id === p.targetId && f.active && f.hp > 0);
+        const target = this.state.fighters.find(
+          (f) => f.id === p.targetId && f.active && f.hp > 0 && !isConcealed(f),
+        );
         if (target) {
           const current = Math.atan2(p.vDepth ?? 0, p.vx);
           const wanted = Math.atan2(target.depth - (p.depth ?? 0), target.x - p.x);

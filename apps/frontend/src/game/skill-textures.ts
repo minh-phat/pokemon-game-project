@@ -491,7 +491,20 @@ function paint(c: Context, id: string, element: Element, frame: number) {
     glow(c, 86, 64, 18, '#fff3bc');
     if (id === 'flame-burst') ring(c, 83, 64, 23 + Math.sin(phase) * 3, '#ffe09c', 2);
   } else if (element === 'water') {
-    if (id === 'bubble-beam') {
+    if (id === 'water-orb') {
+      const radius = 39 + Math.sin(phase) * 2;
+      const fill = c.createRadialGradient(51, 49, 3, 64, 64, radius);
+      fill.addColorStop(0, '#e4ffff');
+      fill.addColorStop(0.35, '#7defff');
+      fill.addColorStop(0.85, '#16b9df');
+      fill.addColorStop(1, '#97f9ff');
+      c.fillStyle = fill;
+      c.beginPath();
+      c.arc(64, 64, radius, 0, TAU);
+      c.fill();
+      ring(c, 64, 64, radius, '#b9ffff', 2);
+      ring(c, 53, 50, 8, '#f5ffff', 3);
+    } else if (id === 'bubble-beam') {
       for (let i = 0; i < 5; i++) {
         const x = 25 + i * 18,
           y = 64 + Math.sin(phase + i * 2) * 15,

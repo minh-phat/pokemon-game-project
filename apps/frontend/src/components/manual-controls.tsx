@@ -1,4 +1,5 @@
 'use client';
+import { isConcealed } from '@arena/shared-types';
 import {
   useEffect,
   useRef,
@@ -145,13 +146,16 @@ export function ManualControls({
       stickKnob.current.style.transform = `translate(${direction * 30}px, ${depthDirection * 30}px)`;
   };
   const active = snapshot.fighters.filter((f) => f.team === team && f.active && f.hp > 0);
-  const enemies = snapshot.fighters.filter((f) => f.team !== team && f.active && f.hp > 0);
+  const enemies = snapshot.fighters.filter(
+    (f) => f.team !== team && f.active && f.hp > 0 && !isConcealed(f),
+  );
   const selected =
     active.find((f) => f.id === selectedId) ??
     active.find((f) => f.id === snapshot.controlledFighterIds[team]) ??
     active[0];
   const target = snapshot.fighters.find(
-    (f) => f.id === selected?.targetId && f.active && f.hp > 0 && f.team !== team,
+    (f) =>
+      f.id === selected?.targetId && f.active && f.hp > 0 && f.team !== team && !isConcealed(f),
   );
   useEffect(() => {
     if (selected && selected.id !== selectedId) onSelect(selected.id);
