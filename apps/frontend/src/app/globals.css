@@ -1264,6 +1264,56 @@ select option {
   color: var(--muted);
   margin-top: 3px;
 }
+.combat-power-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 6px 10px;
+  border: 1px solid #cbb779;
+  border-radius: 999px;
+  background: #f5edcf;
+  color: #665021;
+  font-size: 11px;
+}
+.combat-power-badge strong {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.combat-power-panel {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid #cbb779;
+  border-radius: 14px;
+  background: linear-gradient(120deg, #faf4df, #eee4bf);
+  color: #665021;
+}
+.combat-power-panel > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.combat-power-panel > strong {
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+}
+.combat-power-panel details {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.combat-power-panel summary {
+  cursor: pointer;
+}
+.combat-power-panel details p {
+  margin-top: 6px;
+}
 .selected-mark {
   position: absolute;
   right: 15px;

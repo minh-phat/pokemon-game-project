@@ -1,4 +1,12 @@
 export const vietnameseCopy: Record<string, string> = {
+  'Combat power': 'Chiến lực',
+  'Total combat power': 'Tổng chiến lực',
+  'How is it calculated?': 'Cách tính chiến lực',
+  'HP + Attack × 5 + Defense × 5 + Speed + Sprint speed + Stamina.':
+    'HP + Công × 5 + Thủ × 5 + Tốc độ + Tốc độ chạy + Thể lực.',
+  'Based on base stats. Skills and elemental matchups are not included.':
+    'Tính theo chỉ số gốc, chưa bao gồm kỹ năng và tương khắc hệ.',
+
   'Choose a team': 'Chọn đội hình',
   'AI team': 'Đội AI',
   'Choose AI Pokémon': 'Chọn Pokémon cho AI',

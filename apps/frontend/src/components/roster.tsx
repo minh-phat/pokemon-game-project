@@ -2,13 +2,15 @@
 import { useState } from 'react';
 import { useCopy } from '@/lib/i18n';
 import { ArrowRight, Check, Heart, Plus, Shield, Swords, Zap } from 'lucide-react';
-import { POKEMON, ROSTER } from '@arena/game-data';
+import { POKEMON, ROSTER, combatPower } from '@arena/game-data';
 import { useGame } from '@/lib/store';
 import { connectRoom, sendRoom } from '@/lib/network';
 import { Button } from './ui/button';
 import { ElementBadge, PageTitle, Portrait, Steps, TeamSlots } from './common';
 export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean }) {
   const c = useCopy();
+  const formatPower = (value: number) =>
+    value.toLocaleString(state.language === 'vi' ? 'vi-VN' : 'en-US');
   const state = useGame();
   const [side, setSide] = useState<'team' | 'aiTeam'>('team');
   const choosingAI = !inspectOnly && state.mode === 'ai' && side === 'aiTeam';
@@ -97,6 +99,10 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
                       <ElementBadge element={p.element} />
                     </div>
                     <p>{p.role}</p>
+                    <span className="combat-power-badge">
+                      <Swords size={15} aria-hidden="true" />
+                      {c('Combat power')} <strong>{formatPower(combatPower(p))}</strong>
+                    </span>
                   </button>
                   {!inspectOnly && (
                     <Button
@@ -140,6 +146,18 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
           </div>
           <h2>{selected.name}</h2>
           <span className="detail-role">{selected.role}</span>
+          <div className="combat-power-panel">
+            <span>
+              <Swords size={18} aria-hidden="true" />
+              {c('Total combat power')}
+            </span>
+            <strong>{formatPower(combatPower(selected))}</strong>
+            <details>
+              <summary>{c('How is it calculated?')}</summary>
+              <p>{c('HP + Attack × 5 + Defense × 5 + Speed + Sprint speed + Stamina.')}</p>
+              <p>{c('Based on base stats. Skills and elemental matchups are not included.')}</p>
+            </details>
+          </div>
           <p className="detail-description">{selected.description}</p>
           {selected.passive && (
             <div className="skill-row" style={{ marginBottom: 16 }}>

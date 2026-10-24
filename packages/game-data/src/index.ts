@@ -10,6 +10,7 @@ import {
   type AnimationName,
 } from '@arena/shared-types';
 export * from './manifest';
+export { combatPower } from './combat-power';
 
 function skill(
   id: string,
