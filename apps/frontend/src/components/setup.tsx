@@ -28,6 +28,18 @@ export function ModeSelection() {
   const { set, go } = useGame();
   const modes = [
     {
+      mode: 'world' as const,
+      title: t('Thế giới mở', 'Open world'),
+      text: t(
+        'Đi qua rừng xanh, theo dòng suối lên núi tuyết và gặp Pokémon giữa thiên nhiên.',
+        'Wander through forests, follow rivers to snowy peaks and meet wild Pokémon.',
+      ),
+      icon: Globe2,
+      tag: t('THIÊN NHIÊN KHÔNG NGỪNG CHUYỂN ĐỘNG', 'A LIVING, BREATHING WORLD'),
+      detail: t('268 km² · Pixel 2.5D · Chơi đơn', '268 km² · Pixel 2.5D · Solo'),
+      action: t('Bắt đầu khám phá', 'Start exploring'),
+    },
+    {
       mode: 'ai' as const,
       title: t('Đấu với máy', 'VS AI'),
       text: t(
@@ -91,6 +103,10 @@ export function ModeSelection() {
             disabled={m.mode === 'story'}
             onClick={() => {
               if (m.mode === 'story') return;
+              if (m.mode === 'world') {
+                go('world');
+                return;
+              }
               set({ mode: m.mode, team: [], snapshot: null });
               go(m.mode === 'ai' ? 'rules' : 'online');
             }}

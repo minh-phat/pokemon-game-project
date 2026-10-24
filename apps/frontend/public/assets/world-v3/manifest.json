@@ -1,0 +1,17 @@
+{
+  "version": 3,
+  "source": "Built-in image_gen",
+  "file": "cliffs.png",
+  "columns": 2,
+  "rows": 2,
+  "cell": [
+    256,
+    256
+  ],
+  "materials": [
+    "sandstone-moss",
+    "alpine-granite",
+    "frozen-cliff",
+    "basalt"
+  ]
+}

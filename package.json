@@ -22,6 +22,7 @@
     "test:e2e": "playwright test",
     "assets": "node scripts/generate-assets.mjs && node scripts/build-eevee-assets.mjs && node scripts/build-eevee-vfx.mjs && node scripts/build-runedrake-assets.mjs && node scripts/build-water-slime-assets.mjs",
     "verify:assets": "node scripts/verify-assets.mjs",
+    "assets:world": "node scripts/build-world-assets.mjs",
     "benchmark": "tsx scripts/benchmark.ts",
     "format": "prettier --write apps/*/src packages/*/src scripts tests *.ts *.json docs README.md",
     "format:check": "prettier --check apps/*/src packages/*/src scripts tests *.ts *.json docs README.md"

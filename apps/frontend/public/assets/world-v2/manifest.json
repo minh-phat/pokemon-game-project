@@ -1,0 +1,44 @@
+{
+  "version": 2,
+  "source": "Built-in image_gen",
+  "props": {
+    "file": "props.png",
+    "columns": 4,
+    "rows": 4,
+    "cell": [
+      96,
+      112
+    ],
+    "anchor": [
+      48,
+      104
+    ],
+    "names": [
+      "oak",
+      "birch",
+      "pine",
+      "snow-pine",
+      "willow",
+      "blossom",
+      "berry-bush",
+      "palm",
+      "moss-rock",
+      "basalt",
+      "ice-rock",
+      "fallen-log",
+      "grass",
+      "flowers",
+      "reeds",
+      "fern"
+    ]
+  },
+  "terrain": {
+    "file": "terrain.png",
+    "columns": 4,
+    "rows": 4,
+    "cell": [
+      128,
+      128
+    ]
+  }
+}

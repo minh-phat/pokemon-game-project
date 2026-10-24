@@ -1,0 +1,993 @@
+.open-world {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  overflow: hidden;
+  background: #286b8b;
+  color: #f4efd7;
+  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+  isolation: isolate;
+}
+.world-surface {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  touch-action: none;
+  outline-offset: -3px;
+}
+.world-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(#102f333d, transparent 25%, transparent 75%, #122c324d);
+  box-shadow: inset 0 0 110px #193c351a;
+}
+.world-header {
+  position: absolute;
+  inset: max(22px, env(safe-area-inset-top)) 28px auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  pointer-events: none;
+}
+.open-world button {
+  color: inherit;
+  border: 1px solid #dfddbc36;
+  background: #173f3ae8;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+}
+.open-world button:hover {
+  background: #386251;
+  border-color: #e4dba77a;
+}
+.open-world button:focus-visible {
+  outline: 2px solid #fff0b7;
+}
+.world-header button {
+  pointer-events: auto;
+}
+.world-icon {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+}
+.world-brand {
+  text-shadow: 0 2px 7px #17392e;
+}
+.world-brand > span {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: #f4e7be;
+}
+.world-brand h1 {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: 27px;
+  font-weight: normal;
+  letter-spacing: -0.5px;
+  line-height: 1.25;
+}
+.world-expedition {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  letter-spacing: 2px;
+  width: 180px;
+  justify-content: center;
+  text-shadow: 0 1px 5px #173b38;
+}
+.world-expedition i,
+.world-dot {
+  background: #e9d99a;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.world-expedition small {
+  width: 100%;
+  text-align: center;
+  color: #e0e6cd;
+  font-size: 9px;
+}
+.world-pause {
+  margin-left: auto;
+}
+.world-location {
+  position: absolute;
+  top: 112px;
+  left: 32px;
+  text-shadow: 0 2px 8px #153b30;
+  pointer-events: none;
+}
+.world-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #e8dcab;
+  font-size: 8px;
+  letter-spacing: 1.6px;
+  font-weight: 700;
+}
+.world-location h2 {
+  font-size: 23px;
+  font-family: Georgia, serif;
+  font-weight: normal;
+  margin: 5px 0;
+  color: #fff6da;
+}
+.world-location p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  margin: 0;
+  color: #e7ebd5;
+}
+.world-map {
+  position: absolute;
+  top: 93px;
+  right: 28px;
+  width: 166px;
+  background: #183c36ed;
+  border: 1px solid #eee1ad55;
+  padding: 8px;
+  border-radius: 5px;
+  box-shadow: 0 6px 25px #163d362e;
+}
+.world-map-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.world-map-heading > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 8px;
+  letter-spacing: 1.6px;
+}
+.world-map-heading button {
+  background: transparent;
+  border: 0;
+  width: 26px;
+  height: 25px;
+}
+.world-map-art {
+  position: relative;
+  border: 1px solid #d5d6a747;
+}
+.world-map-art canvas {
+  display: block;
+  width: 100%;
+  image-rendering: pixelated;
+  aspect-ratio: 1;
+}
+.world-map-north {
+  position: absolute;
+  top: 4px;
+  left: 7px;
+  font-size: 10px;
+  text-shadow: 0 1px 2px #152e38;
+}
+.world-map-caption {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 8px;
+  padding-top: 6px;
+  color: #ccdac7;
+}
+.world-map-caption > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.world-map-caption i {
+  width: 4px;
+  height: 4px;
+  background: white;
+}
+.world-map-caption > span:nth-child(2) i {
+  background: #ffe3a7;
+}
+.world-map-caption small {
+  margin-left: auto;
+  font-size: 8px;
+}
+.world-map.expanded {
+  z-index: 5;
+  width: min(480px, 90vw, 75dvh);
+  top: 50%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 100vmax #0c252bbb;
+  padding: 15px;
+}
+.world-map.expanded .world-map-art {
+  max-height: 48dvh;
+  aspect-ratio: 1;
+  margin: auto;
+}
+.world-map.expanded .world-map-art canvas {
+  height: 100%;
+}
+.world-map-note {
+  font-size: 10px;
+  color: #cfddc6;
+}
+.world-map-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px 12px;
+}
+.world-map-legend span {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 10px;
+}
+.world-map-legend i {
+  width: 8px;
+  height: 8px;
+}
+.world-discovery {
+  position: absolute;
+  bottom: 116px;
+  left: 28px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 17px 12px 10px;
+  background: #173e36e6;
+  border: 1px solid #d5d7a642;
+  border-left: 2px solid #dfd194;
+  border-radius: 3px 9px 9px 3px;
+  max-width: 350px;
+  box-shadow: 0 5px 22px #17392a22;
+  pointer-events: none;
+}
+.world-discovery > img {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.world-discovery > svg {
+  margin: 10px;
+  color: #cfdaa7;
+}
+.world-discovery strong {
+  display: block;
+  font-size: 17px;
+  font-family: Georgia, serif;
+  font-weight: normal;
+  margin: 3px 0;
+}
+.world-discovery p {
+  font-size: 10px;
+  margin: 0;
+  color: #c4d2b9;
+}
+.world-discovery .world-eyebrow {
+  font-size: 7px;
+  letter-spacing: 1.25px;
+}
+.world-toolbar {
+  position: absolute;
+  bottom: max(23px, env(safe-area-inset-bottom));
+  left: 28px;
+  right: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.world-control-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #edf0d3;
+  font-size: 9px;
+  text-shadow: 0 1px 5px #153c2a;
+}
+.world-control-hint > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.world-control-hint i {
+  width: 3px;
+  height: 3px;
+  background: #d1d9b1;
+  border-radius: 50%;
+}
+.open-world kbd {
+  font-family: inherit;
+  font-size: 9px;
+  padding: 3px 5px;
+  background: #183f37c4;
+  border: 1px solid #e4e5bf44;
+  border-radius: 3px;
+}
+.world-toolbar nav {
+  display: flex;
+  align-items: stretch;
+  gap: 5px;
+  background: #153b35e8;
+  border: 1px solid #e5d99f55;
+  padding: 6px;
+  border-radius: 12px;
+  box-shadow: 0 5px 25px #183c3429;
+}
+.world-toolbar nav button {
+  border-color: transparent;
+  background: transparent;
+  padding: 11px;
+  font-size: 11px;
+}
+.world-toolbar nav button:hover,
+.world-toolbar nav button[aria-pressed='true'] {
+  background: #dce4b91a;
+}
+.world-toolbar nav b {
+  background: #e5d69f;
+  color: #304c3a;
+  border-radius: 4px;
+  padding: 1px 4px;
+  font-size: 9px;
+}
+.world-save {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #e0e5cd;
+  font-size: 9px;
+  text-shadow: 0 1px 4px #153c2a;
+}
+.world-save i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #c4dea3;
+}
+.world-save.failed {
+  color: #ffe6a5;
+}
+.world-touch-stick,
+.world-toolbar nav .world-run {
+  display: none;
+}
+.world-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  background: #183e38;
+  color: #f1e2b9;
+}
+.world-loading button {
+  padding: 10px 20px;
+}
+body:has(.open-world) .dialog-backdrop {
+  z-index: 60;
+  background: #0c292ab8;
+}
+body:has(.open-world) .dialog-content.world-dialog {
+  z-index: 61;
+  border: 1px solid #b6bb8566;
+  border-image: none;
+  background: #173b35;
+  box-shadow: 0 18px 100px #081e2277;
+  border-radius: 16px;
+  color: #f1eedb;
+  padding: 30px;
+  max-width: 570px;
+}
+.world-dialog .dialog-title {
+  font-family: Georgia, serif;
+  color: #f5dfab;
+  font-size: 28px;
+  font-weight: normal;
+}
+.world-dialog .muted {
+  color: #b7cbb9;
+  font-size: 12px;
+}
+.world-dialog button:not(.dialog-close) {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #b7c89555;
+  background: #284e40;
+  color: #e8ead1;
+  border-radius: 7px;
+  padding: 10px 14px;
+  font-size: 12px;
+}
+.world-dialog button.primary {
+  background: #dfd4a0;
+  color: #254537;
+  border-color: #dfd4a0;
+}
+.world-pause-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 24px 0;
+}
+.world-new-expedition {
+  border-top: 1px solid #a9be9740;
+  padding-top: 15px;
+}
+.world-new-expedition h3 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 14px;
+}
+.world-new-expedition p,
+.world-dialog-hint {
+  font-size: 11px;
+  color: #becfbb;
+  line-height: 1.7;
+}
+.world-new-expedition label {
+  display: block;
+  font-size: 11px;
+  margin: 12px 0 6px;
+}
+.world-new-expedition input {
+  width: 100%;
+  background: #102e2b;
+  border: 1px solid #b0bf8a55;
+  border-radius: 7px;
+  padding: 10px;
+  margin-bottom: 12px;
+  color: #f2eacb;
+}
+.world-new-expedition [role='alert'] {
+  color: #ffc49a;
+}
+.world-performance {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-top: 1px solid #a9be9740;
+  margin-top: 24px;
+  padding-top: 15px;
+  font-size: 11px;
+  color: #c4d2b8;
+}
+.world-performance b {
+  margin-left: auto;
+  color: #ecdfa6;
+}
+.world-performance small {
+  width: 100%;
+  font-size: 10px;
+}
+.world-journal-pokemon {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin: 22px 0;
+}
+.world-journal-pokemon > div {
+  min-width: 0;
+  text-align: center;
+  border: 1px solid #b7c89525;
+  background: #122f2a;
+  padding: 8px 2px;
+  border-radius: 9px;
+}
+.world-journal-pokemon img {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  filter: brightness(0.12);
+  image-rendering: pixelated;
+}
+.world-journal-pokemon .discovered img {
+  filter: none;
+}
+.world-journal-pokemon strong {
+  display: block;
+  font-size: 10px;
+}
+.world-journal-pokemon small {
+  display: block;
+  font-size: 9px;
+  color: #b9caaa;
+}
+.world-journal-biomes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 15px;
+}
+.world-journal-biomes > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+}
+.world-journal-biomes i {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 2px;
+}
+.world-journal-biomes small {
+  margin-left: auto;
+  color: #cbd8ac;
+}
+.play-mode-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+body:has(.fantasy-app) .dialog-content.play-mode-dialog {
+  max-width: 1190px;
+}
+.play-mode-world {
+  --mode-accent: #b9e3ad;
+}
+.play-mode-world .mode-card-art {
+  background:
+    radial-gradient(ellipse at 50% 90%, #c7d78844, transparent 60%),
+    linear-gradient(155deg, #184c48, #51745b 52%, #203d47);
+}
+.play-mode-world .mode-card-art::before {
+  background: linear-gradient(140deg, #d4d5ac 0 25%, #658578 26% 50%, #385e55 51%);
+  clip-path: polygon(0 100%, 20% 45%, 34% 67%, 52% 10%, 69% 63%, 83% 37%, 100% 100%);
+}
+.play-mode-world .mode-card-action {
+  background-image: linear-gradient(#d6e5a9 0 45%, #b6ca87 45% 90%, #718d55 90%);
+  color: #294330;
+}
+@media (min-width: 621px) and (max-width: 920px) and (min-height: 501px) {
+  .play-mode-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .play-mode-card .mode-card-art {
+    height: 95px;
+  }
+}
+@media (max-width: 620px) {
+  .play-mode-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (pointer: coarse), (max-width: 900px) {
+  .world-touch-stick {
+    display: flex;
+    position: absolute;
+    left: max(27px, env(safe-area-inset-left));
+    bottom: max(27px, env(safe-area-inset-bottom));
+    width: 105px;
+    height: 105px;
+    border: 1px solid #f4e9bd66;
+    border-radius: 50%;
+    background: #173e365e;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+    user-select: none;
+  }
+  .world-stick-cross {
+    font-size: 70px;
+    color: #e6e8be55;
+    line-height: 1;
+  }
+  .world-stick-knob {
+    position: absolute;
+    width: 42px;
+    height: 42px;
+    border: 1px solid #f1e7bb8c;
+    background: #cee1ba44;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .world-toolbar {
+    left: auto;
+    right: max(20px, env(safe-area-inset-right));
+    bottom: max(23px, env(safe-area-inset-bottom));
+  }
+  .world-control-hint,
+  .world-save {
+    display: none;
+  }
+  .world-toolbar nav .world-run {
+    display: inline-flex;
+  }
+  .world-toolbar nav button {
+    padding: 10px;
+  }
+  .world-toolbar nav button > span,
+  .world-toolbar nav kbd {
+    display: none;
+  }
+  .world-toolbar nav button {
+    min-width: 38px;
+    min-height: 40px;
+  }
+  .world-discovery {
+    bottom: 150px;
+  }
+}
+@media (max-width: 600px) {
+  .world-header {
+    top: max(16px, env(safe-area-inset-top));
+    left: 16px;
+    right: 16px;
+    gap: 11px;
+  }
+  .world-brand h1 {
+    font-size: 22px;
+  }
+  .world-brand > span {
+    font-size: 7px;
+    letter-spacing: 2px;
+  }
+  .world-expedition {
+    display: none;
+  }
+  .world-location {
+    top: 88px;
+    left: 18px;
+    max-width: calc(100% - 140px);
+  }
+  .world-location h2 {
+    font-size: 20px;
+  }
+  .world-location p {
+    flex-wrap: wrap;
+    font-size: 9px;
+    gap: 4px;
+  }
+  .world-map {
+    top: 88px;
+    right: 16px;
+    width: 115px;
+    padding: 5px;
+  }
+  .world-map-heading > span {
+    font-size: 7px;
+    letter-spacing: 0.5px;
+    gap: 4px;
+  }
+  .world-map-caption {
+    gap: 8px;
+  }
+  .world-map-caption small {
+    display: none;
+  }
+  .world-discovery {
+    left: 18px;
+    padding: 8px;
+    max-width: calc(100% - 36px);
+  }
+  .world-discovery .world-eyebrow {
+    font-size: 6px;
+  }
+  .world-discovery img {
+    width: 40px;
+    height: 40px;
+  }
+  .world-discovery strong {
+    font-size: 16px;
+  }
+  .world-toolbar nav {
+    gap: 0;
+    padding: 3px;
+  }
+  .world-toolbar nav button {
+    padding: 8px;
+  }
+  .world-toolbar nav b {
+    display: none;
+  }
+  body:has(.open-world) .dialog-content.world-dialog {
+    padding: 22px 17px;
+  }
+  .world-journal-pokemon {
+    gap: 4px;
+  }
+  .world-journal-pokemon img {
+    width: 45px;
+    height: 45px;
+  }
+  .world-journal-pokemon strong {
+    font-size: 8px;
+  }
+}
+@media (max-height: 500px) {
+  .world-header {
+    top: 12px;
+    left: max(18px, env(safe-area-inset-left));
+    right: max(18px, env(safe-area-inset-right));
+  }
+  .world-brand h1 {
+    font-size: 22px;
+  }
+  .world-location {
+    top: 78px;
+    left: max(20px, env(safe-area-inset-left));
+  }
+  .world-location h2 {
+    font-size: 19px;
+    margin: 2px 0;
+  }
+  .world-location .world-eyebrow {
+    font-size: 7px;
+  }
+  .world-map {
+    top: 65px;
+    right: 18px;
+    width: 113px;
+    padding: 5px;
+  }
+  .world-map-caption {
+    display: none;
+  }
+  .world-discovery {
+    left: auto;
+    right: 18px;
+    bottom: 88px;
+    padding: 5px 8px;
+  }
+  .world-discovery img {
+    width: 35px;
+    height: 35px;
+  }
+  .world-discovery strong {
+    font-size: 13px;
+    margin: 1px 0;
+  }
+  .world-discovery p {
+    font-size: 8px;
+  }
+  .world-discovery .world-eyebrow {
+    display: none;
+  }
+  .world-map.expanded {
+    top: 50%;
+    width: min(580px, 85vw);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 15px;
+  }
+  .world-map.expanded .world-map-heading {
+    grid-column: 1 / -1;
+  }
+  .world-map.expanded .world-map-art {
+    grid-row: span 2;
+    width: 100%;
+    max-height: 65dvh;
+  }
+  .world-map-legend {
+    grid-template-columns: 1fr;
+  }
+  .world-map-note {
+    font-size: 9px;
+  }
+  .world-toolbar {
+    bottom: 14px;
+  }
+  .world-touch-stick {
+    bottom: 18px;
+    width: 95px;
+    height: 95px;
+  }
+  .play-mode-card .mode-card-title {
+    font-size: 18px;
+  }
+  .play-mode-card .mode-card-description {
+    display: none;
+  }
+  .play-mode-card .mode-card-tag {
+    font-size: 6px;
+  }
+}
+
+/* Continental map and waygates; local radar remains compact during exploration. */
+.world-map-legend button {
+  padding: 7px 9px;
+  justify-content: flex-start;
+  min-height: 38px;
+  text-align: left;
+}
+.world-map-legend button > span {
+  display: block;
+  font-size: 10px;
+  line-height: 1.35;
+}
+.world-map-legend button small {
+  display: block;
+  font-size: 8px;
+  color: #aebfa8;
+  margin-top: 3px;
+}
+.world-map-legend button > i {
+  flex-shrink: 0;
+}
+.world-map-scale {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  border-top: 1px solid #e2d6a533;
+  padding-top: 8px;
+  font-size: 9px;
+  color: #c5d3b6;
+  grid-column: 1 / -1;
+}
+.world-map-scale strong {
+  color: #f1dfa8;
+  font-size: 13px;
+}
+.world-map.expanded {
+  max-height: calc(100dvh - 28px);
+  overflow-y: auto;
+}
+.world-map.expanded .world-map-art {
+  max-height: 38dvh;
+}
+.world-map.expanded .world-map-legend {
+  grid-template-columns: 1fr 1fr;
+}
+@media (max-height: 500px) {
+  .world-map.expanded .world-map-art {
+    max-height: 57dvh;
+  }
+  .world-map-legend button {
+    padding: 5px;
+    min-height: 30px;
+    gap: 5px;
+  }
+  .world-map-legend button > span {
+    font-size: 9px;
+  }
+  .world-map-scale {
+    margin-top: 5px;
+    padding-top: 5px;
+  }
+  .world-map-note {
+    margin: 0 0 6px;
+  }
+}
+
+.world-elevation {
+  position: absolute;
+  top: 184px;
+  left: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #eff2d1;
+  padding: 7px 12px;
+  background: #193e39dc;
+  border: 1px solid #c8d49d35;
+  border-radius: 5px;
+  font-size: 11px;
+  pointer-events: none;
+}
+.world-elevation span {
+  color: #d3d9b6;
+}
+.world-traversal {
+  position: absolute;
+  right: 28px;
+  bottom: 100px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  max-width: 240px;
+}
+.world-traversal p {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  width: 210px;
+  margin: 0 0 8px;
+  text-align: right;
+  color: #f1eecf;
+  font-size: 10px;
+  text-shadow: 0 1px 4px #102d2a;
+  pointer-events: none;
+}
+.world-traversal button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 68px;
+  height: 72px;
+  gap: 3px;
+  background: #193e39ed;
+  border: 1px solid #d4d5a650;
+  border-radius: 14px;
+  color: #f4edcc;
+  font-size: 11px;
+  touch-action: none;
+  user-select: none;
+}
+.world-traversal button[aria-pressed='true'],
+.world-traversal button:active {
+  background: #667955;
+}
+.world-traversal button:disabled {
+  opacity: 0.4;
+}
+.world-traversal kbd {
+  font-size: 8px;
+  opacity: 0.65;
+}
+@media (max-width: 600px) {
+  .world-elevation {
+    left: 18px;
+    top: 169px;
+    font-size: 10px;
+    padding: 5px 8px;
+    gap: 4px;
+  }
+  .world-elevation span {
+    max-width: 115px;
+  }
+  .world-traversal {
+    right: 20px;
+    bottom: 106px;
+  }
+  .world-traversal button {
+    min-width: 57px;
+    height: 62px;
+  }
+  .world-traversal kbd {
+    display: none;
+  }
+  .world-traversal p {
+    width: 140px;
+    font-size: 9px;
+  }
+}
+@media (max-height: 500px) {
+  .world-elevation {
+    top: 115px;
+    left: 20px;
+    font-size: 9px;
+    padding: 4px 7px;
+  }
+  .world-traversal {
+    bottom: 65px;
+    right: 18px;
+  }
+  .world-traversal button {
+    min-width: 48px;
+    height: 52px;
+    font-size: 9px;
+  }
+  .world-traversal p,
+  .world-traversal kbd {
+    display: none;
+  }
+}

@@ -134,6 +134,10 @@ The frontend currently imports immutable game data from the shared workspace, so
 
 Recommended next work: commission/licence final art and audio, run a broad balance and accessibility playtest, profile on real mobile hardware, optimize snapshot traffic, then add persistence behind a match-result repository and multi-process room coordination if deployment requires it.
 
+### Thế giới mở
+
+Chọn **Chơi Ngay → Thế giới mở** để khám phá lục địa pixel isometric **268,4 km²** (16,384 × 16,384 km) sinh ngẫu nhiên, có sông suối chảy xuống biển, núi tuyết, núi lửa, rừng và Pokémon hoang dã đi theo bầy hoặc một mình. Có đồi bậc thang, vách núi và thung lũng: **Space** để nhảy, **giữ E + hướng di chuyển** để leo. Điện thoại có nút Nhảy/Leo. Ảnh cây cối, địa hình và vách đá được tạo bằng imagegen; bản đồ tải từng vùng quanh người chơi. Hỗ trợ bàn phím, cảm ứng, bản đồ có điểm dịch chuyển, nhật ký và tự lưu trên thiết bị. Xem [hướng dẫn và thiết kế thế giới mở](docs/open-world.md).
+
 ### Tài khoản và MongoDB
 
 Nút **Đăng nhập** trên thanh điều hướng hỗ trợ đăng ký, đăng nhập, khôi phục phiên khi tải lại trang và đăng xuất. Bạn vẫn có thể chơi với tư cách khách.

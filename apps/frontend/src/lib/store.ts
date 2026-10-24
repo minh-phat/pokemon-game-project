@@ -16,6 +16,7 @@ type Screen =
   | 'online'
   | 'lobby'
   | 'battle'
+  | 'world'
   | 'codex'
   | 'arenas';
 interface GameStore {

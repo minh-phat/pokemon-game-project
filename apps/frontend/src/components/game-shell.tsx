@@ -23,6 +23,9 @@ import { LobbyScreen } from './lobby';
 import { BattleScreen } from './battle-screen';
 import { Button } from './ui/button';
 import { Dialog } from './ui/dialog';
+import dynamic from 'next/dynamic';
+
+const OpenWorld = dynamic(() => import('./open-world'), { ssr: false });
 
 export function GameShell() {
   const state = useGame();
@@ -81,7 +84,7 @@ export function GameShell() {
       <a href="#main-content" className="skip-link">
         {t('Đến nội dung chính', 'Skip to content')}
       </a>
-      {!isHome && (
+      {!isHome && state.screen !== 'world' && (
         <header className="site-header">
           <button
             className="brand"
@@ -205,8 +208,9 @@ export function GameShell() {
         {state.screen === 'lobby' && <LobbyScreen />}
         {state.screen === 'battle' && <BattleScreen />}
         {state.screen === 'arenas' && <ArenasScreen />}
+        {state.screen === 'world' && <OpenWorld />}
       </main>
-      {!isHome && (
+      {!isHome && state.screen !== 'world' && (
         <footer className="site-footer">
           <span>
             {t(
