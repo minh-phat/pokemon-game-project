@@ -31,6 +31,7 @@ import {
 export * from './geometry';
 export const FIXED_DELTA = 1 / 60;
 const GRAVITY = 1050;
+export const DASH_DISTANCE = 200;
 
 export class BattleEngine {
   readonly config: BattleConfig;
@@ -39,6 +40,7 @@ export class BattleEngine {
   private accumulator = 0;
   private eventId = 0;
   private projectileId = 0;
+  private dashRemaining = new Map<string, number>();
   private terrainOrigins = new Map<string, { x: number; depth: number }>();
   private get arena() {
     return ARENAS.find((a) => a.id === this.state.rules.arena)!;
@@ -634,8 +636,9 @@ export class BattleEngine {
       this.animate(f, 'crouch');
     } else {
       f.vx = direction * speed * 2.8;
-      f.actionTime = 0.25;
-      f.invulnerable = 0.13;
+      this.dashRemaining.set(f.id, DASH_DISTANCE);
+      f.actionTime = DASH_DISTANCE / Math.hypot(f.vx, f.vDepth) + FIXED_DELTA;
+      f.invulnerable = Math.min(0.13, DASH_DISTANCE / Math.hypot(f.vx, f.vDepth));
       f.state = 'Dodge';
       this.animate(f, Math.sign(direction) === f.facing ? 'dash' : 'backstep');
     }
@@ -1180,6 +1183,28 @@ export class BattleEngine {
   private move(f: Fighter, dt: number, stunned: boolean) {
     const def = POKEMON[f.species],
       arena = ARENAS.find((a) => a.id === this.state.rules.arena)!;
+    const remaining = this.dashRemaining.get(f.id);
+    if (remaining !== undefined) {
+      if (stunned || (f.animation !== 'dash' && f.animation !== 'backstep') || f.actionTime === 0) {
+        this.dashRemaining.delete(f.id);
+      } else {
+        const distance = Math.min(remaining, Math.hypot(f.vx, f.vDepth) * dt);
+        const scale = distance / (Math.hypot(f.vx, f.vDepth) || 1);
+        f.x = Math.max(arena.bounds[0], Math.min(arena.bounds[1], f.x + f.vx * scale));
+        f.depth = Math.max(
+          arena.depthBounds[0],
+          Math.min(arena.depthBounds[1], f.depth + f.vDepth * scale),
+        );
+        if (remaining - distance <= 1e-8) {
+          this.dashRemaining.delete(f.id);
+          f.vx = f.vDepth = 0;
+          f.actionTime = 0;
+        } else {
+          this.dashRemaining.set(f.id, remaining - distance);
+        }
+        return;
+      }
+    }
     const staminaScale = staminaSpeedMultiplier(f);
     if (f.stamina < f.maxStamina * STAMINA_RULES.lowThreshold) f.sprinting = false;
     const speed = (f.sprinting ? def.sprintSpeed : def.speed) * staminaScale;

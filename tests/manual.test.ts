@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { initializeBattle, FIXED_DELTA } from '@arena/game-core';
+import { initializeBattle, FIXED_DELTA, DASH_DISTANCE } from '@arena/game-core';
 import { BattleSession } from '../apps/game-server/src/session';
 import { DEFAULT_RULES } from '@arena/shared-types';
 import { POKEMON } from '@arena/game-data';
@@ -327,6 +327,38 @@ describe('manual battle commands', () => {
     expect(speed).toBeGreaterThan(0);
     expect(a.vx / speed).toBeCloseTo(x / Math.hypot(x, depth));
     expect(a.vDepth / speed).toBeCloseTo(depth / Math.hypot(x, depth));
+  });
+  it.each([
+    [1, 0],
+    [0, 1],
+    [Math.SQRT1_2, Math.SQRT1_2],
+  ])('keeps dash distance fixed as Speed rises (%s, %s)', (direction, depthDirection) => {
+    const originalSpeed = POKEMON.pikachu.speed;
+    const durations: number[] = [];
+    try {
+      for (const multiplier of [1, 2, 10]) {
+        POKEMON.pikachu.speed = originalSpeed * multiplier;
+        const e = engine();
+        const [a, b] = e.state.fighters;
+        b.active = false;
+        a.x = 500;
+        a.depth = 0;
+        e.setManualMode('alice', true);
+        expect(e.beginDodge(a, 'dash', direction, depthDirection)).toBe(true);
+        const duration = a.actionTime;
+        durations.push(duration);
+        let ticks = 0;
+        while (a.actionTime > 0 && ticks++ < 120) step(e, 1);
+        expect(ticks).toBeLessThan(120);
+        expect(Math.hypot(a.x - 500, a.depth)).toBeCloseTo(DASH_DISTANCE);
+        expect(a.vx).toBe(0);
+        expect(a.vDepth).toBe(0);
+      }
+      expect(durations[1]).toBeLessThan(durations[0]);
+      expect(durations[2]).toBeLessThan(durations[1]);
+    } finally {
+      POKEMON.pikachu.speed = originalSpeed;
+    }
   });
   it('keeps facing as the default dash direction and rejects invalid input', () => {
     const e = engine();
