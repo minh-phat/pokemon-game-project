@@ -2,7 +2,19 @@
 import { useState } from 'react';
 import { useCopy } from '@/lib/i18n';
 import { ArrowRight, Check, Heart, Plus, Search, Shield, Swords, Zap } from 'lucide-react';
-import { ELEMENTS, POKEMON, ROSTER, combatPower } from '@arena/game-data';
+import {
+  ELEMENTS,
+  POKEMON,
+  ROSTER,
+  combatPower,
+  calculatePetStats,
+  MIN_PET_LEVEL,
+  MAX_PET_LEVEL,
+  PET_QUALITIES,
+  PET_QUALITY_MULTIPLIERS,
+  PET_STAT_GROWTH,
+  type PetQuality,
+} from '@arena/game-data';
 import { useGame } from '@/lib/store';
 import { connectRoom, sendRoom } from '@/lib/network';
 import { Button } from './ui/button';
@@ -14,6 +26,14 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
   const state = useGame();
   const [query, setQuery] = useState('');
   const [element, setElement] = useState('all');
+  const [level, setLevel] = useState(1);
+  const [levelInput, setLevelInput] = useState('1');
+  const [quality, setQuality] = useState<PetQuality>('C');
+  const validLevel =
+    levelInput.trim() !== '' &&
+    Number.isInteger(Number(levelInput)) &&
+    Number(levelInput) >= MIN_PET_LEVEL &&
+    Number(levelInput) <= MAX_PET_LEVEL;
   const visibleRoster = ROSTER.filter(
     (pet) =>
       (!inspectOnly || element === 'all' || pet.element === element) &&
@@ -31,6 +51,8 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
     }
   }
   const selected = POKEMON[state.inspected];
+  const progression = { level, quality };
+  const preview = inspectOnly ? calculatePetStats(selected, progression) : selected;
   const busy = state.connection === 'connecting';
   async function confirm() {
     if (state.team.length !== state.rules.teamSize) return;
@@ -135,7 +157,17 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
                     <p>{p.role}</p>
                     <span className="combat-power-badge">
                       <Swords size={15} aria-hidden="true" />
-                      {c('Combat power')} <strong>{formatPower(combatPower(p))}</strong>
+                      {c('Combat power')}{' '}
+                      <strong>
+                        {formatPower(
+                          combatPower(inspectOnly ? calculatePetStats(p, progression) : p),
+                        )}
+                      </strong>
+                      {inspectOnly && (
+                        <small>
+                          Lv. {level} · {quality}
+                        </small>
+                      )}
                     </span>
                   </button>
                   {!inspectOnly && (
@@ -196,16 +228,114 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
           </div>
           <h2>{selected.name}</h2>
           <span className="detail-role">{selected.role}</span>
+          {inspectOnly && (
+            <section className="pet-progression" aria-label={c('Stat preview')}>
+              <h3>{c('Stat preview')}</h3>
+              <div className="pet-progression-controls">
+                <label>
+                  {c('Level')}
+                  <input
+                    type="number"
+                    min={MIN_PET_LEVEL}
+                    max={MAX_PET_LEVEL}
+                    step={1}
+                    value={levelInput}
+                    aria-invalid={!validLevel}
+                    aria-describedby={!validLevel ? 'pet-level-error' : undefined}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setLevelInput(value);
+                      const next = Number(value);
+                      if (
+                        value.trim() &&
+                        Number.isInteger(next) &&
+                        next >= MIN_PET_LEVEL &&
+                        next <= MAX_PET_LEVEL
+                      )
+                        setLevel(next);
+                    }}
+                  />
+                </label>
+                <label>
+                  {c('Quality')}
+                  <select
+                    aria-label={c('Quality')}
+                    value={quality}
+                    onChange={(event) => setQuality(event.target.value as PetQuality)}
+                  >
+                    {PET_QUALITIES.map((grade) => (
+                      <option key={grade} value={grade}>
+                        {grade} · ×{PET_QUALITY_MULTIPLIERS[grade]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              {!validLevel && (
+                <p id="pet-level-error" role="alert">
+                  {c('Enter a whole level from 1 to 100. The preview keeps the last valid level.')}
+                </p>
+              )}
+              <div className="pet-progression-actions">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setLevel(10);
+                    setLevelInput('10');
+                  }}
+                >
+                  {c('Try level 10')}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setLevel(1);
+                    setLevelInput('1');
+                    setQuality('C');
+                  }}
+                >
+                  {c('Reset to base')}
+                </Button>
+              </div>
+              <p role="status">
+                {selected.name} · {c('Level')} {level} · {c('Quality')} {quality}
+              </p>
+              <p>{c('Preview only. Battle stats currently use level 1 / C.')}</p>
+              <details>
+                <summary>{c('Level and quality formula')}</summary>
+                <p>{c('Stat = base × (1 + (level − 1) × growth) × quality multiplier.')}</p>
+                <p>
+                  {c('Growth per level')}: {c('Health')} +{PET_STAT_GROWTH.hp * 100}%; {c('Attack')}{' '}
+                  / {c('Defense')} +{PET_STAT_GROWTH.attack * 100}%; {c('Speed')} /{' '}
+                  {c('Sprint speed')} +{PET_STAT_GROWTH.speed * 100}%; {c('Stamina')} +
+                  {PET_STAT_GROWTH.maxStamina * 100}%.
+                </p>
+                <p>
+                  {c(
+                    'Speed is rounded to one decimal; other stats to whole numbers. Energy and skill costs stay fixed.',
+                  )}
+                </p>
+              </details>
+            </section>
+          )}
           <div className="combat-power-panel">
             <span>
               <Swords size={18} aria-hidden="true" />
               {c('Total combat power')}
             </span>
-            <strong>{formatPower(combatPower(selected))}</strong>
+            <strong>{formatPower(combatPower(preview))}</strong>
             <details>
               <summary>{c('How is it calculated?')}</summary>
               <p>{c('HP + Attack × 5 + Defense × 5 + Speed + Sprint speed + Stamina.')}</p>
-              <p>{c('Based on base stats. Skills and elemental matchups are not included.')}</p>
+              <p>
+                {c(
+                  inspectOnly
+                    ? 'Based on the selected level and quality. Skills and elemental matchups are not included.'
+                    : 'Based on base stats. Skills and elemental matchups are not included.',
+                )}
+              </p>
             </details>
           </div>
           <p className="detail-description">{selected.description}</p>
@@ -222,27 +352,58 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
           )}
           <div className="stats-grid">
             {[
-              { label: c('Health'), value: selected.hp, max: 240, Icon: Heart },
-              { label: c('Attack'), value: selected.attack, max: 40, Icon: Swords },
-              { label: c('Defense'), value: selected.defense, max: 45, Icon: Shield },
-              { label: c('Speed'), value: selected.speed, max: 250, Icon: Zap },
-              { label: c('Sprint speed'), value: selected.sprintSpeed, max: 330, Icon: Zap },
+              { label: c('Health'), value: preview.hp, base: selected.hp, max: 240, Icon: Heart },
+              {
+                label: c('Attack'),
+                value: preview.attack,
+                base: selected.attack,
+                max: 40,
+                Icon: Swords,
+              },
+              {
+                label: c('Defense'),
+                value: preview.defense,
+                base: selected.defense,
+                max: 45,
+                Icon: Shield,
+              },
+              {
+                label: c('Speed'),
+                value: preview.speed,
+                base: selected.speed,
+                max: 250,
+                Icon: Zap,
+              },
+              {
+                label: c('Sprint speed'),
+                value: preview.sprintSpeed,
+                base: selected.sprintSpeed,
+                max: 330,
+                Icon: Zap,
+              },
               {
                 label: c('Stamina'),
-                value: selected.maxStamina,
+                value: preview.maxStamina,
+                base: selected.maxStamina,
                 max: Math.max(100, selected.maxStamina),
                 Icon: Heart,
               },
-            ].map(({ label, value, max, Icon }) => (
+            ].map(({ label, value, base, max, Icon }) => (
               <div className="stat" key={label}>
                 <span>
                   <Icon size={13} />
                   {label}
-                  <b>{value}</b>
+                  <b>{formatPower(value)}</b>
                 </span>
                 <div className="stat-track">
-                  <i style={{ width: `${(value / max) * 100}%` }} />
+                  <i style={{ width: `${Math.min(100, (value / max) * 100)}%` }} />
                 </div>
+                {inspectOnly && (
+                  <small className="stat-growth">
+                    {c('Base')}: {formatPower(base)} · +
+                    {formatPower(Math.round((value - base) * 10) / 10)}
+                  </small>
+                )}
               </div>
             ))}
           </div>

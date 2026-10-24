@@ -1,5 +1,15 @@
 import { z } from 'zod';
 
+export const MIN_PET_LEVEL = 1;
+export const MAX_PET_LEVEL = 100;
+export const PET_QUALITIES = ['C', 'B', 'A', 'S', 'SS'] as const;
+export const PetProgressionSchema = z.object({
+  level: z.number().int().min(MIN_PET_LEVEL).max(MAX_PET_LEVEL),
+  quality: z.enum(PET_QUALITIES),
+});
+export type PetProgression = z.infer<typeof PetProgressionSchema>;
+export type PetQuality = PetProgression['quality'];
+
 export const speciesIds = [
   'pikachu',
   'charmander',

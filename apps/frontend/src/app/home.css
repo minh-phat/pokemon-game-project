@@ -1978,6 +1978,81 @@ body:has(.reduce-motion) .play-mode-card {
   border-color: #52617c;
   gap: 18px;
 }
+.pet-progression {
+  margin: 18px 0;
+  padding: 16px;
+  border: 1px solid #52617c;
+  border-radius: 8px;
+  background: #0b162c;
+  color: #c1cce0;
+}
+.pet-progression h3 {
+  margin: 0 0 12px;
+  color: #f5d99e;
+}
+.pet-progression-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.pet-progression-controls label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+.pet-progression-controls input,
+.pet-progression-controls select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid #7584a0;
+  border-radius: 5px;
+  color: #fff0d4;
+  background: #16243b;
+  font: inherit;
+}
+.pet-progression-controls input:focus-visible,
+.pet-progression-controls select:focus-visible {
+  outline: 2px solid #edc879;
+  outline-offset: 2px;
+}
+.pet-progression-controls input[aria-invalid='true'] {
+  border-color: #ff9292;
+}
+.pet-progression-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.pet-progression p,
+.pet-progression summary,
+.pet-library .stat-growth {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.pet-progression p {
+  margin: 10px 0 0;
+}
+.pet-progression details {
+  margin-top: 10px;
+}
+.pet-progression summary {
+  cursor: pointer;
+}
+.pet-library .stat-growth {
+  display: block;
+  margin-top: 5px;
+  color: #a7e8c0;
+}
+.pet-library .combat-power-badge {
+  flex-wrap: wrap;
+}
+.pet-library .combat-power-badge small {
+  font-size: 11px;
+  color: #c1cce0;
+}
 .pet-library .stat-track {
   height: 6px;
   background: #060f21;

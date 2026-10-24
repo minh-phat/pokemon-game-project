@@ -11,6 +11,24 @@ export const vietnameseCopy: Record<string, string> = {
   'No companions found': 'Chưa tìm thấy linh thú',
   'Try another name or element.': 'Thử tìm với tên hoặc hệ khác nhé.',
   'Reset filters': 'Xóa bộ lọc',
+  'Stat preview': 'Xem trước chỉ số',
+  Level: 'Cấp độ',
+  Quality: 'Phẩm chất',
+  Base: 'Gốc',
+  'Try level 10': 'Thử cấp 10',
+  'Reset to base': 'Về chỉ số gốc',
+  'Enter a whole level from 1 to 100. The preview keeps the last valid level.':
+    'Nhập cấp độ nguyên từ 1 đến 100. Bảng chỉ số đang giữ cấp hợp lệ gần nhất.',
+  'Preview only. Battle stats currently use level 1 / C.':
+    'Đây là bản xem trước. Chỉ số trong trận hiện ở cấp 1 / phẩm chất C.',
+  'Level and quality formula': 'Công thức cấp độ và phẩm chất',
+  'Stat = base × (1 + (level − 1) × growth) × quality multiplier.':
+    'Chỉ số = gốc × (1 + (cấp − 1) × tăng trưởng) × hệ số phẩm chất.',
+  'Growth per level': 'Tăng trưởng mỗi cấp',
+  'Speed is rounded to one decimal; other stats to whole numbers. Energy and skill costs stay fixed.':
+    'Tốc độ làm tròn 1 chữ số thập phân; các chỉ số khác làm tròn số nguyên. Năng lượng và chi phí kỹ năng giữ nguyên.',
+  'Based on the selected level and quality. Skills and elemental matchups are not included.':
+    'Tính theo cấp độ và phẩm chất đang chọn, chưa bao gồm kỹ năng và tương khắc hệ.',
 
   'Combat power': 'Chiến lực',
   'Total combat power': 'Tổng chiến lực',

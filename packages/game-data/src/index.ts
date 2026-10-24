@@ -11,6 +11,7 @@ import {
 } from '@arena/shared-types';
 export * from './manifest';
 export { combatPower } from './combat-power';
+export * from './progression';
 
 function skill(
   id: string,
