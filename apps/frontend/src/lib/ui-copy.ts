@@ -1,4 +1,17 @@
 export const vietnameseCopy: Record<string, string> = {
+  'THE SUMMONER’S ARCHIVE': 'BÁCH KHOA LINH THÚ',
+  'Pet library': 'Thư Viện Pets',
+  'Discover your companions, their powers and the stories behind every battle.':
+    'Khám phá linh thú đồng hành, sức mạnh và kỹ năng cho mỗi trận chiến.',
+  'Explore pets': 'Khám phá linh thú',
+  'Search pets': 'Tìm linh thú',
+  'Search by name or number…': 'Tìm theo tên hoặc số hiệu…',
+  'Filter by element': 'Lọc theo hệ',
+  'All elements': 'Tất cả hệ',
+  'No companions found': 'Chưa tìm thấy linh thú',
+  'Try another name or element.': 'Thử tìm với tên hoặc hệ khác nhé.',
+  'Reset filters': 'Xóa bộ lọc',
+
   'Combat power': 'Chiến lực',
   'Total combat power': 'Tổng chiến lực',
   'How is it calculated?': 'Cách tính chiến lực',

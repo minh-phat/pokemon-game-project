@@ -1766,3 +1766,309 @@ body:has(.reduce-motion) .play-mode-card {
     display: none;
   }
 }
+
+/* The archive uses the lobby's midnight palette and gold game frames. */
+.fantasy-app:has(.pet-library) {
+  background:
+    linear-gradient(#071126b8, #080f23f5),
+    url('/assets/home/lobby.webp') center top / cover fixed;
+}
+.pet-library {
+  max-width: 1320px;
+  margin-inline: auto;
+  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+}
+.pet-library .page-heading {
+  position: relative;
+  margin-bottom: 28px;
+}
+.pet-library .page-heading h1 {
+  color: #ffe4a3;
+  font-family: Georgia, 'Times New Roman', serif;
+  text-shadow: 0 3px 16px #0009;
+}
+.pet-library .eyebrow {
+  color: #d8ba77;
+  letter-spacing: 2px;
+}
+.pet-library .page-heading .muted {
+  color: #b9c9e2;
+  max-width: 560px;
+  line-height: 1.7;
+}
+.library-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  padding: 20px;
+  margin-bottom: 26px;
+}
+.library-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 220px;
+  color: #d9bd7e;
+  background: #060f23;
+  border: 1px solid #59617a;
+  padding: 12px 14px;
+}
+.library-search input {
+  width: 100%;
+  min-width: 0;
+  color: #fff4df;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+.library-search:focus-within {
+  outline: 2px solid #f4d18a;
+  outline-offset: 3px;
+}
+.library-search input::placeholder {
+  color: #9cabca;
+}
+.library-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.library-filters button {
+  border: 1px solid #54617c;
+  background: #17243f;
+  padding: 9px 12px;
+  color: #c5d1e7;
+  font: inherit;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.library-filters button[aria-pressed='true'] {
+  color: #ffe5a8;
+  border-color: #dbb66e;
+  background: #54432580;
+  box-shadow: inset 0 0 12px #e6b34c15;
+}
+.library-count {
+  color: #b8c8e0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.pet-library .roster-layout {
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr);
+  gap: 28px;
+}
+.pet-library .roster-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.pet-library .roster-card {
+  border: 3px solid transparent;
+  border-image: url('/assets/home/frame-gold.svg') 32 / 14px / 0 stretch;
+  border-radius: 0;
+  padding: 0 14px 18px;
+  background:
+    radial-gradient(ellipse at 50% 30%, var(--pokemon-halo), transparent 65%),
+    linear-gradient(160deg, #24344d, #0e1930 80%);
+  box-shadow: 0 6px 18px #0004;
+  transition:
+    transform 0.18s,
+    box-shadow 0.18s;
+}
+.pet-library .roster-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px #0007;
+}
+.pet-library .roster-card.inspecting {
+  background:
+    radial-gradient(ellipse at 50% 30%, var(--pokemon-halo), transparent 70%),
+    linear-gradient(160deg, #3a4660, #17233b);
+  box-shadow:
+    0 0 0 2px #efca7f,
+    0 0 24px #f7c86b25;
+}
+.pet-library .dex-number {
+  color: #c5b88f;
+  font-size: 10px;
+  letter-spacing: 2px;
+}
+.pet-library .roster-inspect .portrait-halo {
+  height: 134px;
+}
+.pet-library .roster-inspect .portrait-halo img {
+  width: 140px;
+  height: 140px;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 10px 10px #0006);
+}
+.pet-library .roster-card-name {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 8px;
+}
+.pet-library .roster-card-name h3 {
+  color: #fff1cf;
+  font-size: 17px;
+}
+.pet-library .roster-inspect > p {
+  min-height: 26px;
+  margin-top: 8px;
+  line-height: 1.5;
+  color: #b6c6e0;
+}
+.pet-library .combat-power-badge {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 8px;
+  border-color: #8a744a;
+  border-radius: 4px;
+  background: #091328a8;
+  color: #e5c98f;
+  font-size: 10px;
+}
+.pet-library .combat-power-badge strong {
+  font-size: 14px;
+}
+.pet-library .pokemon-detail {
+  border: 4px solid transparent;
+  border-image: url('/assets/home/frame-gold.svg') 32 / 22px / 0 stretch;
+  border-radius: 0;
+  padding: 26px;
+  background:
+    radial-gradient(ellipse at 50% 12%, var(--pokemon-halo), transparent 36%),
+    linear-gradient(160deg, #202f4b, #0d192f 65%);
+  box-shadow: 0 12px 36px #0005;
+}
+.pet-library .detail-preview {
+  height: 190px;
+  background: radial-gradient(ellipse at 50% 80%, #c8d8ff12, transparent 60%);
+}
+.pet-library .preview-ring {
+  width: 160px;
+  height: 40px;
+  opacity: 0.65;
+  bottom: 16px;
+  box-shadow:
+    0 0 20px var(--pokemon-halo),
+    inset 0 0 12px var(--pokemon-halo);
+}
+.pet-library .pokemon-detail h2 {
+  color: #ffe3a5;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 32px;
+}
+.pet-library .detail-description {
+  color: #c0cee3;
+  font-size: 12px;
+}
+.pet-library .combat-power-panel {
+  border: 1px solid #947945;
+  border-radius: 5px;
+  color: #f5d99e;
+  background: linear-gradient(120deg, #57422680, #1c2942);
+}
+.pet-library .combat-power-panel details {
+  color: #c1cce0;
+}
+.pet-library .stats-grid {
+  border-color: #52617c;
+  gap: 18px;
+}
+.pet-library .stat-track {
+  height: 6px;
+  background: #060f21;
+}
+.pet-library .stat-track i {
+  box-shadow: 0 0 8px var(--pokemon-color);
+}
+.pet-library .skill-heading {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pet-library .skill-heading h4 {
+  color: #e8ce97;
+}
+.pet-library .skill-row {
+  padding: 12px;
+  border: 1px solid #435574;
+  border-radius: 5px;
+  background: #08142b70;
+}
+.pet-library .skill-row strong {
+  font-size: 12px;
+  color: #f4e6c9;
+}
+.pet-library .skill-row p {
+  font-size: 11px;
+  line-height: 1.7;
+  margin-top: 5px;
+}
+.pet-library .skill-row small {
+  display: block;
+  color: #d1bb89;
+  margin-top: 7px;
+  font-size: 10px;
+}
+.pet-library .flow-footer {
+  padding: 22px;
+  border-block: 1px solid #756445;
+  margin-top: 30px;
+  background: #101d34b3;
+}
+.library-empty {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  padding: 40px 20px;
+  text-align: center;
+  color: #c5d1e7;
+}
+.pet-library button:focus-visible {
+  outline: 2px solid #ffe0a0;
+  outline-offset: 4px;
+}
+@media (max-width: 1100px) {
+  .pet-library .roster-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .pet-library .roster-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .library-toolbar {
+    padding: 16px;
+    gap: 14px;
+  }
+  .library-search {
+    flex-basis: 100%;
+  }
+  .library-filters button {
+    padding: 10px;
+  }
+  .pet-library .pokemon-detail {
+    padding: 22px 18px;
+  }
+  .pet-library .roster-card-name .element-badge {
+    display: inline-flex;
+  }
+  .pet-library .flow-footer {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pet-library .roster-card {
+    transition: none;
+  }
+  .pet-library .roster-card:hover {
+    transform: none;
+  }
+}
+.reduce-motion .pet-library .roster-card {
+  transition: none;
+}

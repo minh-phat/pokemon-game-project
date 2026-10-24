@@ -1,8 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { useCopy } from '@/lib/i18n';
-import { ArrowRight, Check, Heart, Plus, Shield, Swords, Zap } from 'lucide-react';
-import { POKEMON, ROSTER, combatPower } from '@arena/game-data';
+import { ArrowRight, Check, Heart, Plus, Search, Shield, Swords, Zap } from 'lucide-react';
+import { ELEMENTS, POKEMON, ROSTER, combatPower } from '@arena/game-data';
 import { useGame } from '@/lib/store';
 import { connectRoom, sendRoom } from '@/lib/network';
 import { Button } from './ui/button';
@@ -12,6 +12,14 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
   const formatPower = (value: number) =>
     value.toLocaleString(state.language === 'vi' ? 'vi-VN' : 'en-US');
   const state = useGame();
+  const [query, setQuery] = useState('');
+  const [element, setElement] = useState('all');
+  const visibleRoster = ROSTER.filter(
+    (pet) =>
+      (!inspectOnly || element === 'all' || pet.element === element) &&
+      (!inspectOnly ||
+        `${pet.name} ${pet.number}`.toLowerCase().includes(query.trim().toLowerCase())),
+  );
   const [side, setSide] = useState<'team' | 'aiTeam'>('team');
   const choosingAI = !inspectOnly && state.mode === 'ai' && side === 'aiTeam';
   const team = choosingAI ? state.aiTeam : state.team;
@@ -35,14 +43,14 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
     else setSide('aiTeam');
   }
   return (
-    <div className="page-wrap roster-page">
+    <div className={`page-wrap roster-page ${inspectOnly ? 'pet-library' : ''}`}>
       {!inspectOnly && <Steps step={3} />}
       <PageTitle
-        eyebrow={inspectOnly ? c('THE POKÉMON') : c('YOUR ADVENTURE. YOUR TEAM.')}
-        title={inspectOnly ? c('Little legends.') : c('Choose your companions.')}
+        eyebrow={inspectOnly ? c('THE SUMMONER’S ARCHIVE') : c('YOUR ADVENTURE. YOUR TEAM.')}
+        title={inspectOnly ? c('Pet library') : c('Choose your companions.')}
         description={
           inspectOnly
-            ? c('Find your kind of fighter.')
+            ? c('Discover your companions, their powers and the stories behind every battle.')
             : c('Pick {count} Pokémon. Their instincts will take it from here.').replace(
                 '{count}',
                 String(state.rules.teamSize),
@@ -68,10 +76,36 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
           </Button>
         </div>
       )}
+      {inspectOnly && (
+        <section className="library-toolbar fantasy-frame" aria-label={c('Explore pets')}>
+          <label className="library-search">
+            <Search size={18} aria-hidden="true" />
+            <input
+              aria-label={c('Search pets')}
+              placeholder={c('Search by name or number…')}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          <div className="library-filters" role="group" aria-label={c('Filter by element')}>
+            <button aria-pressed={element === 'all'} onClick={() => setElement('all')}>
+              {c('All elements')}
+            </button>
+            {Object.entries(ELEMENTS).map(([key, info]) => (
+              <button key={key} aria-pressed={element === key} onClick={() => setElement(key)}>
+                <span aria-hidden="true">{info.symbol}</span> {c(info.label)}
+              </button>
+            ))}
+          </div>
+          <span className="library-count" role="status">
+            {visibleRoster.length} / {ROSTER.length} pets
+          </span>
+        </section>
+      )}
       <div className="roster-layout">
         <div>
           <div className="roster-grid">
-            {ROSTER.map((p) => {
+            {visibleRoster.map((p) => {
               const count = team.filter((id) => id === p.id).length;
               return (
                 <article
@@ -131,6 +165,22 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
               );
             })}
           </div>
+          {inspectOnly && visibleRoster.length === 0 && (
+            <div className="library-empty fantasy-frame">
+              <Search size={28} aria-hidden="true" />
+              <h3>{c('No companions found')}</h3>
+              <p>{c('Try another name or element.')}</p>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setQuery('');
+                  setElement('all');
+                }}
+              >
+                {c('Reset filters')}
+              </Button>
+            </div>
+          )}
           <p className="hint roster-hint">
             {c('Select a card to explore its skills and battle style.')}
           </p>
