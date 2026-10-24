@@ -10,9 +10,11 @@ import { useGame } from '@/lib/store';
 import { BattleAudio } from './audio';
 import { easeHover, hoverTarget } from './hover';
 import { SkillVfx } from './skill-vfx';
+import { DashWind } from './dash-wind';
 import { automaticCameraFrame } from './arena-camera';
 
 type Visual = {
+  wind: DashWind;
   sprite: Phaser.GameObjects.Sprite;
   shadow: Phaser.GameObjects.Ellipse;
   bars: Phaser.GameObjects.Graphics;
@@ -154,6 +156,7 @@ export function createArenaScene(
       this.ambience = new BattleAudio(arenaId === 'ruins' ? 'forest' : arenaId);
       this.events.once('shutdown', () => {
         this.ambience.destroy();
+        for (const actor of this.actors.values()) actor.wind.destroy();
         this.actors.clear();
         this.skillVfx.destroy();
         this.leaves = [];
@@ -162,6 +165,7 @@ export function createArenaScene(
     }
     private createActor(f: Fighter) {
       const visual: Visual = {
+        wind: new DashWind(this),
         shadow: this.add.ellipse(f.x, 522, 65, 13, 0x142b2c, 0.25).setDepth(1),
         ring: this.add
           .ellipse(f.x, 521, 74, 17)
@@ -281,6 +285,18 @@ export function createArenaScene(
             v.targetMarker.setVisible(false);
             v.label.setVisible(false);
             v.bars.clear();
+            v.wind.update(
+              0,
+              0,
+              0,
+              0,
+              0,
+              false,
+              false,
+              delta,
+              settings.paused,
+              settings.reducedMotion,
+            );
           }
           continue;
         }
@@ -319,6 +335,20 @@ export function createArenaScene(
         if (!settings.paused) v.hoverLift = easeHover(v.hoverLift, targetHover, delta);
         hoverByFighter.set(f.id, v.hoverLift);
         const altitude = y + v.hoverLift;
+        v.wind.update(
+          x,
+          ground - altitude - 32,
+          10 + (ground - 300) / 300,
+          f.vx,
+          f.vDepth,
+          f.state === 'Dodge' &&
+            f.actionTime > 0 &&
+            (f.animation === 'dash' || f.animation === 'backstep'),
+          !hidden && !faint && !liquidBinding,
+          delta,
+          settings.paused,
+          settings.reducedMotion,
+        );
         const glyphCasting =
           f.cast?.skillId === 'ember-glyph' && f.cast.elapsed < SKILL_BY_ID['ember-glyph'].startup;
         const glyphWobble =
