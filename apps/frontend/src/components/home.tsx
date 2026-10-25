@@ -17,6 +17,7 @@ import {
 import { useGame } from '@/lib/store';
 import { useLanguage } from '@/lib/i18n';
 import { Dialog } from './ui/dialog';
+import { PetsDialog } from './pets';
 
 export function LanguagePicker() {
   const { language } = useLanguage();
@@ -88,6 +89,7 @@ export function Home({
   const { user, authLoading, go, set } = useGame();
   const { t } = useLanguage();
   const [info, setInfo] = useState<'about' | 'features' | null>(null);
+  const [petView, setPetView] = useState<'pets' | 'summon' | null>(null);
   const [rotateDismissed, setRotateDismissed] = useState(false);
   const unavailable = (feature: string) =>
     set({
@@ -342,7 +344,7 @@ export function Home({
             </button>
             <button
               className="fantasy-frame player-menu-card pets-card"
-              onClick={() => go('codex')}
+              onClick={() => setPetView('pets')}
             >
               <span className="menu-pet" aria-hidden="true" />
               <span>
@@ -410,7 +412,7 @@ export function Home({
               {
                 icon: '🌀',
                 label: t('Triệu Hồi', 'Summon'),
-                action: () => unavailable(t('Triệu Hồi', 'Summon')),
+                action: () => setPetView('summon'),
               },
               {
                 icon: '👥',
@@ -435,6 +437,9 @@ export function Home({
             ))}
           </nav>
         </>
+      )}
+      {user && petView && (
+        <PetsDialog key={user.id} view={petView} onClose={() => setPetView(null)} />
       )}
       {!rotateDismissed && (
         <div className="rotate-hint" role="status">
@@ -476,8 +481,8 @@ export function Home({
                   'Meet magical companions, discover their skills and create your own team. Battle the AI or invite a friend to the arena.',
                 )
               : t(
-                  'Hiện có: đấu với máy ở 3 độ khó, phòng đấu online 1v1, chọn 1–4 nhân vật, điều khiển chiến đấu và khám phá đấu trường. Các tính năng sưu tầm, nâng cấp và sự kiện sẽ được bổ sung sau.',
-                  'Available now: three AI difficulty levels, private online 1v1 rooms, teams of 1–4 characters, battle controls and arena selection. Collecting, upgrades and events are coming later.',
+                  'Hiện có: đấu với máy ở 3 độ khó, phòng đấu online 1v1, chọn 1–4 nhân vật, điều khiển chiến đấu và khám phá đấu trường. Đăng nhập để triệu hồi miễn phí và sưu tầm linh thú. Nâng cấp và sự kiện sẽ được bổ sung sau.',
+                  'Available now: three AI difficulty levels, private online 1v1 rooms, teams of 1–4 characters, battle controls and arena selection. Sign in to summon for free and collect companions. Upgrades and events are coming later.',
                 )}
           </p>
           <button

@@ -11,10 +11,28 @@ import {
   ServiceUnavailableException,
   ForbiddenException,
 } from '@nestjs/common';
-import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
+import {
+  createHash,
+  randomInt,
+  randomBytes,
+  scrypt as scryptCallback,
+  timingSafeEqual,
+} from 'node:crypto';
 import { promisify } from 'node:util';
 import { MongoClient, MongoServerError, ObjectId } from 'mongodb';
 import type { Request, Response } from 'express';
+
+import {
+  speciesIds,
+  summonQualityOdds,
+  rollSummonQuality,
+  SUMMON_GUARANTEES,
+  PET_QUALITIES,
+  type PetQuality,
+  type SpeciesId,
+  type PetCollection,
+  type SummonResult,
+} from '@arena/shared-types';
 
 const scrypt = promisify(scryptCallback);
 const COOKIE = 'arena_session';
@@ -25,6 +43,9 @@ interface User {
   name: string;
   passwordHash: string;
   createdAt: Date;
+  summonAttempts?: number;
+  pets?: Partial<Record<SpeciesId, number>>;
+  petQualities?: Partial<Record<SpeciesId, Partial<Record<PetQuality, number>>>>;
 }
 interface Session {
   tokenHash: string;
@@ -128,13 +149,11 @@ export class AuthController {
   private async session(user: User, res: Response) {
     const db = await authDatabase.db();
     const token = randomBytes(32).toString('hex');
-    await db
-      .collection<Session>('sessions')
-      .insertOne({
-        tokenHash: digest(token),
-        userId: user._id,
-        expiresAt: new Date(Date.now() + SESSION_MS),
-      });
+    await db.collection<Session>('sessions').insertOne({
+      tokenHash: digest(token),
+      userId: user._id,
+      expiresAt: new Date(Date.now() + SESSION_MS),
+    });
     res.cookie(COOKIE, token, { ...this.cookieOptions(), maxAge: SESSION_MS });
     res.setHeader('Cache-Control', 'no-store');
     return { user: publicUser(user) };
@@ -193,6 +212,68 @@ export class AuthController {
       : null;
     if (!user) res.clearCookie(COOKIE, this.cookieOptions());
     return { user: user ? publicUser(user) : null };
+  }
+  private async owner(req: Request) {
+    const token = this.token(req);
+    if (!token) throw new UnauthorizedException('Vui lòng đăng nhập.');
+    const db = await authDatabase.db();
+    const session = await db.collection<Session>('sessions').findOne({
+      tokenHash: digest(token),
+      expiresAt: { $gt: new Date() },
+    });
+    if (!session) throw new UnauthorizedException('Phiên đăng nhập đã hết hạn.');
+    const user = await db.collection<User>('users').findOne({ _id: session.userId });
+    if (!user) throw new UnauthorizedException('Vui lòng đăng nhập.');
+    return { db, user };
+  }
+  private collection(user: User): PetCollection {
+    const attempts = user.summonAttempts ?? 0;
+    const pets = speciesIds.flatMap((species) =>
+      PET_QUALITIES.flatMap((quality) => {
+        // Preserve pets from the initial implementation as quality C.
+        const count =
+          (user.petQualities?.[species]?.[quality] ?? 0) +
+          (quality === 'C' ? (user.pets?.[species] ?? 0) : 0);
+        return count > 0 ? [{ species, quality, count }] : [];
+      }),
+    );
+    return {
+      attempts,
+      pets,
+      qualityOdds: summonQualityOdds(attempts),
+      cost: 0,
+      guarantees: SUMMON_GUARANTEES.map(({ quality, interval }) => ({
+        quality,
+        remaining: interval - (attempts % interval),
+      })),
+    };
+  }
+  @Get('pets') async pets(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    res.setHeader('Cache-Control', 'no-store');
+    return this.collection((await this.owner(req)).user);
+  }
+  @Post('summon') async summon(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<SummonResult> {
+    this.checkOrigin(req);
+    res.setHeader('Cache-Control', 'no-store');
+    const { db, user } = await this.owner(req);
+    const received = {
+      species: speciesIds[randomInt(speciesIds.length)],
+      quality: rollSummonQuality(user.summonAttempts ?? 0, randomInt(10000)),
+    };
+    // Compare-and-swap keeps the roll, attempt counter and reward atomic across tabs.
+    const updated = await db.collection<User>('users').findOneAndUpdate(
+      { _id: user._id, summonAttempts: user.summonAttempts ?? { $exists: false } },
+      {
+        $inc: { summonAttempts: 1, [`petQualities.${received.species}.${received.quality}`]: 1 },
+      },
+      { returnDocument: 'after' },
+    );
+    if (!updated)
+      throw new ConflictException('Một lượt khác vừa hoàn tất. Vui lòng tải lại bộ sưu tập.');
+    return { ...this.collection(updated), received };
   }
   @Post('logout') async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     this.checkOrigin(req);

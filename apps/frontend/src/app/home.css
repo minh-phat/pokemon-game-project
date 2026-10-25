@@ -2147,3 +2147,262 @@ body:has(.reduce-motion) .play-mode-card {
 .reduce-motion .pet-library .roster-card {
   transition: none;
 }
+
+/* Account-owned companions and the summoning altar. */
+body:has(.fantasy-app) .dialog-content.pets-dialog {
+  width: min(720px, calc(100vw - 24px));
+  max-width: 720px;
+  background: radial-gradient(ellipse at 50% 35%, #25375a, #101c35 70%);
+}
+.pets-tabs {
+  display: flex;
+  gap: 10px;
+  margin: 22px 0;
+}
+.pets-tabs button {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #776443;
+  border-radius: 8px;
+  background: #101b30;
+  color: #c7cfe0;
+}
+.pets-tabs button[aria-pressed='true'] {
+  background: linear-gradient(#574729, #302c25);
+  color: #ffe3a0;
+  border-color: #d4b06a;
+}
+.summon-panel,
+.pets-empty {
+  text-align: center;
+}
+.summon-orb {
+  width: 152px;
+  height: 152px;
+  margin: 12px auto 20px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #c5a868;
+  border-radius: 50%;
+  color: #ffe4a1;
+  background: radial-gradient(circle, #568baa70, #3c315a80 55%, #101a31);
+  box-shadow:
+    0 0 36px #70a9e52b,
+    inset 0 0 28px #dfbf6b33;
+}
+.summon-orb img {
+  width: 128px;
+  height: 128px;
+  object-fit: contain;
+}
+.summon-result {
+  min-height: 80px;
+}
+.summon-result h3,
+.pets-empty h3,
+.owned-pet h3 {
+  color: #ffe4a1;
+  margin: 0 0 8px;
+}
+.summon-result p,
+.pets-empty p {
+  color: #bdcbe0;
+}
+.summon-stats,
+.pets-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 16px 0 12px;
+  color: #c4cfe0;
+}
+.summon-stats b,
+.pets-summary b {
+  color: #ffe4a1;
+}
+.summon-meter {
+  height: 8px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #080f20;
+}
+.summon-meter span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #7faacb, #e4c27c);
+  transition: width 0.3s;
+}
+.pets-note {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #afbdd3;
+  margin: 12px 0;
+}
+.pets-dialog .fantasy-action {
+  margin: 14px auto 0;
+  justify-content: center;
+  min-height: 48px;
+}
+.pets-dialog button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.pets-dialog button:focus-visible {
+  outline: 2px solid #ffe4a1;
+  outline-offset: 3px;
+}
+.owned-pets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin: 20px 0;
+}
+.owned-pet {
+  position: relative;
+  text-align: center;
+  padding: 20px 12px;
+  border: 1px solid #88734b;
+  border-radius: 12px;
+  background: radial-gradient(circle at 50% 35%, #354762, #101b30 75%);
+}
+.owned-pet img {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  margin: auto;
+}
+.owned-pet-count {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: #ffe3a0;
+  background: #101a2d;
+  border: 1px solid #776443;
+  border-radius: 20px;
+  padding: 2px 8px;
+}
+.pets-empty {
+  padding: 28px 10px;
+}
+.pets-empty > svg {
+  color: #d6b978;
+  margin: 0 auto 20px;
+}
+.pets-error {
+  color: #ffd3b8;
+  padding: 12px;
+  border: 1px solid #a5785b;
+  border-radius: 8px;
+}
+.is-summoning {
+  animation: summon-glow 1s ease-in-out infinite alternate;
+}
+@keyframes summon-glow {
+  to {
+    transform: scale(0.93);
+    box-shadow: 0 0 55px #a1c5ff66;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .is-summoning {
+    animation: none;
+  }
+  .summon-meter span {
+    transition: none;
+  }
+}
+@media (max-width: 480px) {
+  .owned-pets-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .owned-pet {
+    padding: 20px 6px 12px;
+  }
+  .owned-pet img {
+    width: 100px;
+    height: 100px;
+  }
+  .summon-orb {
+    width: 120px;
+    height: 120px;
+  }
+  .summon-orb img {
+    width: 100px;
+    height: 100px;
+  }
+}
+
+.pet-quality {
+  display: inline-block;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 800;
+  margin: 4px;
+}
+.quality-C {
+  color: #bec8d5;
+}
+.quality-B {
+  color: #8de0ad;
+}
+.quality-A {
+  color: #8bcaff;
+}
+.quality-S {
+  color: #ddb1ff;
+}
+.quality-SS {
+  color: #ffda7b;
+}
+.pet-border-A {
+  border-color: #6c9ec7;
+}
+.pet-border-S {
+  border-color: #bb8ee0;
+}
+.pet-border-SS {
+  border-color: #e8c060;
+  box-shadow: inset 0 0 25px #e8c06022;
+}
+.summon-guarantees {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.summon-guarantees > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #0c162a99;
+  border: 1px solid #726143;
+  border-radius: 8px;
+  padding: 8px 4px;
+}
+.summon-guarantees strong {
+  font-size: 12px;
+  color: #f5dfb5;
+}
+.summon-quality-odds {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+}
+.summon-quality-odds > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 12px;
+  gap: 4px;
+}
+.owned-pet .element-badge {
+  display: table;
+  margin: 6px auto 0;
+}

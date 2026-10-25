@@ -1,10 +1,27 @@
 import { test, expect, type Page } from '@playwright/test';
+import { summonQualityOdds, SUMMON_GUARANTEES, type OwnedPet } from '@arena/shared-types';
+function collection(attempts = 0, pets: OwnedPet[] = []) {
+  return {
+    attempts,
+    pets,
+    cost: 0,
+    qualityOdds: summonQualityOdds(attempts),
+    guarantees: SUMMON_GUARANTEES.map(({ quality, interval }) => ({
+      quality,
+      remaining: interval - (attempts % interval),
+    })),
+  };
+}
 
 const player = { id: 'test-summoner', name: 'LunaKaito', email: 'luna@example.com' };
 async function mockAccount(page: Page, signedIn = false) {
   let session = signedIn;
   await page.route('**/auth/*', async (route) => {
     const action = new URL(route.request().url()).pathname.split('/').pop();
+    if (action === 'pets') {
+      await route.fulfill({ json: collection() });
+      return;
+    }
     if (action === 'login' || action === 'register') session = true;
     if (action === 'logout') session = false;
     await route.fulfill({ json: { user: session ? player : null } });
@@ -127,7 +144,6 @@ test('register, restore lobby, use menus, change language and log out', async ({
     'Điểm Danh',
     'Bảng Xếp Hạng',
     'Thành Tựu',
-    'Triệu Hồi',
     'Nâng Cấp',
     'Cộng Đồng',
     'Cửa Hàng',
@@ -143,8 +159,9 @@ test('register, restore lobby, use menus, change language and log out', async ({
   await expect(dialog.getByRole('heading', { name: 'Settings' })).toBeVisible();
   await dialog.getByRole('button', { name: 'Close dialog' }).click();
   await page.getByRole('button', { name: /Pets Discover/ }).click();
-  await expect(page.getByRole('heading', { name: 'Little legends.' })).toBeVisible();
-  await page.getByRole('button', { name: 'Summoner home' }).click();
+  await expect(dialog.getByRole('heading', { name: 'Your Pets' })).toBeVisible();
+  await expect(dialog).toContainText('No companions yet');
+  await dialog.getByRole('button', { name: 'Close dialog' }).click();
   await page.getByRole('button', { name: 'Team', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Choose your companions.' })).toBeVisible();
   await page.getByRole('button', { name: 'Summoner home' }).click();
@@ -257,4 +274,77 @@ test('AI battle uses the Pokémon chosen for both teams', async ({ page }) => {
   await expect(page.locator('.team-status').first()).toContainText('Pikachu');
   await expect(page.locator('.enemy-status')).toContainText('Squirtle');
   await expect(page.locator('.enemy-status')).not.toContainText('Charmander');
+});
+
+test('every summon grants a quality pet, milestones are visible and collection survives reload', async ({
+  page,
+}) => {
+  await mockAccount(page, true);
+  let attempts = 9;
+  const pets: OwnedPet[] = [];
+  await page.route('**/auth/pets', (route) => route.fulfill({ json: collection(attempts, pets) }));
+  await page.route('**/auth/summon', (route) => {
+    attempts++;
+    const quality = attempts === 11 ? 'A' : 'C';
+    const pet = pets.find((pet) => pet.quality === quality);
+    if (pet) pet.count++;
+    else pets.push({ species: 'pikachu', quality, count: 1 });
+    return route.fulfill({
+      json: { ...collection(attempts, pets), received: { species: 'pikachu', quality } },
+    });
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: /Pets Khám phá/ }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('Chưa có linh thú nào');
+  await dialog.getByRole('button', { name: 'Triệu hồi ngay' }).click();
+  await expect(dialog.locator('.summon-guarantees').locator('div').first()).toContainText(
+    'Còn 2 lượt',
+  );
+  await dialog.getByRole('button', { name: 'Triệu hồi · 0 vàng' }).click();
+  await expect(dialog.locator('.summon-result')).toContainText('Pikachu C');
+  await expect(dialog).toContainText('Bảo đảm lượt tới!');
+  await expect(dialog.locator('.summon-quality-odds > div').first()).toContainText('0%');
+  await dialog.getByRole('button', { name: 'Triệu hồi · 0 vàng' }).click();
+  await expect(dialog.locator('.summon-result')).toContainText('Pikachu A');
+  await dialog.getByRole('button', { name: 'Triệu hồi · 0 vàng' }).click();
+  await expect(dialog.locator('.summon-result')).toContainText('Pikachu C');
+  await page.screenshot({ path: 'test-results/summon-quality-desktop.png' });
+  await dialog.getByRole('button', { name: 'Pets (3)' }).click();
+  await expect(dialog.locator('.owned-pet')).toHaveCount(2);
+  await expect(dialog.locator('.pet-border-C')).toContainText('×2');
+  await expect(dialog.locator('.pet-border-A')).toContainText('×1');
+  for (const [width, height] of [
+    [1440, 900],
+    [390, 844],
+    [640, 360],
+  ]) {
+    await page.setViewportSize({ width, height });
+    expect(
+      await dialog.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        return (
+          r.left >= 0 &&
+          r.top >= 0 &&
+          r.right <= innerWidth &&
+          r.bottom <= innerHeight &&
+          el.scrollWidth <= el.clientWidth
+        );
+      }),
+    ).toBe(true);
+    await page.screenshot({ path: `test-results/pets-quality-${width}.png` });
+  }
+  await page.keyboard.press('Escape');
+  await page.reload();
+  await page.getByRole('button', { name: /Pets Khám phá/ }).click();
+  await expect(dialog.locator('.pet-border-C')).toContainText('×2');
+  await expect(dialog.locator('.pet-border-A')).toContainText('Phẩm chất A');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Triệu Hồi', exact: true }).click();
+  await expect(dialog.locator('.summon-stats')).toContainText('12');
+  await page.route('**/auth/summon', (route) => route.fulfill({ status: 503, json: {} }));
+  await dialog.getByRole('button', { name: 'Triệu hồi · 0 vàng' }).click();
+  await expect(dialog.getByRole('alert')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Tải lại', exact: true }).click();
+  await expect(dialog.locator('.summon-stats')).toContainText('12');
 });

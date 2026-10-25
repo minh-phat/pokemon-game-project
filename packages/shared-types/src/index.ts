@@ -422,3 +422,57 @@ export type AIAction =
 export function isConcealed(f: Pick<Fighter, 'effects'>): boolean {
   return f.effects.some((e) => e.kind === 'invisible' && e.duration <= 4.5 && e.duration > 0);
 }
+
+/** Milestones repeat independently; early lucky rolls do not reset them. */
+export const SUMMON_GUARANTEES = [
+  { quality: 'A', interval: 11 },
+  { quality: 'S', interval: 101 },
+  { quality: 'SS', interval: 1001 },
+] as const;
+export interface OwnedPet {
+  species: SpeciesId;
+  quality: PetQuality;
+  count: number;
+}
+export function summonQualityOdds(attempts: number): Record<PetQuality, number> {
+  const progress = Math.min(1000, Math.max(0, attempts)) / 1000;
+  const odds = {
+    C: 0,
+    B: Math.round(3000 + 500 * progress),
+    A: Math.round(1200 + 1800 * progress),
+    S: Math.round(280 + 920 * progress),
+    SS: Math.round(20 + 280 * progress),
+  };
+  odds.C = 10000 - odds.B - odds.A - odds.S - odds.SS;
+  const floor = SUMMON_GUARANTEES.filter(({ interval }) => (attempts + 1) % interval === 0).at(
+    -1,
+  )?.quality;
+  if (floor) {
+    for (const quality of PET_QUALITIES) {
+      if (quality === floor) break;
+      odds[floor] += odds[quality];
+      odds[quality] = 0;
+    }
+  }
+  return odds;
+}
+/** Roll is an integer in [0, 10000), generated exclusively by the server. */
+export function rollSummonQuality(attempts: number, roll: number): PetQuality {
+  if (!Number.isInteger(roll) || roll < 0 || roll >= 10000) throw new Error('Invalid quality roll');
+  const odds = summonQualityOdds(attempts);
+  for (const quality of PET_QUALITIES) {
+    if (roll < odds[quality]) return quality;
+    roll -= odds[quality];
+  }
+  return 'SS';
+}
+export interface PetCollection {
+  attempts: number;
+  pets: OwnedPet[];
+  qualityOdds: Record<PetQuality, number>;
+  guarantees: { quality: PetQuality; remaining: number }[];
+  cost: number;
+}
+export interface SummonResult extends PetCollection {
+  received: { species: SpeciesId; quality: PetQuality };
+}
