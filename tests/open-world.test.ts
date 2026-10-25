@@ -17,7 +17,7 @@ import {
   updateWildlife,
   syncWildlife,
   getTerrainChunk,
-} from '../apps/frontend/src/game/open-world-world';
+} from '@arena/game-data/world';
 
 describe('continental geography and streaming', () => {
   it.each([0, 1, 42, 90210, 4294967295])(

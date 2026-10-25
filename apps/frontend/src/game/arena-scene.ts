@@ -1,9 +1,17 @@
+import { WORLD_ARENA_VIEW } from './world-combat-visuals';
 import { isConcealed } from '@arena/shared-types';
 import { slimePose, slimeOpacity } from './water-slime';
 import { drawRuins } from './ruins-arena';
 import * as Phaser from 'phaser';
 import { ANIMATIONS, type Fighter, type MatchRules } from '@arena/shared-types';
-import { ARENAS, ASSETS, ELEMENTS, POKEMON, SKILL_BY_ID } from '@arena/game-data';
+import {
+  ARENAS,
+  ASSETS,
+  ELEMENTS,
+  POKEMON,
+  SKILL_BY_ID,
+  fighterDefinition,
+} from '@arena/game-data';
 import { battleFeed } from '@/lib/battle-feed';
 import { selectManualFighter } from '@/lib/network';
 import { useGame } from '@/lib/store';
@@ -24,10 +32,18 @@ type Visual = {
   lastAnimation: string;
   hoverLift: number;
 };
+/** External snapshots render on a transparent world layer; the world remains the sole simulation owner. */
+export type WorldArenaSource = () => {
+  snapshot: import('@arena/shared-types').BattleSnapshot | null;
+  paused: boolean;
+  reducedMotion: boolean;
+};
 export function createArenaScene(
   arenaId: MatchRules['arena'],
   onReady: () => void,
   onError: (message: string) => void,
+  worldSource?: WorldArenaSource,
+  worldView: { top: number } = WORLD_ARENA_VIEW,
 ) {
   return class ArenaScene extends Phaser.Scene {
     private actors = new Map<string, Visual>();
@@ -60,8 +76,10 @@ export function createArenaScene(
           frameWidth: 128,
           frameHeight: 128,
         });
-      if (arena.background) this.load.image('arena-background', arena.background);
-      arena.layers.forEach((url, i) => this.load.image(`layer-${i}`, url));
+      if (!worldSource) {
+        if (arena.background) this.load.image('arena-background', arena.background);
+        arena.layers.forEach((url, i) => this.load.image(`layer-${i}`, url));
+      }
       for (const id of Object.keys(ASSETS.sprites) as (keyof typeof ASSETS.sprites)[])
         this.load.spritesheet(id, ASSETS.sprites[id], {
           frameWidth: id === 'runedrake' ? 320 : 160,
@@ -73,7 +91,7 @@ export function createArenaScene(
       });
     }
     create() {
-      if (arenaId !== 'ruins') {
+      if (!worldSource && arenaId !== 'ruins') {
         for (let i = 0; i < 4; i++)
           this.layers.push(
             this.add
@@ -109,7 +127,29 @@ export function createArenaScene(
         }
       }
       const arena = ARENAS.find((a) => a.id === arenaId)!;
-      if (arenaId === 'ruins') drawRuins(this, arena);
+      if (!worldSource && arenaId === 'ruins') drawRuins(this, arena);
+      if (!worldSource && arenaId !== 'ruins') {
+        const arena = ARENAS.find((a) => a.id === arenaId)!;
+        for (const o of arena.obstacles ?? []) {
+          const shelf = this.add
+            .graphics()
+            .setDepth(10 + (520 + o.depth - o.length / 2 - 300) / 300);
+          const x = o.x - o.width / 2,
+            y = 520 + o.depth - o.length / 2;
+          const top = arenaId === 'volcano' ? 0x887468 : arenaId === 'lake' ? 0x91baa8 : 0x93a779;
+          const side = arenaId === 'volcano' ? 0x514342 : arenaId === 'lake' ? 0x557c7b : 0x596b52;
+          this.add
+            .graphics()
+            .setDepth(10 + (520 + o.depth + o.length / 2 - 300) / 300)
+            .fillStyle(side, 1)
+            .fillRoundedRect(x, y + o.length - o.height, o.width, o.height, 6);
+          shelf.fillStyle(top, 1).fillRoundedRect(x, y - o.height, o.width, o.length, 8);
+          shelf
+            .lineStyle(2, 0xd1d8b3, 0.4)
+            .strokeRoundedRect(x + 2, y - o.height + 2, o.width - 4, o.length - 4, 6);
+        }
+      }
+      if (worldSource) this.cameras.main.setScroll(0, worldView.top);
       for (const [id, def] of Object.entries(POKEMON))
         for (const animation of ANIMATIONS) {
           const a = def.animations[animation];
@@ -137,7 +177,7 @@ export function createArenaScene(
       this.skillVfx = new SkillVfx(this);
       const particleColor =
         arenaId === 'volcano' ? 0xf6aa72 : arenaId === 'lake' ? 0xd2edee : 0xc9df94;
-      for (let i = 0; i < (arenaId === 'ruins' ? 0 : 25); i++) {
+      for (let i = 0; i < (worldSource || arenaId === 'ruins' ? 0 : 25); i++) {
         this.leaves.push({
           dot: this.add
             .ellipse(
@@ -190,39 +230,56 @@ export function createArenaScene(
           .setDepth(5),
         bars: this.add.graphics().setDepth(15),
         label: this.add
-          .text(f.x, 430, POKEMON[f.species].name, {
-            fontFamily: 'system-ui',
-            fontSize: '12px',
-            color: '#ffffff',
-            stroke: '#20332e',
-            strokeThickness: 3,
-          })
+          .text(
+            f.x,
+            430,
+            worldSource && f.progression
+              ? `${POKEMON[f.species].name} · Lv.${f.progression.level} · ${f.progression.quality}`
+              : POKEMON[f.species].name,
+            {
+              fontFamily: 'system-ui',
+              fontSize: worldSource ? '24px' : '12px',
+              color: '#ffffff',
+              stroke: '#20332e',
+              strokeThickness: 3,
+            },
+          )
           .setOrigin(0.5)
           .setDepth(16),
         lastAnimation: '',
         hoverLift: POKEMON[f.species].hoverHeight ?? 0,
       };
       this.actors.set(f.id, visual);
-      visual.sprite.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
-        const game = useGame.getState();
-        const team =
-          game.mode === 'online'
-            ? (game.lobby?.players.findIndex((p) => p.id === game.sessionId) ?? -1)
-            : 0;
-        const current = battleFeed.latest?.fighters.find((actor) => actor.id === f.id);
-        if (
-          f.team === team &&
-          battleFeed.latest?.manualTeams[team] &&
-          current?.active &&
-          current.hp > 0
-        )
-          selectManualFighter(f.id);
-      });
+      if (!worldSource)
+        visual.sprite.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
+          const game = useGame.getState();
+          const team =
+            game.mode === 'online'
+              ? (game.lobby?.players.findIndex((p) => p.id === game.sessionId) ?? -1)
+              : 0;
+          const current = battleFeed.latest?.fighters.find((actor) => actor.id === f.id);
+          if (
+            f.team === team &&
+            battleFeed.latest?.manualTeams[team] &&
+            current?.active &&
+            current.hp > 0
+          )
+            selectManualFighter(f.id);
+        });
       return visual;
     }
     update(time: number, delta: number) {
-      const settings = useGame.getState();
+      const external = worldSource?.();
+      const settings = {
+        ...useGame.getState(),
+        ...(external ? { paused: external.paused, reducedMotion: external.reducedMotion } : {}),
+      };
+      if (worldSource) {
+        this.tweens.timeScale = settings.paused ? 0 : 1;
+        this.ambience.setPaused(settings.paused);
+      }
       if (
+        !worldSource &&
         battleFeed.engine &&
         battleFeed.running &&
         !settings.paused &&
@@ -231,7 +288,7 @@ export function createArenaScene(
         battleFeed.engine.updateBattle(Math.min(delta / 1000, 0.25));
         battleFeed.push(battleFeed.engine.getBattleSnapshot());
       }
-      const snapshot = battleFeed.latest;
+      const snapshot = external ? external.snapshot : battleFeed.latest;
       if (!settings.reducedMotion) {
         for (const particle of this.leaves) {
           particle.dot.x = (particle.dot.x + (delta / 1000) * particle.speed) % 1200;
@@ -239,15 +296,16 @@ export function createArenaScene(
         }
       }
       if (!snapshot) return;
-      const previous = battleFeed.previous;
-      const alpha = battleFeed.engine
-        ? 1
-        : Math.min(1, (performance.now() - battleFeed.receivedAt) / 50);
+      const previous = worldSource ? null : battleFeed.previous;
+      const alpha =
+        worldSource || battleFeed.engine
+          ? 1
+          : Math.min(1, (performance.now() - battleFeed.receivedAt) / 50);
       const cameraTarget =
         snapshot.fighters.filter((f) => f.active).reduce((s, f) => s + f.x, 0) /
         Math.max(1, snapshot.fighters.filter((f) => f.active).length);
       const myTeam =
-        settings.mode === 'online'
+        !worldSource && settings.mode === 'online'
           ? (settings.lobby?.players.findIndex((p) => p.id === settings.sessionId) ?? -1)
           : 0;
       const controlledId = snapshot.controlledFighterIds[myTeam];
@@ -257,19 +315,21 @@ export function createArenaScene(
       const targetId = controlled && snapshot.manualTeams[myTeam] ? controlled.targetId : null;
       const camera = this.cameras.main;
       const arena = ARENAS.find((a) => a.id === arenaId)!;
-      const frame = automaticCameraFrame(snapshot, myTeam, arena, camera.width, camera.height);
-      const blend = settings.reducedMotion ? 1 : 1 - Math.exp(-delta / 180);
-      // Widen immediately to include new arrivals; ease back in as the group closes up.
-      const zoom = Math.min(frame.zoom, Phaser.Math.Linear(camera.zoom, frame.zoom, blend));
-      const halfW = camera.width / (2 * zoom);
-      const halfH = camera.height / (2 * zoom);
-      const centerX = Phaser.Math.Linear(camera.midPoint.x, frame.x, blend);
-      const centerY = Phaser.Math.Linear(camera.midPoint.y, frame.y, blend);
-      camera.setZoom(zoom);
-      camera.centerOn(
-        Phaser.Math.Clamp(centerX, frame.right - halfW, frame.left + halfW),
-        Phaser.Math.Clamp(centerY, frame.bottom - halfH, frame.top + halfH),
-      );
+      if (!worldSource) {
+        const frame = automaticCameraFrame(snapshot, myTeam, arena, camera.width, camera.height);
+        const blend = settings.reducedMotion ? 1 : 1 - Math.exp(-delta / 180);
+        // Widen immediately to include new arrivals; ease back in as the group closes up.
+        const zoom = Math.min(frame.zoom, Phaser.Math.Linear(camera.zoom, frame.zoom, blend));
+        const halfW = camera.width / (2 * zoom);
+        const halfH = camera.height / (2 * zoom);
+        const centerX = Phaser.Math.Linear(camera.midPoint.x, frame.x, blend);
+        const centerY = Phaser.Math.Linear(camera.midPoint.y, frame.y, blend);
+        camera.setZoom(zoom);
+        camera.centerOn(
+          Phaser.Math.Clamp(centerX, frame.right - halfW, frame.left + halfW),
+          Phaser.Math.Clamp(centerY, frame.bottom - halfH, frame.top + halfH),
+        );
+      }
       if (!settings.reducedMotion)
         this.layers.slice(0, 3).forEach((layer, i) => {
           layer.x = 600 + (cameraTarget - 600) * (0.004 + i * 0.003);
@@ -449,14 +509,18 @@ export function createArenaScene(
         }
         v.shadow
           .setVisible(!hidden && !liquidBinding && (hoverHeight > 0 ? faintAlpha > 0 : !faint))
-          .setPosition(x, ground + 2)
-          .setScale(Math.max(0.45, 1 - altitude / 300))
-          .setAlpha(hoverHeight > 0 ? Math.max(0, 1 - altitude / 260) * faintAlpha : 1);
+          .setPosition(x, ground - (f.groundHeight ?? 0) + 2)
+          .setScale(Math.max(0.45, 1 - (altitude - (f.groundHeight ?? 0)) / 300))
+          .setAlpha(
+            hoverHeight > 0
+              ? Math.max(0, 1 - (altitude - (f.groundHeight ?? 0)) / 260) * faintAlpha
+              : 1,
+          );
         const selected = f.team === myTeam && snapshot.manualTeams[f.team] && controlledId === f.id;
         const targeted = !faint && !hidden && f.id === targetId;
         v.ring
           .setVisible(!faint && !hidden && !liquidBinding)
-          .setPosition(x, ground + 1)
+          .setPosition(x, ground - (f.groundHeight ?? 0) + 1)
           .setStrokeStyle(
             selected || targeted ? 3 : 2,
             targeted ? 0xff4949 : selected ? 0xffe88c : f.team === 0 ? 0xf3d36e : 0xeeb4a2,
@@ -467,7 +531,7 @@ export function createArenaScene(
           .setVisible(!faint && !hidden && !liquidBinding)
           .setPosition(x, ground - 96 - altitude);
         v.targetMarker.setVisible(targeted).setPosition(x, ground - 119 - altitude);
-        const def = POKEMON[f.species];
+        const def = fighterDefinition(f);
         v.bars.clear();
         if (!faint && !hidden && !liquidBinding) {
           v.bars
@@ -549,7 +613,7 @@ export function createArenaScene(
           const label = this.add
             .text(event.x, 407 + (event.depth ?? 0) - event.y - eventHover, event.text, {
               fontFamily: 'system-ui',
-              fontSize: '12px',
+              fontSize: worldSource ? '24px' : '12px',
               color: ELEMENTS[event.element ?? 'normal'].color,
               backgroundColor: '#233a38cc',
               padding: { x: 7, y: 4 },

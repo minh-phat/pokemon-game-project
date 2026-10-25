@@ -6,12 +6,18 @@ import {
   type Fighter,
   type Projectile,
 } from '@arena/shared-types';
-import { ARENAS, DIFFICULTY, EFFECTIVENESS, POKEMON, SKILL_BY_ID } from '@arena/game-data';
+import {
+  fighterDefinition,
+  ARENAS,
+  DIFFICULTY,
+  EFFECTIVENESS,
+  SKILL_BY_ID,
+} from '@arena/game-data';
 
 /** Predict a projectile crossing a fighter on the arena plane, in seconds. */
 export function predictThreat(f: Fighter, p: Projectile, horizon = 0.65): number | null {
   if (p.team === f.team) return null;
-  const width = (POKEMON[f.species].collision.width + p.width) / 2;
+  const width = (fighterDefinition(f).collision.width + p.width) / 2;
   let enter = 0,
     exit = horizon;
   for (const [offset, velocity, radius] of [
@@ -19,7 +25,7 @@ export function predictThreat(f: Fighter, p: Projectile, horizon = 0.65): number
     [
       (p.depth ?? f.depth) - f.depth,
       (p.vDepth ?? 0) - f.vDepth,
-      (POKEMON[f.species].collision.width + p.height) / 2,
+      (fighterDefinition(f).collision.width + p.height) / 2,
     ],
   ]) {
     if (Math.abs(velocity) < 1) {
@@ -32,8 +38,10 @@ export function predictThreat(f: Fighter, p: Projectile, horizon = 0.65): number
     }
   }
   const time = enter;
-  const h = POKEMON[f.species].collision.height * (f.crouched ? 0.42 : 1);
-  if (enter > exit || p.y + p.height / 2 < f.y || p.y - p.height / 2 > f.y + h) return null;
+  const h = fighterDefinition(f).collision.height * (f.crouched ? 0.42 : 1);
+  const altitude = p.y + (p.vy ?? 0) * Math.max(0, time);
+  if (enter > exit || altitude + p.height / 2 < f.y || altitude - p.height / 2 > f.y + h)
+    return null;
   return Math.max(0, time);
 }
 
@@ -41,7 +49,7 @@ export function predictThreat(f: Fighter, p: Projectile, horizon = 0.65): number
 export function decideMovement(
   f: Fighter,
   state: BattleSnapshot,
-  preferredDistance = POKEMON[f.species].ai.preferredDistance,
+  preferredDistance = fighterDefinition(f).ai.preferredDistance,
   targetId?: string | null,
 ): Extract<AIAction, { type: 'move' }> {
   const enemies = state.fighters.filter(
@@ -55,7 +63,7 @@ export function decideMovement(
         a.id.localeCompare(b.id),
     )[0];
   if (!target) return { type: 'move', direction: 0, depthDirection: 0, state: 'FindTarget' };
-  const def = POKEMON[f.species];
+  const def = fighterDefinition(f);
   const distance = Math.hypot(target.x - f.x, target.depth - f.depth) || 1;
   const direction = (target.x - f.x) / distance;
   const depthDirection = (target.depth - f.depth) / distance;
@@ -71,7 +79,7 @@ export function decideMovement(
   const lateral = movementState === 'Chase' ? (distance > 300 ? 0.65 : 0.45) : 0.8;
   let x = direction * radial - depthDirection * lateral * orbitSign;
   let depth = depthDirection * radial + direction * lateral * orbitSign;
-  const arena = ARENAS.find((a) => a.id === state.rules.arena)!;
+  const arena = state.arenaDefinition ?? ARENAS.find((a) => a.id === state.rules.arena)!;
   const margin = 48;
   if (f.depth < arena.depthBounds[0] + margin && depth < 0) depth = Math.abs(depth) + 0.45;
   if (f.depth > arena.depthBounds[1] - margin && depth > 0) depth = -Math.abs(depth) - 0.45;
@@ -92,7 +100,7 @@ export function decideMovement(
 
 /** In manual mode AI handles positioning and the free basic attack only. */
 export function decideManualAction(f: Fighter, state: BattleSnapshot): AIAction {
-  const basic = POKEMON[f.species].skills[0];
+  const basic = fighterDefinition(f).skills[0];
   const enemies = state.fighters.filter(
     (v) => v.active && v.hp > 0 && v.team !== f.team && !isConcealed(v),
   );
@@ -105,13 +113,13 @@ export function decideManualAction(f: Fighter, state: BattleSnapshot): AIAction 
     )[0];
   if (target && basic && (f.cooldowns[basic.id] ?? 0) <= 0) {
     const distance = Math.hypot(target.x - f.x, target.depth - f.depth);
-    if (distance <= basic.range + POKEMON[target.species].collision.width / 2)
+    if (distance <= basic.range + fighterDefinition(target).collision.width / 2)
       return { type: 'skill', skillId: basic.id };
   }
   return decideMovement(
     f,
     state,
-    basic ? Math.min(POKEMON[f.species].ai.preferredDistance, basic.range * 0.8) : undefined,
+    basic ? Math.min(fighterDefinition(f).ai.preferredDistance, basic.range * 0.8) : undefined,
     f.targetId,
   );
 }
@@ -124,6 +132,7 @@ export function decideAction(
   difficulty: keyof typeof DIFFICULTY = 'normal',
 ): AIAction {
   if (
+    Boolean(f.climbing) ||
     f.hp <= 0 ||
     !f.active ||
     f.effects.some((e) => e.kind === 'stun') ||
@@ -131,7 +140,7 @@ export function decideAction(
     f.actionTime > 0
   )
     return { type: 'wait' };
-  const def = POKEMON[f.species],
+  const def = fighterDefinition(f),
     tuning = DIFFICULTY[difficulty];
   const enemies = state.fighters.filter(
     (v) => v.active && v.hp > 0 && v.team !== f.team && !isConcealed(v),
@@ -145,7 +154,7 @@ export function decideAction(
   const distance = Math.hypot(target.x - f.x, target.depth - f.depth),
     direction = (target.x - f.x) / (distance || 1),
     depthDirection = (target.depth - f.depth) / (distance || 1);
-  const arena = ARENAS.find((a) => a.id === state.rules.arena)!;
+  const arena = state.arenaDefinition ?? ARENAS.find((a) => a.id === state.rules.arena)!;
   // Hold a route for several reactions instead of picking a noisy direction every tick.
   const phase = state.elapsed + f.slot * 0.71 + f.team * 0.37 + (state.seed % 13) * 0.03;
   const orbitSign = Math.floor(phase / 2.6) % 2 === 0 ? 1 : -1;
@@ -182,20 +191,128 @@ export function decideAction(
     target.cast &&
     SKILL_BY_ID[target.cast.skillId]?.behavior === 'melee' &&
     distance < SKILL_BY_ID[target.cast.skillId].range + 25;
+  if (difficulty === 'hard') {
+    const escape = (x: number, depth: number): AIAction => {
+      // Pick the perpendicular direction with room for a full dash, including depth edges.
+      const length = Math.hypot(x, depth) || 1;
+      x /= length;
+      depth /= length;
+      const space = (sign: number) =>
+        Math.min(
+          f.x + x * sign * 200 - arena.bounds[0],
+          arena.bounds[1] - f.x - x * sign * 200,
+          f.depth + depth * sign * 200 - arena.depthBounds[0],
+          arena.depthBounds[1] - f.depth - depth * sign * 200,
+        );
+      if (space(-1) > space(1)) {
+        x *= -1;
+        depth *= -1;
+      }
+      if (
+        f.stamina >= STAMINA_RULES.dodgeCost &&
+        f.dodgeCooldown <= 0 &&
+        f.y < (f.groundHeight ?? 0) + 2 &&
+        space(1) >= 0
+      )
+        return { type: 'dodge', mode: 'dash', direction: x, depthDirection: depth };
+      return {
+        type: 'move',
+        direction: x,
+        depthDirection: depth,
+        state: 'Retreat',
+        sprint: f.stamina >= f.maxStamina * STAMINA_RULES.lowThreshold,
+      };
+    };
+    for (const beam of state.beams ?? []) {
+      if (beam.team === f.team) continue;
+      const dx = beam.endX - beam.startX,
+        dz = beam.endDepth - beam.startDepth;
+      const lengthSquared = dx * dx + dz * dz;
+      if (!lengthSquared) continue;
+      const t = Math.max(
+        0,
+        Math.min(1, ((f.x - beam.startX) * dx + (f.depth - beam.startDepth) * dz) / lengthSquared),
+      );
+      if (
+        Math.hypot(f.x - beam.startX - dx * t, f.depth - beam.startDepth - dz * t) <=
+        beam.width / 2 + def.collision.width / 2 + 20
+      )
+        return escape(-dz, dx);
+    }
+    for (const hazard of state.groundHazards) {
+      if (hazard.team === f.team || hazard.duration <= 0) continue;
+      const dx = f.x - hazard.x,
+        dz = f.depth - hazard.depth;
+      if (Math.hypot(dx, dz) < hazard.radius + def.collision.width / 2 + 15) {
+        // Travel out of the area; at its center choose the direction away from the caster.
+        const length = Math.hypot(dx, dz);
+        const x = length > 1 ? dx / length : -direction;
+        const depth = length > 1 ? dz / length : -depthDirection;
+        if (
+          f.stamina >= STAMINA_RULES.dodgeCost &&
+          f.dodgeCooldown <= 0 &&
+          f.y < (f.groundHeight ?? 0) + 2 &&
+          f.x + x * 200 > arena.bounds[0] &&
+          f.x + x * 200 < arena.bounds[1] &&
+          f.depth + depth * 200 > arena.depthBounds[0] &&
+          f.depth + depth * 200 < arena.depthBounds[1]
+        )
+          return { type: 'dodge', mode: 'dash', direction: x, depthDirection: depth };
+        let walkX = x,
+          walkDepth = depth;
+        if (f.x + walkX * 48 < arena.bounds[0] || f.x + walkX * 48 > arena.bounds[1]) {
+          walkX = 0;
+          walkDepth = f.depth < (arena.depthBounds[0] + arena.depthBounds[1]) / 2 ? 1 : -1;
+        }
+        if (
+          f.depth + walkDepth * 48 < arena.depthBounds[0] ||
+          f.depth + walkDepth * 48 > arena.depthBounds[1]
+        ) {
+          walkDepth = 0;
+          walkX = f.x < (arena.bounds[0] + arena.bounds[1]) / 2 ? 1 : -1;
+        }
+        return {
+          type: 'move',
+          direction: walkX,
+          depthDirection: walkDepth,
+          state: 'Retreat',
+          sprint: f.stamina >= f.maxStamina * STAMINA_RULES.lowThreshold,
+        };
+      }
+    }
+    // Read ranged startup and leave the firing line while the enemy commits to the cast.
+    const windup = target.cast && SKILL_BY_ID[target.cast.skillId];
+    if (
+      !threat &&
+      windup &&
+      (windup.behavior === 'projectile' || windup.beam) &&
+      target.cast!.elapsed < windup.startup &&
+      distance < windup.range + 30
+    ) {
+      const aimLength = Math.hypot(target.aimX, target.aimDepth) || 1;
+      const cross =
+        Math.abs((f.x - target.x) * target.aimDepth - (f.depth - target.depth) * target.aimX) /
+        aimLength;
+      const forward = (f.x - target.x) * target.aimX + (f.depth - target.depth) * target.aimDepth;
+      if (forward > 0 && cross < def.collision.width + windup.hitbox.width)
+        return steer(0, 1, 'MaintainDistance');
+    }
+  }
   if (
     f.species === 'eevee' &&
     threat &&
     SKILL_BY_ID[threat.p.skillId]?.damagePercent >= 100 &&
     !f.cooldowns['shadow-step'] &&
     f.energy >= SKILL_BY_ID['shadow-step'].energy &&
-    f.y < 2
+    f.y < (f.groundHeight ?? 0) + 2
   )
     return { type: 'skill', skillId: 'shadow-step' };
-  if (f.guarded && (threat || meleeDanger) && f.y === 0) return { type: 'guard' };
+  if (f.guarded && (threat || meleeDanger) && f.y === (f.groundHeight ?? 0))
+    return { type: 'guard' };
   if (
     f.stamina >= STAMINA_RULES.dodgeCost &&
     f.dodgeCooldown <= 0 &&
-    f.y < 2 &&
+    f.y < (f.groundHeight ?? 0) + 2 &&
     (threat || meleeDanger) &&
     random() < def.ai.dodge * tuning.accuracy
   ) {
@@ -203,10 +320,24 @@ export function decideAction(
     // when its lower edge clears the reduced collision box. Reactions can fail.
     if (threat) {
       const t = Math.max(0.04, threat.time! * (0.85 + random() * 0.3));
-      const jumpY = def.jumpStrength * t - 0.5 * 1050 * t * t;
-      if (threat.p.y + threat.p.height / 2 < jumpY && f.species !== 'squirtle')
-        return { type: 'dodge', mode: 'jump', direction, depthDirection };
-      if (threat.p.y - threat.p.height / 2 > def.collision.height * 0.42 + 3)
+      const jumpY = (f.groundHeight ?? 0) + def.jumpStrength * t - 0.5 * 1050 * t * t;
+      if (
+        threat.p.y + threat.p.height / 2 < jumpY &&
+        (difficulty === 'hard' || f.species !== 'squirtle')
+      ) {
+        // Advanced AI jumps sideways instead of shortening the projectile's arrival time.
+        const lateral = difficulty === 'hard' ? steer(0, 1, 'MaintainDistance') : null;
+        return {
+          type: 'dodge',
+          mode: 'jump',
+          direction: lateral?.type === 'move' ? lateral.direction : direction,
+          depthDirection: lateral?.type === 'move' ? lateral.depthDirection : depthDirection,
+        };
+      }
+      if (
+        threat.p.y - threat.p.height / 2 >
+        (f.groundHeight ?? 0) + def.collision.height * 0.42 + 3
+      )
         return { type: 'dodge', mode: 'crouch', direction: 0 };
     }
     const away = -direction,
@@ -223,7 +354,11 @@ export function decideAction(
     return { type: 'wait' };
   }
   // Every species can block even while its evasive moves are cooling down.
-  if (f.y === 0 && (threat || meleeDanger) && random() < def.ai.guard * tuning.accuracy)
+  if (
+    f.y === (f.groundHeight ?? 0) &&
+    (threat || meleeDanger) &&
+    random() < def.ai.guard * tuning.accuracy
+  )
     return { type: 'guard' };
   const hpRatio = f.hp / def.hp;
   const available = def.skills.filter(
@@ -235,13 +370,33 @@ export function decideAction(
       (s.id !== 'counter-pounce' || Boolean(threat || meleeDanger)) &&
       (!s.usage.belowHP || hpRatio < s.usage.belowHP),
   );
-  const chosen = available
+  const useful =
+    difficulty === 'hard'
+      ? available.filter((s) => {
+          // Do not spend energy refreshing a healthy shield, concealment or a lasting debuff.
+          const recipient = s.behavior === 'buff' ? f : target;
+          return (
+            !s.effects.length ||
+            s.damagePercent > 0 ||
+            s.effects.some(
+              (effect) =>
+                !recipient.effects.some(
+                  (active) =>
+                    active.kind === effect.kind &&
+                    active.duration > 1 &&
+                    active.strength >= effect.strength,
+                ),
+            )
+          );
+        })
+      : available;
+  const chosen = useful
     .map((s) => ({
       s,
       score:
         s.usage.priority *
           (state.rules.elements
-            ? (EFFECTIVENESS[s.element]?.[POKEMON[target.species].element] ?? 1)
+            ? (EFFECTIVENESS[s.element]?.[fighterDefinition(target).element] ?? 1)
             : 1) +
         ((s.damagePercent / 100) * def.attack) / 65 +
         random() * 0.65 +
@@ -281,7 +436,7 @@ export function decideAction(
     f.stamina >= STAMINA_RULES.dodgeCost &&
     f.dodgeCooldown <= 0 &&
     f.species === 'charmander' &&
-    f.y === 0 &&
+    f.y === (f.groundHeight ?? 0) &&
     distance > 120 &&
     distance < 280 &&
     random() < 0.13

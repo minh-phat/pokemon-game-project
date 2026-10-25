@@ -9,15 +9,21 @@ export class BattleAudio {
     this.remove = useGame.subscribe(() => this.sync());
     this.sync();
   }
+  private externallyPaused = false;
+  setPaused(paused: boolean) {
+    if (this.externallyPaused === paused) return;
+    this.externallyPaused = paused;
+    this.sync();
+  }
   sync() {
     const { volume, muted, paused } = useGame.getState();
     this.ambient.volume = volume * 0.25;
-    if (muted || paused) this.ambient.pause();
+    if (muted || paused || this.externallyPaused) this.ambient.pause();
     else void this.ambient.play().catch(() => {});
   }
   play(element: string) {
     const { volume, muted } = useGame.getState();
-    if (muted || this.effects.size > 6) return;
+    if (muted || this.externallyPaused || this.effects.size > 6) return;
     const sound = new Audio(`/assets/${element}.wav`);
     sound.volume = volume * 0.4;
     this.effects.add(sound);

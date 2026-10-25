@@ -126,7 +126,7 @@ The frontend currently imports immutable game data from the shared workspace, so
 ## Limitations and next improvements
 
 - Art and synthesized audio are authored placeholders of a consistent quality, not production-licensed Pokémon assets. Names/designs remain Pokémon IP. A commercial release needs appropriate rights or an original creature roster.
-- Balancing is an initial pass. There are no competitive rankings, permanent progression, public matchmaking, authentication, or persistence.
+- Balancing is an initial pass. There are no competitive rankings or public matchmaking. Account Pets support persistent levels, experience and open-world contracts.
 - Online uses full MessagePack snapshots at 20 Hz rather than delta-compressed schema patches. State stays in one process. Rate limits are process-local; internet-scale abuse/load hardening is not complete.
 - Desktop Chrome and a mobile-sized Chrome viewport were exercised. Real mobile devices, Safari/Firefox, GPU diversity, screen-reader behavior, and high-latency networks need a wider test matrix. No universal 60 FPS or internet-latency guarantee is claimed.
 - Audio starts muted, respects autoplay restrictions, and uses short synthesized loops. Unlimited matches have no artificial timeout; the tested roster combinations all resolve, but future balance changes can introduce stalemates.
@@ -136,7 +136,7 @@ Recommended next work: commission/licence final art and audio, run a broad balan
 
 ### Thế giới mở
 
-Chọn **Chơi Ngay → Thế giới mở** để khám phá lục địa pixel isometric **268,4 km²** (16,384 × 16,384 km) sinh ngẫu nhiên, có sông suối chảy xuống biển, núi tuyết, núi lửa, rừng và Pokémon hoang dã đi theo bầy hoặc một mình. Có đồi bậc thang, vách núi và thung lũng: **Space** để nhảy, **giữ E + hướng di chuyển** để leo. Điện thoại có nút Nhảy/Leo. Ảnh cây cối, địa hình và vách đá được tạo bằng imagegen; bản đồ tải từng vùng quanh người chơi. Hỗ trợ bàn phím, cảm ứng, bản đồ có điểm dịch chuyển, nhật ký và tự lưu trên thiết bị. Xem [hướng dẫn và thiết kế thế giới mở](docs/open-world.md).
+Chọn **Chơi Ngay → Thế giới mở** để khám phá lục địa pixel isometric **268,4 km²** (16,384 × 16,384 km) sinh ngẫu nhiên, có sông suối chảy xuống biển, núi tuyết, núi lửa, rừng và Pokémon hoang dã đi theo bầy hoặc một mình. Có đồi bậc thang, vách núi và thung lũng: **Space** để nhảy, **giữ E + hướng di chuyển** để leo. Điện thoại có nút Nhảy/Leo. Ảnh cây cối, địa hình và vách đá được tạo bằng imagegen; bản đồ tải từng vùng quanh người chơi. Hỗ trợ bàn phím, cảm ứng, bản đồ có điểm dịch chuyển, nhật ký và tự lưu trên thiết bị. Đăng nhập để triệu hồi pet sở hữu, chọn thú hoang để đánh Auto hoặc tự chọn kỹ năng ngay trên map; thắng khi thú còn dưới 10% HP sẽ có thể lập khế ước. Pet tham chiến nhận EXP và tăng cấp, lưu vào tài khoản. Xem [hướng dẫn và thiết kế thế giới mở](docs/open-world.md).
 
 ### Tài khoản và MongoDB
 
@@ -153,10 +153,12 @@ Có thể thay URI bằng chuỗi kết nối MongoDB Atlas của bạn. Không 
 
 Backend tự tạo collection `users` (email duy nhất, mật khẩu băm scrypt với salt ngẫu nhiên) và `sessions` (token băm SHA-256, hết hạn sau 7 ngày, TTL index). Cookie HttpOnly lưu phiên, đăng xuất thu hồi phiên trên database. API: `POST /auth/register` (`name`, `email`, `password`), `POST /auth/login` (`email`, `password`), `GET /auth/me`, `POST /auth/logout`. Các POST cần header `X-Arena-Request: 1`; trình duyệt gửi cookie với `credentials: include`. Đăng ký thành công tự đăng nhập. Giới hạn 10 lần đăng nhập/đăng ký mỗi IP mỗi phút.
 
-Pets của tài khoản được lưu riêng trong collection `pets`. Mỗi document có `_id` riêng, `ownerId` liên kết `users._id`, `species`, `quality`, `level` (mặc định **1**) và `createdAt`. Hai thú giống nhau vẫn là hai document riêng. `GET /auth/pets` trả bộ sưu tập của phiên đăng nhập; `POST /auth/summon` luôn cấp một pet miễn phí, kèm phẩm chất ngẫu nhiên và các mốc bảo đảm. Frontend hiển thị từng pet và cho xem chỉ số theo cấp/phẩm chất, nội tại, kỹ năng.
+Pets của tài khoản được lưu riêng trong collection `pets`. Mỗi document có `_id` riêng, `ownerId` liên kết `users._id`, `species`, `quality`, `level` (mặc định **1**), `experience` (mặc định **0**) và `createdAt`. Hai thú giống nhau vẫn là hai document riêng. `GET /auth/pets` trả bộ sưu tập của phiên đăng nhập; `POST /auth/summon` luôn cấp một pet miễn phí, kèm phẩm chất ngẫu nhiên và các mốc bảo đảm. Frontend hiển thị từng pet và cho xem chỉ số theo cấp/phẩm chất, nội tại, kỹ năng.
 
 Khi tài khoản cũ mở Pets hoặc triệu hồi lần đầu sau cập nhật, backend tự chuyển `users.pets` / `users.petQualities` thành từng document cấp 1 trong `pets`. ID chuyển đổi cố định và `$setOnInsert` cho phép tiếp tục sau lỗi mà không tạo trùng hoặc ghi đè cấp độ. Chỉ xóa hai trường cũ sau khi sao chép đủ; `users.summonAttempts` cũ được giữ làm mốc lịch sử. Pet chuyển đổi dùng ngày tạo tài khoản vì dữ liệu cũ không có ngày nhận từng con. Không cần chạy script sửa dữ liệu thủ công.
 
 Mỗi pet triệu hồi mới có `summonNumber`; unique index `(ownerId, summonNumber)` ngăn hai request nhận cùng một lượt bảo đảm. Số lượt hiện tại lấy từ số lớn nhất giữa mốc cũ và lịch sử trong `pets`, nên phần thưởng và lượt triệu hồi được lưu bằng một lần insert, không cần MongoDB replica set. Khi bổ sung tính năng xóa/chuyển chủ pet về sau, phải giữ lịch sử số lượt này để không làm lùi bộ đếm.
 
 Khi triển khai production, dùng HTTPS, đặt `NODE_ENV=production`, cấu hình `FRONTEND_ORIGIN` đúng domain frontend; frontend và API phải cùng site để cookie SameSite=Lax hoạt động (ví dụ `game.example.com` và `api.example.com`). Tính năng này quản lý tài khoản; chưa lưu lịch sử trận đấu hoặc ràng buộc tài khoản với phòng Colyseus.
+
+Chiến đấu thế giới mở dùng `POST /auth/world/start` (`petId`, `seed`, `wildId`) và `POST /auth/world/finish` (`id`, `ticks`, `actions`, `capture`). Máy chủ xác minh trận bằng cách phát lại lệnh, lưu bản ghi `worldEncounters`, cộng EXP đúng một lần và tạo pet khế ước với ID ổn định. Xem công thức EXP và giới hạn trong [hướng dẫn thế giới mở](docs/open-world.md).

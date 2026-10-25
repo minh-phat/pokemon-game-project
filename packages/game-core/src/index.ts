@@ -1,5 +1,15 @@
 import { isConcealed } from '@arena/shared-types';
-import { terrainContact, terrainMove, terrainWaypoint } from './terrain';
+import {
+  terrainContact,
+  terrainMove,
+  terrainHeight,
+  terrainWalkable,
+  terrainWater,
+  terrainReachable,
+  terrainRoute,
+  type TerrainPoint,
+} from './terrain';
+import { tacticalPosition, terrainSight } from './navigation';
 export * from './terrain';
 import {
   RulesSchema,
@@ -18,7 +28,7 @@ import {
   type SpeciesId,
   type AnimationName,
 } from '@arena/shared-types';
-import { ARENAS, DIFFICULTY, POKEMON, SKILL_BY_ID } from '@arena/game-data';
+import { fighterDefinition, ARENAS, DIFFICULTY, SKILL_BY_ID } from '@arena/game-data';
 import { decideAction, decideManualAction } from '@arena/game-ai';
 import {
   calculateDamage,
@@ -42,13 +52,35 @@ export class BattleEngine {
   private projectileId = 0;
   private dashRemaining = new Map<string, number>();
   private terrainOrigins = new Map<string, { x: number; depth: number }>();
+  private routes = new Map<string, { until: number; goal: TerrainPoint; points: TerrainPoint[] }>();
   private get arena() {
-    return ARENAS.find((a) => a.id === this.state.rules.arena)!;
+    return this.config.arenaDefinition ?? ARENAS.find((a) => a.id === this.state.rules.arena)!;
   }
   private constrain(f: Fighter) {
+    if (f.climbing) return;
     const origin = this.terrainOrigins.get(f.id);
-    if (origin && this.arena.obstacles)
-      Object.assign(f, terrainMove(this.arena, origin, f, POKEMON[f.species].collision.width / 2));
+    if (origin && (this.arena.obstacles || this.arena.surface)) {
+      const height = Math.max(f.y, f.groundHeight ?? 0) + (this.arena.surface?.stepHeight ?? 12);
+      const p = terrainMove(
+        this.arena,
+        { ...origin, y: height },
+        { x: f.x, depth: f.depth, y: height },
+        this.terrainRadius(f),
+      );
+      f.x = p.x;
+      f.depth = p.depth;
+    }
+    const support = terrainHeight(this.arena, f, this.terrainRadius(f));
+    f.groundHeight =
+      support <= f.y + (this.arena.surface?.stepHeight ?? 12)
+        ? support
+        : Math.min(f.groundHeight ?? 0, terrainHeight(this.arena, f));
+  }
+  private terrainRadius(f: Fighter) {
+    return this.arena.surface ? 4 : fighterDefinition(f).collision.width / 2;
+  }
+  private grounded(f: Fighter) {
+    return !f.climbing && f.y <= (f.groundHeight ?? 0) + 0.1 && f.vy <= 0;
   }
   private groundHazardId = 0;
   private selections = new Map<string, SpeciesId[]>();
@@ -76,6 +108,7 @@ export class BattleEngine {
       manualTeams: [false, false],
       controlledFighterIds: [null, null],
       rules: this.config.rules,
+      arenaDefinition: this.config.arenaDefinition,
       fighters: [],
       projectiles: [],
       beams: [],
@@ -94,24 +127,27 @@ export class BattleEngine {
     if (this.selections.size !== 2) throw new Error('Both teams must be selected');
     this.config.players.forEach((playerId, team) =>
       this.selections.get(playerId)!.forEach((species, slot) => {
-        const def = POKEMON[species],
+        const progression = this.config.progressions?.[team]?.[slot];
+        const def = fighterDefinition({ species, progression }),
           active = slot < this.config.rules.activeSize;
         this.state.fighters.push({
           id: `${team}-${slot}`,
           playerId,
           team: team as 0 | 1,
           species,
+          progression,
           slot,
           hp: def.hp,
           energy: def.energy,
           stamina: def.maxStamina,
           maxStamina: def.maxStamina,
           sprinting: false,
-          x: this.arena.obstacles
-            ? this.arena.spawns[team]
-            : team === 0
-              ? 190 + slot * 65
-              : 1010 - slot * 65,
+          x:
+            this.arena.id === 'ruins' || this.config.arenaDefinition
+              ? this.arena.spawns[team]
+              : team === 0
+                ? 190 + slot * 65
+                : 1010 - slot * 65,
           y: 0,
           depth:
             (this.arena.spawnDepth ?? -100) +
@@ -143,11 +179,14 @@ export class BattleEngine {
         });
       }),
     );
+    for (const f of this.state.fighters) {
+      f.y = f.groundHeight = terrainHeight(this.arena, f, this.terrainRadius(f));
+    }
     this.state.phase = 'battle';
     this.ensureControlledFighters();
     this.state.fighters
       .filter((f) => f.active)
-      .forEach((f) => this.event('deploy', f, `${POKEMON[f.species].name} enters the arena`));
+      .forEach((f) => this.event('deploy', f, `${fighterDefinition(f).name} enters the arena`));
   }
   updateBattle(delta: number) {
     if (!Number.isFinite(delta) || delta < 0 || delta > 0.25)
@@ -280,8 +319,13 @@ export class BattleEngine {
     if (!rosters[0].length || !rosters[1].length) return null;
     const survivors = rosters.map((fs) => fs.filter((f) => f.hp > 0).length);
     const scores = rosters.map((fs) =>
-      fs.reduce((sum, f) => sum + Math.max(0, f.hp) / POKEMON[f.species].hp, 0),
+      fs.reduce((sum, f) => sum + Math.max(0, f.hp) / fighterDefinition(f).hp, 0),
     ) as [number, number];
+    const subdued = this.state.fighters.find(
+      (f) => f.team === this.config.captureTeam && f.hp < fighterDefinition(f).hp * 0.1,
+    );
+    if (subdued && survivors[subdued.team === 0 ? 1 : 0] > 0)
+      return { winner: subdued.team === 0 ? 1 : 0, reason: 'elimination', scores };
     if (survivors[0] === 0 || survivors[1] === 0)
       return {
         winner: survivors[0] === survivors[1] ? 'draw' : survivors[0] > 0 ? 0 : 1,
@@ -319,6 +363,10 @@ export class BattleEngine {
     this.eventId = 0;
     this.projectileId = 0;
     this.groundHazardId = 0;
+    this.routes.clear();
+    this.terrainOrigins.clear();
+    this.dashRemaining.clear();
+    this.manualMovement.clear();
   }
   private animate(f: Fighter, animation: AnimationName) {
     if (f.animation !== animation) {
@@ -361,7 +409,7 @@ export class BattleEngine {
       f.adaptiveCharge = Math.max(0, (f.adaptiveCharge ?? 0) - dt);
       f.dodgeWindow = Math.max(0, (f.dodgeWindow ?? 0) - dt);
       f.swapCooldown = Math.max(0, f.swapCooldown - dt);
-      f.energy = Math.min(POKEMON[f.species].energy, f.energy + dt * (f.active ? 6.5 : 9));
+      f.energy = Math.min(fighterDefinition(f).energy, f.energy + dt * (f.active ? 6.5 : 9));
       if (!f.active) {
         this.staminaTick(f, dt, false);
         continue;
@@ -442,8 +490,11 @@ export class BattleEngine {
       const beforeX = f.x,
         beforeDepth = f.depth;
       this.move(f, dt, stunned);
-      this.constrain(f);
-      this.staminaTick(f, dt, Math.hypot(f.x - beforeX, f.depth - beforeDepth) > 0.001 || f.y > 0);
+      this.staminaTick(
+        f,
+        dt,
+        Math.hypot(f.x - beforeX, f.depth - beforeDepth) > 0.001 || !this.grounded(f),
+      );
 
       this.trySwitch(f);
     }
@@ -499,7 +550,7 @@ export class BattleEngine {
     const fast =
       f.sprinting ||
       (f.state === 'Dodge' && f.actionTime > 0) ||
-      f.y > 0 ||
+      !this.grounded(f) ||
       (f.cast && SKILL_BY_ID[f.cast.skillId].movement);
     const rate = f.guarded
       ? -STAMINA_RULES.guardDrain
@@ -525,14 +576,15 @@ export class BattleEngine {
       this.state.phase !== 'battle' ||
       !f.active ||
       f.hp <= 0 ||
+      Boolean(f.climbing) ||
       f.cast ||
       f.actionTime > 0 ||
-      f.y > 0 ||
+      !this.grounded(f) ||
       f.effects.some((e) => e.kind === 'stun')
     )
       return false;
     if (!f.guarded)
-      this.event('guard', f, `${POKEMON[f.species].name} guards · 20% damage reduction`);
+      this.event('guard', f, `${fighterDefinition(f).name} guards · 20% damage reduction`);
     f.guarded = true;
     f.sprinting = false;
     f.crouched = false;
@@ -546,27 +598,70 @@ export class BattleEngine {
   }
   private act(f: Fighter, action: AIAction) {
     const target = this.state.fighters.find((t) => t.id === f.targetId && t.active && t.hp > 0);
+    if (f.climbing) return;
     if (
       !this.isManuallyControlled(f) &&
       target &&
-      this.arena.obstacles &&
-      terrainContact(this.arena, f, target, POKEMON[f.species].collision.width / 2) < 1
+      (this.arena.obstacles?.length || this.arena.surface) &&
+      (action.type === 'move' ||
+        (action.type === 'skill' &&
+          SKILL_BY_ID[action.skillId].behavior !== 'buff' &&
+          (!terrainSight(this.arena, f, target) ||
+            ((SKILL_BY_ID[action.skillId].behavior === 'melee' ||
+              SKILL_BY_ID[action.skillId].beam) &&
+              Math.abs((target.groundHeight ?? 0) - (f.groundHeight ?? 0)) > 30))))
     ) {
-      const waypoint = terrainWaypoint(
-        this.arena,
-        f,
-        target,
-        POKEMON[f.species].collision.width / 2,
-      );
-      const dx = waypoint.x - f.x,
-        dz = waypoint.depth - f.depth,
-        length = Math.hypot(dx, dz) || 1;
-      action = {
-        type: 'move',
-        direction: dx / length,
-        depthDirection: dz / length,
-        state: 'Chase',
-      };
+      let route = this.routes.get(f.id);
+      if (!route || route.until <= this.state.elapsed) {
+        const tactic = !this.isManuallyControlled(f)
+          ? tacticalPosition(this.arena, f, target, this.state)
+          : null;
+        const direct =
+          action.type === 'move'
+            ? {
+                x: f.x + action.direction * 100,
+                depth: f.depth + (action.depthDirection ?? 0) * 100,
+              }
+            : target;
+        const blocked =
+          !terrainSight(this.arena, f, target) ||
+          Math.abs((target.groundHeight ?? 0) - (f.groundHeight ?? 0)) > 60;
+        if (tactic || blocked || !terrainReachable(this.arena, f, direct, this.terrainRadius(f))) {
+          const goal = tactic ?? (blocked ? target : direct);
+          route = {
+            until: this.state.elapsed + 0.7,
+            goal,
+            points: terrainRoute(this.arena, f, goal, this.terrainRadius(f)),
+          };
+          this.routes.set(f.id, route);
+        } else {
+          route = undefined;
+          this.routes.delete(f.id);
+        }
+      }
+      if (route) {
+        while (
+          route.points.length &&
+          Math.hypot(route.points[0].x - f.x, route.points[0].depth - f.depth) < 18
+        )
+          route.points.shift();
+        const point = route.points[0];
+        if (point) {
+          const dx = point.x - f.x,
+            dz = point.depth - f.depth,
+            length = Math.hypot(dx, dz) || 1;
+          action = {
+            type: 'move',
+            direction: dx / length,
+            depthDirection: dz / length,
+            state: action.type === 'move' ? action.state : 'Chase',
+            sprint: action.type === 'move' && action.sprint,
+          };
+        } else {
+          this.routes.delete(f.id);
+          if (action.type === 'skill') action = { type: 'wait' };
+        }
+      }
     }
     // Keep the old action compatible without charging the dodge cooldown.
     if (action.type === 'guard' || (action.type === 'dodge' && action.mode === 'guard')) {
@@ -598,11 +693,12 @@ export class BattleEngine {
       this.state.phase !== 'battle' ||
       !f.active ||
       f.hp <= 0 ||
+      Boolean(f.climbing) ||
       (f.cast && (!this.isManuallyControlled(f) || !f.cast.autoBasic)) ||
       f.actionTime > 0 ||
       f.effects.some((e) => e.kind === 'stun') ||
       (!this.isManuallyControlled(f) && f.dodgeCooldown > 0) ||
-      f.y > 1 ||
+      !this.grounded(f) ||
       f.stamina < STAMINA_RULES.dodgeCost
     )
       return false;
@@ -616,7 +712,7 @@ export class BattleEngine {
     f.stamina -= STAMINA_RULES.dodgeCost;
     f.sprinting = false;
     this.setGuard(f, false);
-    const def = POKEMON[f.species];
+    const def = fighterDefinition(f);
     const speed = def.speed * staminaSpeedMultiplier(f);
     f.moveIntent = 0;
     f.moveDepth = 0;
@@ -645,17 +741,18 @@ export class BattleEngine {
     this.event(
       'dodge',
       f,
-      `${POKEMON[f.species].name} ${mode === 'jump' ? 'jumps' : mode === 'crouch' ? 'ducks' : 'dashes'}`,
+      `${fighterDefinition(f).name} ${mode === 'jump' ? 'jumps' : mode === 'crouch' ? 'ducks' : 'dashes'}`,
     );
     f.thinkIn = 0.03; // Counterattack promptly after the defense ends.
     return true;
   }
   beginSkill(f: Fighter, skillId: string, autoBasic = false): boolean {
-    const def = POKEMON[f.species],
+    const def = fighterDefinition(f),
       s = def.skills.find((s) => s.id === skillId);
     if (
       !s ||
       f.hp <= 0 ||
+      Boolean(f.climbing) ||
       !f.active ||
       f.cast ||
       f.actionTime > 0 ||
@@ -705,8 +802,8 @@ export class BattleEngine {
         bindEligible:
           !!chosenTarget &&
           bindDistance <= s.range &&
-          POKEMON[chosenTarget.species].collision.width <= 90 &&
-          POKEMON[chosenTarget.species].collision.height <= 90,
+          fighterDefinition(chosenTarget).collision.width <= 90 &&
+          fighterDefinition(chosenTarget).collision.height <= 90,
       }),
       ...(autoBasic && { autoBasic: true }),
       lockX:
@@ -749,6 +846,15 @@ export class BattleEngine {
             const side = s.id === 'ember-glyph' ? (shot - 1) * 10 : 0;
             const x = f.x + f.aimX * (32 + forward) - f.aimDepth * side;
             const depth = f.depth + f.aimDepth * (32 + forward) + f.aimX * side;
+            const aimTarget = this.state.fighters.find((t) => t.id === f.targetId);
+            const verticalSpeed =
+              aimTarget && (this.arena.surface || this.arena.obstacles?.length)
+                ? ((aimTarget.groundHeight ?? 0) - (f.groundHeight ?? 0)) /
+                  Math.max(
+                    0.1,
+                    Math.hypot(aimTarget.x - x, aimTarget.depth - depth) / s.projectileSpeed,
+                  )
+                : 0;
             this.state.projectiles.push({
               id: `p${++this.projectileId}`,
               ownerId: f.id,
@@ -757,6 +863,7 @@ export class BattleEngine {
               x,
               previousX: x,
               y: f.y + s.hitbox.altitude,
+              vy: verticalSpeed,
               vx: Math.cos(angle) * s.projectileSpeed,
               depth,
               previousDepth: depth,
@@ -865,8 +972,8 @@ export class BattleEngine {
         terrainContact(this.arena, f, target) === 1 &&
         target.invulnerable <= 0 &&
         Math.hypot(target.x - f.x, target.depth - f.depth) <= 85 &&
-        POKEMON[target.species].collision.width <= 90 &&
-        POKEMON[target.species].collision.height <= 90
+        fighterDefinition(target).collision.width <= 90 &&
+        fighterDefinition(target).collision.height <= 90
       ) {
         cast.bound = true;
         if (s.id === 'liquid-wrap') {
@@ -925,7 +1032,11 @@ export class BattleEngine {
       if (cast.elapsed >= s.startup + 1 && !(cast.fired & 1)) {
         cast.fired |= 1;
         f.invulnerable = 0;
-        if (target && target.y <= 42 && Math.hypot(target.x - f.x, target.depth - f.depth) <= 105) {
+        if (
+          target &&
+          target.y <= (f.groundHeight ?? 0) + 42 &&
+          Math.hypot(target.x - f.x, target.depth - f.depth) <= 105
+        ) {
           f.aimX = Math.sign(target.x - f.x) || f.facing;
           f.aimDepth = 0;
           this.hit(f, target, s);
@@ -943,7 +1054,7 @@ export class BattleEngine {
           );
           if (
             target &&
-            target.y <= 42 &&
+            target.y <= (f.groundHeight ?? 0) + 42 &&
             Math.hypot(target.x - f.x, target.depth - f.depth) <= s.range + 20
           )
             this.hit(f, target, s);
@@ -962,7 +1073,7 @@ export class BattleEngine {
         if (!target) continue;
         const offsets = [-42, 38, -36, 32, -24];
         const depthOffsets = [-35, 38, 34, -32, 0];
-        const arena = ARENAS.find((a) => a.id === this.state.rules.arena)!;
+        const arena = this.arena;
         const centerX =
           (cast.lockX ?? target.x) +
           Math.max(-30, Math.min(30, target.x - (cast.lockX ?? target.x)));
@@ -975,18 +1086,21 @@ export class BattleEngine {
           Math.min(arena.depthBounds[1], centerDepth + depthOffsets[i]),
         );
         if (i === 3) {
-          f.y = 82;
+          f.y = terrainHeight(this.arena, f) + 82;
           f.vy = 0;
         }
         if (i === 4) {
-          f.y = 0;
+          f.y = f.groundHeight = terrainHeight(this.arena, f, this.terrainRadius(f));
           f.vy = 0;
         }
         f.vx = f.vDepth = 0;
         f.aimX = Math.sign(target.x - f.x) || f.facing;
         f.aimDepth = 0;
         this.animate(f, i === 4 ? 'land' : 'dash');
-        if (target.y <= 42 && Math.hypot(target.x - f.x, target.depth - f.depth) <= 80)
+        if (
+          target.y <= (f.groundHeight ?? 0) + 42 &&
+          Math.hypot(target.x - f.x, target.depth - f.depth) <= 80
+        )
           this.hit(
             f,
             target,
@@ -1018,7 +1132,14 @@ export class BattleEngine {
         dz = f.aimDepth / length;
       const startX = f.x + dx * 34,
         startDepth = f.depth + dz * 34;
-      if (terrainContact(this.arena, f, { x: startX, depth: startDepth }, skill.beam.width / 2) < 1)
+      if (
+        terrainContact(
+          this.arena,
+          { ...f, y: f.y + skill.hitbox.altitude },
+          { x: startX, depth: startDepth, y: f.y + skill.hitbox.altitude },
+          skill.beam.width / 2,
+        ) < 1
+      )
         continue;
       beams.push({
         ownerId: f.id,
@@ -1040,8 +1161,8 @@ export class BattleEngine {
         skill.range *
         terrainContact(
           this.arena,
-          { x: beam.startX, depth: beam.startDepth },
-          { x: beam.endX, depth: beam.endDepth },
+          { x: beam.startX, depth: beam.startDepth, y: owner.y + skill.hitbox.altitude },
+          { x: beam.endX, depth: beam.endDepth, y: owner.y + skill.hitbox.altitude },
           beam.width / 2,
         );
       for (const target of this.state.fighters) {
@@ -1055,7 +1176,7 @@ export class BattleEngine {
         const forward = (target.x - beam.startX) * dx + (target.depth - beam.startDepth) * dz;
         nearest = Math.min(
           nearest,
-          Math.max(0, forward - POKEMON[target.species].collision.width * 0.35),
+          Math.max(0, forward - fighterDefinition(target).collision.width * 0.35),
         );
       }
       beam.endX = beam.startX + dx * nearest;
@@ -1141,7 +1262,7 @@ export class BattleEngine {
       toDepth = target.depth - beam.startDepth;
     const forward = (toX * dx + toDepth * dz) / length;
     const side = Math.abs(toX * dz - toDepth * dx) / length;
-    const radius = POKEMON[target.species].collision.width / 2;
+    const radius = fighterDefinition(target).collision.width / 2;
     const targetBox = fighterBox(target);
     const bottom = owner.y + skill.hitbox.altitude - skill.hitbox.height / 2;
     const top = owner.y + skill.hitbox.altitude + skill.hitbox.height / 2;
@@ -1158,7 +1279,7 @@ export class BattleEngine {
       dz = target.depth - f.depth;
     const forward = dx * f.aimX + dz * f.aimDepth;
     const side = Math.abs(dx * f.aimDepth - dz * f.aimX);
-    const radius = POKEMON[target.species].collision.width / 2;
+    const radius = fighterDefinition(target).collision.width / 2;
     return (
       forward >= -radius &&
       forward <= skill.range + radius &&
@@ -1171,7 +1292,7 @@ export class BattleEngine {
       dz = target.depth - f.depth;
     const forward = dx * f.aimX + dz * f.aimDepth;
     const side = Math.abs(dx * f.aimDepth - dz * f.aimX);
-    const radius = POKEMON[target.species].collision.width / 2;
+    const radius = fighterDefinition(target).collision.width / 2;
     return (
       forward >= -radius &&
       forward <= skill.range + radius &&
@@ -1181,8 +1302,33 @@ export class BattleEngine {
     );
   }
   private move(f: Fighter, dt: number, stunned: boolean) {
-    const def = POKEMON[f.species],
-      arena = ARENAS.find((a) => a.id === this.state.rules.arena)!;
+    if (f.climbing) {
+      if (stunned || f.hp <= 0) {
+        f.climbing = undefined;
+        f.traversal = 'fall';
+      } else {
+        const climb = f.climbing;
+        climb.elapsed += dt;
+        const t = Math.min(1, climb.elapsed / climb.duration);
+        // Rise at the outside face, then pull onto the clear shelf.
+        const horizontal = Math.max(0, (t - 0.7) / 0.3);
+        f.x = climb.fromX + (climb.x - climb.fromX) * horizontal;
+        f.depth = climb.fromDepth + (climb.depth - climb.fromDepth) * horizontal;
+        f.y = climb.fromY + (climb.y - climb.fromY) * Math.min(1, t / 0.7);
+        f.vx = f.vDepth = f.vy = 0;
+        f.traversal = 'climb';
+        this.animate(f, 'run');
+        if (t === 1) {
+          f.climbing = undefined;
+          f.groundHeight = climb.y;
+          f.traversal = undefined;
+          f.thinkIn = 0;
+        }
+        return;
+      }
+    }
+    const def = fighterDefinition(f),
+      arena = this.arena;
     const remaining = this.dashRemaining.get(f.id);
     if (remaining !== undefined) {
       if (stunned || (f.animation !== 'dash' && f.animation !== 'backstep') || f.actionTime === 0) {
@@ -1202,12 +1348,24 @@ export class BattleEngine {
         } else {
           this.dashRemaining.set(f.id, remaining - distance);
         }
+        this.constrain(f);
+        const floor = f.groundHeight ?? 0;
+        if (Math.abs(f.y - floor) <= (arena.surface?.stepHeight ?? 12)) f.y = floor;
+        else if (f.y > floor) {
+          f.vy -= GRAVITY * dt;
+          f.y = Math.max(floor, f.y + f.vy * dt);
+          f.traversal = f.y > floor ? 'fall' : undefined;
+          if (f.y === floor) f.vy = 0;
+        }
         return;
       }
     }
     const staminaScale = staminaSpeedMultiplier(f);
     if (f.stamina < f.maxStamina * STAMINA_RULES.lowThreshold) f.sprinting = false;
-    const speed = (f.sprinting ? def.sprintSpeed : def.speed) * staminaScale;
+    const speed =
+      (f.sprinting ? def.sprintSpeed : def.speed) *
+      staminaScale *
+      (terrainWater(this.arena, f) ? 0.68 : 1);
     const movement = f.cast ? SKILL_BY_ID[f.cast.skillId].movement : undefined;
     if (
       movement &&
@@ -1230,27 +1388,98 @@ export class BattleEngine {
       f.vx += dx * factor;
       f.vDepth += dz * factor;
     }
-    f.depth = Math.max(
-      arena.depthBounds[0],
-      Math.min(arena.depthBounds[1], f.depth + f.vDepth * dt),
-    );
+    const wasGrounded = this.grounded(f);
     const oldY = f.y;
-    f.x = Math.max(arena.bounds[0], Math.min(arena.bounds[1], f.x + f.vx * dt));
-    if (f.y > 0 || f.vy > 0) {
+    const moveLength = Math.hypot(f.vx, f.vDepth);
+    if (wasGrounded && !stunned && !f.cast && f.actionTime === 0 && moveLength > 1) {
+      const ux = f.vx / moveLength,
+        uz = f.vDepth / moveLength;
+      const radius = this.terrainRadius(f);
+      const step = arena.surface?.stepHeight ?? 12;
+      // Probe far enough to see the shelf beyond the collision radius.
+      const reach = radius + 16;
+      const ahead = { x: f.x + ux * reach, depth: f.depth + uz * reach };
+      const rise = terrainHeight(arena, ahead) - f.y;
+      if (
+        rise > step &&
+        terrainWalkable(arena, ahead, radius) &&
+        !terrainWater(arena, ahead) &&
+        !terrainWater(arena, f)
+      ) {
+        const jumpHeight = def.jumpStrength ** 2 / (2 * GRAVITY);
+        if (rise < jumpHeight * 0.8 && f.stamina >= 6) {
+          f.vy = def.jumpStrength;
+          f.stamina -= 6;
+          f.traversal = 'jump';
+          this.animate(f, 'jump');
+        } else if (rise <= (arena.surface?.climbHeight ?? 256) && f.stamina >= 12) {
+          // Land beyond the face, while ensuring the destination still belongs to this shelf.
+          const landing = { x: ahead.x + ux * 8, depth: ahead.depth + uz * 8 };
+          if (
+            terrainWalkable(arena, landing, radius) &&
+            terrainHeight(arena, landing) === terrainHeight(arena, ahead)
+          ) {
+            f.climbing = {
+              fromX: f.x,
+              fromDepth: f.depth,
+              fromY: f.y,
+              ...landing,
+              y: terrainHeight(arena, landing),
+              elapsed: 0,
+              duration: 0.45 + rise / 245,
+            };
+            f.stamina -= 12;
+            f.traversal = 'climb';
+            f.guarded = false;
+            return;
+          }
+        }
+      }
+    }
+    if (!wasGrounded || f.vy > 0) {
       f.vy -= GRAVITY * dt;
-      f.y = Math.max(0, f.y + f.vy * dt);
-      if (f.y === 0) {
-        f.vy = 0;
+      f.y += f.vy * dt;
+    }
+    const desired = {
+      x: Math.max(arena.bounds[0], Math.min(arena.bounds[1], f.x + f.vx * dt)),
+      depth: Math.max(
+        arena.depthBounds[0],
+        Math.min(arena.depthBounds[1], f.depth + f.vDepth * dt),
+      ),
+    };
+    const clearance = f.y + (wasGrounded && f.vy <= 0 ? (arena.surface?.stepHeight ?? 12) : 0);
+    const moved = terrainMove(
+      arena,
+      { x: f.x, depth: f.depth, y: clearance },
+      { ...desired, y: clearance },
+      this.terrainRadius(f),
+    );
+    f.x = moved.x;
+    f.depth = moved.depth;
+    const support = terrainHeight(arena, f, this.terrainRadius(f));
+    const floor =
+      support <= Math.max(oldY, f.y) + (arena.surface?.stepHeight ?? 12)
+        ? support
+        : Math.min(f.groundHeight ?? 0, terrainHeight(arena, f));
+    f.groundHeight = floor;
+    if (wasGrounded && f.vy === 0 && Math.abs(floor - oldY) <= (arena.surface?.stepHeight ?? 12))
+      f.y = floor;
+    if (f.y <= floor && f.vy <= 0) {
+      f.y = floor;
+      f.vy = 0;
+      f.traversal = undefined;
+      if (!wasGrounded) {
         this.animate(f, 'land');
         f.actionTime = Math.max(f.actionTime, 0.09);
       }
-    }
+    } else if (f.y > floor + 0.1) f.traversal = f.vy > 0 ? 'jump' : 'fall';
     if (!f.cast && f.actionTime === 0 && !stunned) {
       if (f.guarded) this.animate(f, 'guard');
-      else if (f.y > 0) this.animate(f, f.vy > 0 ? 'jump' : 'fall');
-      else if (oldY === 0) this.animate(f, Math.hypot(f.vx, f.vDepth) > 15 ? 'run' : 'idle');
+      else if (!this.grounded(f)) this.animate(f, f.vy > 0 ? 'jump' : 'fall');
+      else this.animate(f, Math.hypot(f.vx, f.vDepth) > 15 ? 'run' : 'idle');
     }
   }
+
   private resolveBodies() {
     const fs = this.state.fighters.filter((f) => f.active && f.hp > 0);
     for (let i = 0; i < fs.length; i++)
@@ -1258,17 +1487,22 @@ export class BattleEngine {
         const a = fs[i],
           b = fs[j];
         if (!overlaps(fighterBox(a), fighterBox(b))) continue;
-        const min = (POKEMON[a.species].collision.width + POKEMON[b.species].collision.width) / 2;
+        const min =
+          (fighterDefinition(a).collision.width + fighterDefinition(b).collision.width) / 2;
         const d = Math.hypot(a.x - b.x, a.depth - b.depth);
         const push = (min - d) * 0.5;
-        if (push > 0) {
+        if (push > 0 && !a.climbing && !b.climbing) {
+          this.terrainOrigins.set(a.id, { x: a.x, depth: a.depth });
+          this.terrainOrigins.set(b.id, { x: b.x, depth: b.depth });
           const sign = d > 0 ? (a.x - b.x) / d : -1;
           const depthSign = d > 0 ? (a.depth - b.depth) / d : 0;
-          const bounds = ARENAS.find((arena) => arena.id === this.state.rules.arena)!.depthBounds;
+          const bounds = this.arena.depthBounds;
           a.depth = Math.max(bounds[0], Math.min(bounds[1], a.depth + depthSign * push));
           b.depth = Math.max(bounds[0], Math.min(bounds[1], b.depth - depthSign * push));
           a.x = Math.max(this.arena.bounds[0], Math.min(this.arena.bounds[1], a.x + sign * push));
           b.x = Math.max(this.arena.bounds[0], Math.min(this.arena.bounds[1], b.x - sign * push));
+          this.constrain(a);
+          this.constrain(b);
         }
       }
   }
@@ -1281,8 +1515,8 @@ export class BattleEngine {
           origin &&
           terrainContact(
             this.arena,
-            origin,
-            { x: p.x, depth: p.depth ?? origin.depth },
+            { ...origin, y: p.y },
+            { x: p.x, depth: p.depth ?? origin.depth, y: p.y },
             p.width / 2,
           ) < 1
         ) {
@@ -1311,12 +1545,14 @@ export class BattleEngine {
       p.previousDepth = p.depth ?? ownerDepth(this.state, p);
       p.depth = p.previousDepth + (p.vDepth ?? 0) * dt;
       p.previousX = p.x;
+      p.previousY = p.y;
+      p.y += (p.vy ?? 0) * dt;
       p.x += p.vx * dt;
       p.life -= dt;
       const contact = terrainContact(
         this.arena,
-        { x: p.previousX, depth: p.previousDepth },
-        { x: p.x, depth: p.depth },
+        { x: p.previousX, depth: p.previousDepth, y: p.previousY - p.height / 2 },
+        { x: p.x, depth: p.depth, y: p.y - p.height / 2 },
         p.width / 2,
       );
       const blocked = contact < 1;
@@ -1358,6 +1594,7 @@ export class BattleEngine {
             this.hit(owner, f, skill, undefined, {
               x: p.previousX,
               depth: p.previousDepth,
+              y: p.previousY,
             });
             if (skill.groundHazard) this.createGroundHazard(p, f.x, f.depth);
             p.life = 0;
@@ -1396,7 +1633,7 @@ export class BattleEngine {
   private createGroundHazard(p: BattleSnapshot['projectiles'][number], x: number, depth: number) {
     const config = SKILL_BY_ID[p.skillId].groundHazard;
     if (!config) return;
-    const arena = ARENAS.find((value) => value.id === this.state.rules.arena)!;
+    const arena = this.arena;
     this.state.groundHazards.push({
       id: `h${++this.groundHazardId}`,
       ownerId: p.ownerId,
@@ -1425,10 +1662,14 @@ export class BattleEngine {
           target.hp <= 0 ||
           target.team === hazard.team ||
           target.invulnerable > 0 ||
-          target.y > 8 ||
-          terrainContact(this.arena, hazard, target) < 1 ||
+          target.y > (target.groundHeight ?? 0) + 8 ||
+          terrainContact(
+            this.arena,
+            { ...hazard, y: terrainHeight(this.arena, hazard) + 4 },
+            { ...target, y: target.y + 4 },
+          ) < 1 ||
           Math.hypot(target.x - hazard.x, target.depth - hazard.depth) >
-            hazard.radius + POKEMON[target.species].collision.width * 0.25
+            hazard.radius + fighterDefinition(target).collision.width * 0.25
         )
           continue;
         const shield = target.effects
@@ -1439,10 +1680,10 @@ export class BattleEngine {
           target.hp,
           calculateDamage(
             config.damagePercent,
-            POKEMON[source.species].attack,
-            POKEMON[target.species].defense,
+            fighterDefinition(source).attack,
+            fighterDefinition(target).defense,
             skill.element,
-            POKEMON[target.species].element,
+            fighterDefinition(target).element,
             this.state.rules.elements,
             guard,
           ),
@@ -1463,7 +1704,7 @@ export class BattleEngine {
     // Slab intersection of the swept projectile with the ground-plane hitbox.
     let enter = 0,
       exit = 1;
-    const radius = POKEMON[f.species].collision.width / 2;
+    const radius = fighterDefinition(f).collision.width / 2;
     for (const [start, end, center, half] of [
       [p.previousX, p.x, f.x, radius + p.width / 2],
       [p.previousDepth!, p.depth!, f.depth, radius + p.height / 2],
@@ -1495,10 +1736,18 @@ export class BattleEngine {
     target: Fighter,
     s: SkillDefinition,
     damagePercent = s.damagePercent,
-    origin?: { x: number; depth: number },
+    origin?: { x: number; depth: number; y?: number },
   ) {
     this.constrain(source);
-    if (terrainContact(this.arena, origin ?? source, target) < 1) return;
+    const from = origin ?? source;
+    if (
+      terrainContact(
+        this.arena,
+        { ...from, y: from.y ?? source.y },
+        { ...target, y: origin ? target.y + s.hitbox.altitude : target.y },
+      ) < 1
+    )
+      return;
     if (target.invulnerable > 0) {
       this.grantAdaptiveDodge(target);
       return;
@@ -1515,15 +1764,20 @@ export class BattleEngine {
     const amount = Math.round(
       calculateDamage(
         damagePercent,
-        POKEMON[source.species].attack,
-        POKEMON[target.species].defense,
+        fighterDefinition(source).attack,
+        fighterDefinition(target).defense,
         s.element,
-        POKEMON[target.species].element,
+        fighterDefinition(target).element,
         this.state.rules.elements,
         guard,
       ) * (source.species === 'eevee' && (source.adaptiveCharge ?? 0) > 0 ? 1.15 : 1),
     );
     if (source.species === 'eevee' && (source.adaptiveCharge ?? 0) > 0) source.adaptiveCharge = 0;
+    if (amount > 0 && target.climbing) {
+      target.climbing = undefined;
+      target.traversal = 'fall';
+      target.vy = 0;
+    }
     target.hp = Math.max(0, target.hp - amount);
     source.damageDealt += amount;
     const distance = Math.hypot(target.x - source.x, target.depth - source.depth) || 1;
@@ -1574,7 +1828,7 @@ export class BattleEngine {
           const damage = Math.min(
             f.hp,
             Math.round(
-              (((source ? POKEMON[source.species].attack : 0) * effect.strength) / 100) *
+              (((source ? fighterDefinition(source).attack : 0) * effect.strength) / 100) *
                 (f.guarded ? 1 - BASIC_GUARD_REDUCTION : 1),
             ),
           );
@@ -1586,7 +1840,7 @@ export class BattleEngine {
           if (source) {
             source.damageDealt += damage;
             if (effect.kind === 'leech' && source.hp > 0) {
-              const heal = Math.min(damage, POKEMON[source.species].hp - source.hp);
+              const heal = Math.min(damage, fighterDefinition(source).hp - source.hp);
               source.hp += heal;
               if (heal > 0) this.event('heal', source, 'Leech Seed', { value: heal });
             }
@@ -1598,6 +1852,10 @@ export class BattleEngine {
     this.faint(f);
   }
   private faint(f: Fighter) {
+    if (this.config.captureTeam === f.team && f.hp < fighterDefinition(f).hp * 0.1) {
+      f.hp = Math.max(1, f.hp);
+      return;
+    }
     if (f.hp <= 0 && f.state !== 'Fainted') {
       f.hp = 0;
       f.guarded = false;
@@ -1610,7 +1868,7 @@ export class BattleEngine {
       f.moveDepth = 0;
       f.state = 'Fainted';
       this.animate(f, 'faint');
-      this.event('faint', f, `${POKEMON[f.species].name} fainted`);
+      this.event('faint', f, `${fighterDefinition(f).name} fainted`);
     }
   }
   private deploy(f: Fighter) {
@@ -1619,18 +1877,19 @@ export class BattleEngine {
     f.guarded = false;
     f.sprinting = false;
     f.active = true;
-    f.x = this.arena.obstacles
-      ? this.arena.spawns[team]
-      : team === 0
-        ? 100 + allies.length * 65
-        : 1100 - allies.length * 65;
+    f.x =
+      this.arena.id === 'ruins' || this.config.arenaDefinition
+        ? this.arena.spawns[team]
+        : team === 0
+          ? 100 + allies.length * 65
+          : 1100 - allies.length * 65;
     f.depth =
       (this.arena.spawnDepth ?? -100) +
       (allies.length - (this.config.rules.activeSize - 1) / 2) * (this.arena.spawnSpacing ?? 65);
     f.moveIntent = 0;
     f.moveDepth = 0;
     f.vDepth = 0;
-    f.y = 0;
+    f.y = f.groundHeight = terrainHeight(this.arena, f, this.terrainRadius(f));
     f.vy = 0;
     f.vx = 0;
     f.cast = null;
@@ -1640,7 +1899,7 @@ export class BattleEngine {
     f.thinkIn = 0.15;
     f.swapCooldown = 12;
     this.animate(f, 'idle');
-    this.event('deploy', f, `${POKEMON[f.species].name} enters the arena`);
+    this.event('deploy', f, `${fighterDefinition(f).name} enters the arena`);
   }
   private deployReserves() {
     for (const team of [0, 1]) {
@@ -1660,11 +1919,11 @@ export class BattleEngine {
       f.swapCooldown > 0 ||
       f.effects.some((effect) => effect.kind === 'stun') ||
       f.cast ||
-      f.hp / POKEMON[f.species].hp > 0.22
+      f.hp / fighterDefinition(f).hp > 0.22
     )
       return;
     const reserve = this.state.fighters.find(
-      (v) => v.team === f.team && !v.active && v.hp / POKEMON[v.species].hp > 0.5,
+      (v) => v.team === f.team && !v.active && v.hp / fighterDefinition(v).hp > 0.5,
     );
     if (reserve) {
       f.guarded = false;
@@ -1672,7 +1931,7 @@ export class BattleEngine {
       f.active = false;
       f.cast = null;
       f.swapCooldown = 15;
-      this.event('switch', f, `${POKEMON[f.species].name} switches out`);
+      this.event('switch', f, `${fighterDefinition(f).name} switches out`);
       this.deploy(reserve);
     }
   }
@@ -1684,3 +1943,5 @@ export function initializeBattle(config: BattleConfig, seed = 1) {
 function ownerDepth(state: BattleSnapshot, p: BattleSnapshot['projectiles'][number]) {
   return state.fighters.find((f) => f.id === p.ownerId)?.depth ?? -100;
 }
+
+export * from './world-encounter';

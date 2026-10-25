@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { Sparkles, PawPrint, ArrowLeft } from 'lucide-react';
-import { POKEMON, calculatePetStats, combatPower } from '@arena/game-data';
+import { POKEMON, calculatePetStats, experienceToNextLevel, combatPower } from '@arena/game-data';
 import {
   speciesIds,
   PET_QUALITIES,
@@ -339,6 +339,11 @@ function OwnedPetDetails({ pet, onBack }: { pet: OwnedPet; onBack: () => void })
           </strong>
         </div>
       </div>
+      <p>
+        {pet.level === 100
+          ? t('Đã đạt cấp tối đa', 'Maximum level')
+          : `${pet.experience ?? 0} / ${experienceToNextLevel(pet.level)} EXP`}
+      </p>
       <p className="pet-description">{c(definition.description)}</p>
       <h4>{t('Chỉ số', 'Stats')}</h4>
       <dl className="pet-detail-stats">

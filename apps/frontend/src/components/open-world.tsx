@@ -31,6 +31,7 @@ import {
   type WorldSave,
 } from '@/game/open-world-world';
 import { Dialog } from './ui/dialog';
+import { WorldCompanions } from './world-companions';
 
 function newSeed() {
   return crypto.getRandomValues(new Uint32Array(1))[0];
@@ -53,6 +54,7 @@ export default function OpenWorld() {
   );
   const [status, setStatus] = useState<WorldStatus | null>(null);
   const [panel, setPanel] = useState<'pause' | 'journal' | null>(null);
+  const [petPanelOpen, setPetPanelOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false),
     [error, setError] = useState('');
   const [seedInput, setSeedInput] = useState(''),
@@ -93,7 +95,7 @@ export default function OpenWorld() {
   useEffect(() => {
     if (engine.current) {
       engine.current.input.mapOverview = mapOpen;
-      engine.current.setPaused(panel !== null || mapOpen);
+      engine.current.setPaused(panel !== null || mapOpen || petPanelOpen);
       engine.current.input.reducedMotion = reducedMotion;
       engine.current.input.sprint = running;
       engine.current.input.x = 0;
@@ -102,7 +104,7 @@ export default function OpenWorld() {
     }
     setStick({ x: 0, y: 0 });
     setClimbHeld(false);
-  }, [panel, mapOpen, reducedMotion, running, expedition]);
+  }, [panel, mapOpen, petPanelOpen, reducedMotion, running, expedition]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (
@@ -165,7 +167,7 @@ export default function OpenWorld() {
   const label = (biome: keyof typeof biomeNames) => biomeNames[biome][language === 'vi' ? 0 : 1];
   return (
     <section
-      className="open-world"
+      className={`open-world ${status?.target ? 'world-in-combat' : ''}`}
       aria-label={t('Khám phá thế giới mở', 'Open world exploration')}
     >
       <canvas
@@ -330,46 +332,55 @@ export default function OpenWorld() {
           </>
         )}
       </aside>
-      <aside className="world-discovery" aria-live="polite">
-        {status?.nearby ? (
-          <>
-            <img
-              src={`/assets/${status.nearby.species}.${status.nearby.species === 'eevee' ? 'png' : 'svg'}`}
-              alt=""
-            />
-            <div>
-              <span className="world-eyebrow">
-                {t('BẠN ĐỒNG HÀNH HOANG DÃ', 'A WILD NEIGHBOR')}
-              </span>
-              <strong>{names[status.nearby.species]}</strong>
-              <p>
-                {status.nearby.count > 1
-                  ? t(
-                      `Đang đi theo bầy · ${status.nearby.count} con`,
-                      `Roaming in a herd · ${status.nearby.count} Pokémon`,
-                    )
-                  : t('Một mình dạo chơi', 'A solitary wanderer')}
-              </p>
-            </div>
-          </>
-        ) : (
-          <>
-            <Footprints size={24} />
-            <div>
-              <span className="world-eyebrow">
-                {t('ĐI CHẬM VÀ QUAN SÁT', 'TAKE THE SCENIC ROUTE')}
-              </span>
-              <strong>{t('Thiên nhiên đang chờ', 'The wild is waiting')}</strong>
-              <p>
-                {t(
-                  'Đến gần Pokémon để ghi vào nhật ký.',
-                  'Approach Pokémon to add them to your journal.',
-                )}
-              </p>
-            </div>
-          </>
-        )}
-      </aside>
+      <WorldCompanions engine={engine.current} status={status} onPanelChange={setPetPanelOpen} />
+      {!status?.target && (
+        <aside className="world-discovery" aria-live="polite">
+          {status?.nearby ? (
+            <>
+              <img
+                src={`/assets/${status.nearby.species}.${status.nearby.species === 'eevee' ? 'png' : 'svg'}`}
+                alt=""
+              />
+              <div>
+                <span className="world-eyebrow">
+                  {t('BẠN ĐỒNG HÀNH HOANG DÃ', 'A WILD NEIGHBOR')}
+                </span>
+                <strong>
+                  {names[status.nearby.species]} · Lv.{status.nearby.level} ·{' '}
+                  {status.nearby.quality}
+                </strong>
+                <button onClick={() => engine.current?.selectWild(status.nearby!.id)}>
+                  {t('Chọn mục tiêu', 'Select target')}
+                </button>
+                <p>
+                  {status.nearby.count > 1
+                    ? t(
+                        `Đang đi theo bầy · ${status.nearby.count} con`,
+                        `Roaming in a herd · ${status.nearby.count} Pokémon`,
+                      )
+                    : t('Một mình dạo chơi', 'A solitary wanderer')}
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <Footprints size={24} />
+              <div>
+                <span className="world-eyebrow">
+                  {t('ĐI CHẬM VÀ QUAN SÁT', 'TAKE THE SCENIC ROUTE')}
+                </span>
+                <strong>{t('Thiên nhiên đang chờ', 'The wild is waiting')}</strong>
+                <p>
+                  {t(
+                    'Đến gần Pokémon để ghi vào nhật ký.',
+                    'Approach Pokémon to add them to your journal.',
+                  )}
+                </p>
+              </div>
+            </>
+          )}
+        </aside>
+      )}
       <div
         className="world-touch-stick"
         role="group"

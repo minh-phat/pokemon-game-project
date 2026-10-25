@@ -631,6 +631,7 @@ export function createSkillTextures(scene: Phaser.Scene) {
     const key = `skill-vfx-${id}`;
     if (!scene.textures.exists(key)) {
       const canvas = document.createElement('canvas');
+      canvas.dataset.skillVfx = key;
       canvas.width = SIZE * FRAMES;
       canvas.height = SIZE;
       const c = canvas.getContext('2d')!;

@@ -259,7 +259,7 @@
   border-radius: 3px 9px 9px 3px;
   max-width: 350px;
   box-shadow: 0 5px 22px #17392a22;
-  pointer-events: none;
+  pointer-events: auto;
 }
 .world-discovery > img {
   width: 52px;
@@ -989,5 +989,189 @@ body:has(.fantasy-app) .dialog-content.play-mode-dialog {
   .world-traversal p,
   .world-traversal kbd {
     display: none;
+  }
+}
+
+.world-pets-toggle {
+  position: absolute;
+  top: 225px;
+  left: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  border: 1px solid #d5d7a655;
+  border-radius: 8px;
+  color: #f3e9c5;
+  background: #173e36ef;
+  font-size: 12px;
+}
+.world-pets-toggle:disabled {
+  opacity: 0.65;
+}
+.world-combat {
+  position: absolute;
+  z-index: 2;
+  left: 32px;
+  top: 272px;
+  width: 310px;
+  max-height: calc(100dvh - 375px);
+  overflow-y: auto;
+  padding: 14px;
+  background: #102f2bf5;
+  border: 1px solid #d7ca845c;
+  border-radius: 12px;
+  color: #f3e9c5;
+  font-size: 12px;
+  box-shadow: 0 10px 40px #051c2950;
+}
+.world-combat p {
+  margin: 8px 0;
+}
+.world-combat small {
+  display: block;
+  color: #c1d3be;
+  font-size: 10px;
+}
+.world-combat progress {
+  display: block;
+  width: 100%;
+  height: 9px;
+  margin: 8px 0 4px;
+  accent-color: #f19780;
+}
+.world-combat progress.ally {
+  accent-color: #80e2b3;
+}
+.world-combat progress::-webkit-progress-bar {
+  background: #34463d;
+  border-radius: 3px;
+}
+.world-combat progress::-webkit-progress-value {
+  background: #f19780;
+  border-radius: 3px;
+}
+.world-combat progress.ally::-webkit-progress-value {
+  background: #80e2b3;
+}
+.world-combat progress::-moz-progress-bar {
+  background: #f19780;
+}
+.world-combat progress.ally::-moz-progress-bar {
+  background: #80e2b3;
+}
+.world-combat button,
+.world-pet-list button,
+.world-combat-actions button,
+.world-discovery button {
+  color: #f3e9c5;
+  background: #284d43;
+  border: 1px solid #d3ce8655;
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.world-discovery button {
+  margin-top: 5px;
+  padding: 4px 8px;
+  font-size: 10px;
+}
+.world-combat button:disabled,
+.world-combat-actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.world-combat button[aria-pressed='true'],
+.world-pet-list button[aria-pressed='true'] {
+  border-color: #f3d689;
+  background: #526749;
+}
+.world-combat-actions {
+  display: flex;
+  gap: 6px;
+  margin: 10px 0;
+  flex-wrap: wrap;
+}
+.world-skill-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  margin: 8px 0;
+}
+.world-skill-grid button {
+  font-size: 10px;
+}
+.world-battle-result {
+  border-top: 1px solid #d5d7a644;
+  margin-top: 12px;
+  padding-top: 12px;
+}
+.world-battle-result button {
+  margin: 8px 5px 0 0;
+}
+.world-pet-list {
+  display: grid;
+  gap: 8px;
+  max-height: 45dvh;
+  overflow-y: auto;
+  margin: 12px 0;
+}
+.world-pet-list button {
+  display: flex;
+  text-align: left;
+  align-items: center;
+  gap: 12px;
+}
+.world-pet-list img {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+}
+.world-pet-list small {
+  display: block;
+  color: #c1d3be;
+  margin-top: 5px;
+}
+@media (max-width: 600px) {
+  .world-pets-toggle {
+    top: 205px;
+    left: 18px;
+    font-size: 11px;
+    padding: 7px 10px;
+  }
+  .world-combat {
+    top: auto;
+    bottom: 80px;
+    left: 18px;
+    width: calc(100% - 36px);
+    max-height: min(300px, calc(100dvh - 400px));
+    padding: 10px;
+  }
+  .open-world:has(.world-combat) .world-traversal,
+  .open-world:has(.world-combat) .world-touch-stick {
+    display: none;
+  }
+}
+@media (max-height: 500px) {
+  .world-pets-toggle {
+    top: 148px;
+    left: 20px;
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+  .world-combat {
+    top: 18px;
+    left: auto;
+    right: 18px;
+    bottom: auto;
+    width: min(250px, calc(100% - 390px));
+    max-height: calc(100dvh - 85px);
+    padding: 9px;
+  }
+  .open-world:has(.world-combat) .world-map {
+    visibility: hidden;
+  }
+  .world-combat button {
+    padding: 6px;
   }
 }

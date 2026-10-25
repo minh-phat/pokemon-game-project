@@ -22,6 +22,7 @@ function obstacle(
 ): ArenaObstacle {
   return {
     id,
+    climbable: !id.startsWith('perimeter-'),
     kind,
     ...ruinsPoint((left + right) / 2, (top + bottom) / 2),
     width: (right - left) * RUINS_ART.scale,

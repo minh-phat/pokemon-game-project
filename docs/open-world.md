@@ -11,6 +11,33 @@ Vào **Chơi Ngay → Thế giới mở**. Đây là chế độ khám phá chơ
 - Đến gần Pokémon để ghi vào nhật ký. Pokémon có nhóm và cá thể đơn lẻ, di chuyển trong môi trường phù hợp.
 - Màn hình tạm dừng cho phép tạo thế giới mới bằng mã số, hoặc để trống để chọn mã ngẫu nhiên. Tạo mới thay thế hành trình hiện tại.
 
+## Pets, chiến đấu và khế ước
+
+Đăng nhập, mở **Triệu hồi Pets**, chọn một cá thể trong bộ sưu tập. Pet xuất hiện trên bản đồ và đi theo bạn; có thể thu hồi hoặc đổi pet khi ngoài trận. Nếu chưa có pet, dùng **Triệu Hồi** ở trang chủ để nhận thú đầu tiên. Khách vẫn khám phá và ghi nhật ký như trước.
+
+Thú hoang có nhãn **Lv. / phẩm chất C–SS**. Level và phẩm chất được sinh ổn định theo mã thế giới và mã cá thể; càng xa trại, cấp độ thường càng cao (1–60). Ba Pikachu tại trại luôn cấp 1/C. Các phẩm chất ngoài trại có tỉ lệ C 60%, B 25%, A 11%, S 3,8%, SS 0,2%.
+
+Bấm vào thú hoang ở gần (tối đa 18 ô), hoặc **Chọn mục tiêu** trong thẻ quan sát. Pet sẽ chạy tới; khi đến gần, trận đấu diễn ra ngay trên bản đồ. Trong trận, người chơi đứng quan sát và không dịch chuyển sang vùng khác. Có thể **Rút lui** nếu không muốn tiếp tục; rút lui không có EXP.
+
+- **Auto**: cả pet và thú hoang dùng AI mức khó, tự chọn kỹ năng theo tầm đánh, năng lượng và hồi chiêu; né ngang khi đối thủ chuẩn bị bắn, nhảy qua đạn thấp, lướt khỏi tia/vùng sát thương và tránh lướt vào biên đấu. Các phản ứng phụ thuộc tình huống và thể lực.
+- **Tự điều khiển**: pet tự tìm vị trí và đánh thường; người chơi chọn kỹ năng, Đỡ hoặc Né. Nút kỹ năng hiển thị năng lượng và hồi chiêu.
+- Trận dùng cùng `BattleEngine` và AI với đấu máy/PvP, áp dụng level/phẩm chất riêng cho từng cá thể, kể cả hai thú cùng loài. Sprite, đòn đánh, tia năng lượng, vùng sát thương và số sát thương được vẽ trên bản đồ.
+- Trận được vẽ bằng chính `ArenaScene` của đấu máy/PvP trên lớp Canvas trong suốt: dùng chung `SkillVfx`, `DashWind`, hoạt ảnh từng loài, tụ lực, đạn và vệt đạn, tia, nổ khi trúng, trạng thái, chiêu trói và âm thanh. Không còn dùng chấm đạn/đường tia thay cho hiệu ứng thật. Nhãn level/phẩm chất và thẻ hành động vẫn hiển thị trong thế giới mở.
+- Lớp chiến đấu giữ nguyên trục di chuyển và tỉ lệ của đấu trường, đặt trên mặt phẳng ở cao độ mục tiêu; bản đồ vẫn hiện phía dưới. Thế giới mở giữ quyền cập nhật mô phỏng 60 Hz; lớp vẽ chỉ đọc snapshot riêng, không cập nhật thêm một lần và không dùng chung trận đang lưu trong `battleFeed`. Tải tài nguyên xong mới bắt đầu mô phỏng; lỗi tải có thông báo và người chơi có thể rút lui để thử lại. Tạm dừng dừng hoạt ảnh/âm thanh; rút lui hoặc rời bản đồ giải phóng lớp vẽ.
+- Mã trận mới dùng `combatVersion: 2`; trận cũ vẫn phát lại với AI cũ để giữ nguyên kết quả khi thử lưu thưởng.
+- Khi thú hoang còn **dưới 10% HP**, trận dừng và cho chọn **Lập khế ước** hoặc **Thả đi**. Đòn vượt quá lượng máu còn lại chừa 1 HP. Đúng 10% chưa đủ điều kiện. Khế ước thành công chắc chắn, giữ nguyên loài, cấp và phẩm chất; mỗi cá thể trong cùng mã thế giới chỉ lập khế ước một lần với mỗi tài khoản.
+- Trận tối đa 120 giây. Kết thúc do hết giờ vẫn tính EXP theo kết quả, nhưng chỉ được lập khế ước nếu thực sự thắng và thú hoang dưới 10% HP. Pet được hồi phục khi bắt đầu trận tiếp theo.
+
+## Kinh nghiệm
+
+Chỉ pet sở hữu đã tham chiến nhận EXP. EXP thắng trận là `round((35 + 15 × cấp thú hoang) × hệ số phẩm chất)`; thua/hòa nhận 25% (làm tròn). Hệ số C/B/A/S/SS lần lượt là 1 / 1,1 / 1,25 / 1,5 / 2. Ví dụ thắng thú cấp 1/C nhận 50 EXP.
+
+EXP cần để lên cấp tiếp theo từ cấp `L` là `100 + 25 × (L − 1) + 5 × (L − 1)²`: cấp 1→2 cần 100, 2→3 cần 130, 3→4 cần 170, 10→11 cần 730 EXP. EXP dư được chuyển sang cấp kế tiếp, hỗ trợ lên nhiều cấp và giới hạn cấp 100. Chỉ số mới áp dụng từ trận tiếp theo. Thẻ kết quả và chi tiết Pets hiển thị EXP hiện tại.
+
+Máy chủ xác thực quyền sở hữu, tự sinh lại mục tiêu và phát mã trận. Khi kết thúc, máy chủ phát lại các lệnh ở đúng tick bằng cùng bộ máy chiến đấu, kiểm tra thời lượng, rồi tự tính kết quả/EXP/khế ước. Không nhận HP, level, phẩm chất hay phần thưởng do trình duyệt khai báo. MongoDB lưu EXP theo ID pet, dấu nhận thưởng theo ID trận và ID cố định của thú bắt được để lần gửi lại không cộng trùng. Bản ghi phần thưởng chờ lưu trên thiết bị giúp thử lại khi mất mạng hoặc tải lại trang sau trận. Đổi tài khoản không dùng chung bộ sưu tập.
+
+Tiến trình trận đang đánh chưa được khôi phục sau khi tải lại trang; chỉ trận đã kết thúc mới có bản ghi thử lưu lại. Thú đã bắt được ẩn khi tải bộ sưu tập; thú được thả có thể gặp lại khi mở lại thế giới. Hệ thống EXP này hiện áp dụng cho pet sở hữu tham chiến ở thế giới mở; đội hình đấu máy/PvP hiện vẫn chọn theo loài.
+
 ## Quy mô và địa hình
 
 Bản đồ có **8.192 × 8.192 ô**, mỗi ô tương ứng **2 × 2 m**: kích thước **16,384 × 16,384 km**, diện tích **268,435456 km²**, bao gồm đất liền và biển. Đây là quy ước khoảng cách của game. Người chơi có thể đi liên tục trong toàn bộ giới hạn bản đồ; các điểm dịch chuyển giúp khám phá những vùng cách nhau nhiều km.
@@ -60,10 +87,24 @@ Nếu chỉ có dữ liệu v1, game giữ mã thế giới và nhật ký, đ�
 
 ## Kiểm tra
 
+`tests/world-ai.test.ts` kiểm tra phản ứng với đạn, tia và vùng sát thương, giới hạn thể lực/biên đấu, mô phỏng Auto dùng kỹ năng/nhảy/lướt qua nhiều seed, tính xác định của replay và độ cao sprite. Bài kiểm tra Auto trong `tests/e2e/world-combat.spec.ts` quan sát lệnh vẽ canvas để xác nhận sprite nhảy/lướt và các tài nguyên tụ lực, Electro Ball, nổ trúng đòn từ đấu trường thực sự được vẽ và ghép lên bản đồ mà không có lệnh điều khiển thủ công.
+
 `tests/open-world.test.ts` kiểm tra nhiều mã thế giới, đủ các môi trường, dòng chảy xuống biển, vị trí an toàn, tái tạo vùng sau khi loại khỏi cache, biên vùng, giới hạn đường đi/mô phỏng và chuyển đổi dữ liệu lưu.
 
 `tests/open-world-motion.test.ts` kiểm tra nhảy lên bậc, giới hạn leo, chặn vách cao/cây/dung nham, rơi và tiếp đất, không nhảy trên nước và độ nổi của địa hình. `tests/e2e/open-world-climbing.spec.ts` kiểm tra phím Space/E trên vách được sinh thật, tạm dừng giữa cú nhảy, nút cảm ứng và hai ngón tay đồng thời.
 
+`tests/world-combat.test.ts` kiểm tra EXP, chỉ số hai cá thể cùng loài, ngưỡng khế ước, đòn chí mạng, replay Auto/tự điều khiển, quyền sở hữu và tính duy nhất của thưởng/khế ước bằng database giả lập. `tests/e2e/world-combat.spec.ts` kiểm tra desktop/điện thoại với API giả lập: triệu hồi, chọn mục tiêu trực tiếp trên canvas, Đỡ/Auto, EXP lên cấp, thử lưu lại khi lỗi mạng, khôi phục phần thưởng sau tải lại trang và triệu hồi thú vừa bắt được.
+
 `tests/e2e/open-world.spec.ts` kiểm tra chọn chế độ, bàn phím/cảm ứng, bản đồ và dịch chuyển hơn 1 km, nhật ký v1, lưu/khôi phục v2, tạo lại thế giới, bố cục điện thoại và hình ảnh các vùng. `tests/e2e/open-world-performance.spec.ts` lưu số đo khung hình thành JSON.
 
 Đo Chrome với lựa chọn đồ họa mặc định ngày 23/10/2026 trên máy phát triển: trung vị và p95 khoảng **17 ms/khung hình (~60 FPS)** ở đồng cỏ, tuyết, núi lửa và biển; phần vẽ Canvas khoảng **1,0–1,9 ms** khi đứng tại vùng đã tải. Bài thử di chuyển qua ranh giới vùng tải cũng đạt trung vị và p95 **17 ms/khung hình** trong lượt đo này. Đây là số đo trên máy hiện tại, không bảo đảm mọi thiết bị đạt cùng FPS. Các bài thử thế giới mở bỏ tùy chọn ép SwiftShader của cấu hình đấu trường. Chưa đo trên điện thoại vật lý; vùng mới và lần tải ảnh đầu tiên có chi phí khởi tạo.
+
+## AI chiến đấu theo địa hình
+
+Trận mới dùng `combatVersion: 3`. Máy chủ lấy vùng 33 × 33 ô quanh thú hoang từ chính dữ liệu thế giới và lưu độ cao, nước, dung nham, gốc cây/đá trong vé trận đấu. Client và replay máy chủ dùng cùng vùng này; không làm phẳng nền khi bước vào giao chiến. Phép chiếu giữ 32 đơn vị chiến đấu cho mỗi cấp độ cao của thế giới.
+
+AI và nhân vật chiến đấu dùng chung va chạm theo độ cao: đi lên/xuống bậc một cấp, nhảy lên bậc trong tầm sức bật của loài, leo bậc cao tối đa tám cấp khi còn thể lực, rơi và tiếp đất ở nền thực tế. Leo có thời gian, tiêu hao thể lực và bị ngắt khi trúng đòn/choáng. Nước làm chậm di chuyển; không tự leo từ nước. Dung nham, gốc cây và những vách không thể vượt buộc AI tìm đường khác. Việc giao chiến vẫn giới hạn trong vùng trận đấu quanh mục tiêu.
+
+Tìm đường A* giới hạn 2.400 nút và lưu lộ trình ngắn hạn. AI cân nhắc chỗ khuất đạn, đường bắn thông thoáng và vị trí cao, rồi quay lại giao chiến sau khi tránh né. Các sàn rừng, núi lửa và hồ có bục thấp/cao hiển thị được; thành cổ dùng chiều cao của đá, cột và tường có sẵn, giữ các tường biên không thể leo. Đạn, tia, bóng và vùng sát thương sử dụng cao độ chiến đấu.
+
+`tests/terrain-traversal.test.ts` kiểm tra nhảy, leo tự động, xuống bậc, ngắt leo, vách vượt tầm, che chắn, va chạm ở bước di chuyển ngắn, cao độ âm, đối chiếu phép chiếu với thế giới và replay sau khi tuần tự hóa dữ liệu địa hình.

@@ -14,6 +14,28 @@ export {
 export const PET_QUALITY_MULTIPLIERS = { C: 1, B: 1.1, A: 1.25, S: 1.5, SS: 2 } as const;
 export const DEFAULT_PET_PROGRESSION: PetProgression = { level: 1, quality: 'C' };
 
+/** XP is the remainder toward the next level, never a currency. */
+export function experienceToNextLevel(level: number): number {
+  if (!Number.isInteger(level) || level < 1 || level > 100) throw new Error('Invalid level');
+  return level === 100 ? 0 : 100 + 25 * (level - 1) + 5 * (level - 1) ** 2;
+}
+export function gainExperience(pet: { level: number; experience?: number }, amount: number) {
+  if (!Number.isSafeInteger(amount) || amount < 0) throw new Error('Invalid experience');
+  let level = pet.level;
+  experienceToNextLevel(level);
+  let experience = (pet.experience ?? 0) + amount;
+  if (!Number.isSafeInteger(experience) || experience < 0) throw new Error('Invalid experience');
+  while (level < 100 && experience >= experienceToNextLevel(level)) {
+    experience -= experienceToNextLevel(level++);
+  }
+  return { level, experience: level === 100 ? 0 : experience };
+}
+export function wildBattleExperience(wild: PetProgression, won: boolean) {
+  return Math.round(
+    (35 + 15 * wild.level) * PET_QUALITY_MULTIPLIERS[wild.quality] * (won ? 1 : 0.25),
+  );
+}
+
 /** Growth per level, measured from level 1. Energy and skill costs stay fixed. */
 export const PET_STAT_GROWTH = {
   hp: 0.08,

@@ -24,6 +24,8 @@ export interface PetOwner {
   petQualities?: Partial<Record<SpeciesId, Partial<Record<PetQuality, number>>>>;
 }
 export interface PetDocument {
+  experience?: number;
+  worldRewards?: string[];
   _id: string;
   ownerId: ObjectId;
   species: SpeciesId;
@@ -32,11 +34,12 @@ export interface PetDocument {
   createdAt: Date;
   summonNumber?: number;
 }
-const publicPet = (pet: PetDocument): OwnedPet => ({
+export const publicPet = (pet: PetDocument): OwnedPet => ({
   id: pet._id,
   species: pet.species,
   quality: pet.quality,
   level: pet.level,
+  experience: pet.experience ?? 0,
   acquiredAt: pet.createdAt.toISOString(),
 });
 export async function createPetIndexes(db: Db) {

@@ -71,6 +71,8 @@ test('Runedrake can be selected and rendered in battle', async ({ page }) => {
   await page.getByRole('button', { name: 'Inspect Runedrake' }).click();
   await expect(page.getByRole('heading', { name: 'Runedrake', exact: true }).last()).toBeVisible();
   await page.getByRole('button', { name: 'Add Runedrake' }).click();
+  await page.getByRole('button', { name: 'Choose AI Pokémon' }).click();
+  await page.getByRole('button', { name: 'Add Pikachu', exact: true }).click();
   await page.getByRole('button', { name: 'Enter the arena' }).click();
   await sheet;
   // Cold-start texture generation can block the browser while the scene boots.

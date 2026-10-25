@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { AuthController, authDatabase } from './auth';
 import { Controller, Get, Post, Param, Module, NotFoundException } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { randomUUID } from 'node:crypto';
 import type { Request, Response, NextFunction } from 'express';
 import { ARENAS, ROSTER, POKEMON } from '@arena/game-data';
@@ -42,7 +43,8 @@ class GameController {
   providers: [{ provide: 'AUTH_DATABASE', useValue: authDatabase }],
 })
 class AppModule {}
-const app = await NestFactory.create(AppModule);
+const app = await NestFactory.create<NestExpressApplication>(AppModule);
+app.useBodyParser('json', { limit: '1mb' });
 app.enableCors({
   credentials: true,
   origin: (process.env.FRONTEND_ORIGIN ?? 'http://localhost:3000,http://127.0.0.1:3000').split(','),

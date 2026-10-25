@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { createWorld } from '../../apps/frontend/src/game/open-world-world';
+import { createWorld } from '@arena/game-data/world';
 test.use({ launchOptions: { args: [] } });
 
 async function enterWorld(page: Page) {

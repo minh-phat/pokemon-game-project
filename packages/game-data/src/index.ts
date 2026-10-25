@@ -1,3 +1,4 @@
+import { calculatePetStats } from './progression';
 import { RUINS_ARENA } from './ruins';
 export * from './ruins';
 import {
@@ -604,6 +605,28 @@ export const ARENAS: ArenaDefinition[] = [
     depthBounds: [-300, 200],
     bounds: [55, 1145],
     spawns: [210, 990],
+    obstacles: [
+      {
+        id: 'low-shelf',
+        kind: 'rock',
+        x: 400,
+        depth: 140,
+        width: 120,
+        length: 80,
+        height: 52,
+        climbable: true,
+      },
+      {
+        id: 'high-shelf',
+        kind: 'rock',
+        x: 800,
+        depth: -250,
+        width: 140,
+        length: 70,
+        height: 144,
+        climbable: true,
+      },
+    ],
     layers: [
       '/assets/forest-sky.svg',
       '/assets/forest-far.svg',
@@ -622,6 +645,28 @@ export const ARENAS: ArenaDefinition[] = [
     depthBounds: [-300, 200],
     bounds: [55, 1145],
     spawns: [210, 990],
+    obstacles: [
+      {
+        id: 'low-shelf',
+        kind: 'rock',
+        x: 400,
+        depth: 140,
+        width: 120,
+        length: 80,
+        height: 52,
+        climbable: true,
+      },
+      {
+        id: 'high-shelf',
+        kind: 'rock',
+        x: 800,
+        depth: -250,
+        width: 140,
+        length: 70,
+        height: 144,
+        climbable: true,
+      },
+    ],
     layers: [
       '/assets/volcano-sky.svg',
       '/assets/volcano-far.svg',
@@ -640,6 +685,28 @@ export const ARENAS: ArenaDefinition[] = [
     depthBounds: [-300, 200],
     bounds: [55, 1145],
     spawns: [210, 990],
+    obstacles: [
+      {
+        id: 'low-shelf',
+        kind: 'rock',
+        x: 400,
+        depth: 140,
+        width: 120,
+        length: 80,
+        height: 52,
+        climbable: true,
+      },
+      {
+        id: 'high-shelf',
+        kind: 'rock',
+        x: 800,
+        depth: -250,
+        width: 140,
+        length: 70,
+        height: 144,
+        climbable: true,
+      },
+    ],
     layers: [
       '/assets/lake-sky.svg',
       '/assets/lake-far.svg',
@@ -656,3 +723,19 @@ export const DIFFICULTY = {
   hard: { reaction: 0.12, accuracy: 0.9, aggression: 1.12 },
 };
 export const animationFrames = ANIMATIONS as readonly AnimationName[];
+
+/** Per-fighter stats keep two pets of the same species independent. */
+export function fighterDefinition(
+  f: Pick<import('@arena/shared-types').Fighter, 'species' | 'progression'>,
+): PokemonDefinition {
+  const base = POKEMON[f.species];
+  if (!f.progression) return base;
+  const key = `${f.species}:${f.progression.level}:${f.progression.quality}`;
+  let definition = fighterDefinitions.get(key);
+  if (!definition) {
+    definition = { ...base, ...calculatePetStats(base, f.progression) };
+    fighterDefinitions.set(key, definition);
+  }
+  return definition;
+}
+const fighterDefinitions = new Map<string, PokemonDefinition>();

@@ -6,7 +6,7 @@ import {
   findPath,
   sampleTerrain,
   MAX_TERRAIN_LEVEL,
-} from '../apps/frontend/src/game/open-world-world';
+} from '@arena/game-data/world';
 import {
   createMotion,
   stepMotion,

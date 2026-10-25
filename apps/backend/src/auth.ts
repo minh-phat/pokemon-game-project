@@ -17,6 +17,7 @@ import { MongoClient, MongoServerError, ObjectId } from 'mongodb';
 import type { Request, Response } from 'express';
 
 import type { SummonResult } from '@arena/shared-types';
+import { startWorldBattle, finishWorldBattle, withWorldLock } from './world';
 import {
   createPetIndexes,
   migrateLegacyPets,
@@ -85,6 +86,7 @@ export class AuthDatabase {
         await client.connect();
         const db = client.db(process.env.MONGODB_DB_NAME || 'pokemon_arena');
         await createPetIndexes(db);
+        await db.collection('worldEncounters').createIndex({ ownerId: 1, status: 1 });
         await db.collection<User>('users').createIndex({ email: 1 }, { unique: true });
         await db.collection<Session>('sessions').createIndex({ tokenHash: 1 }, { unique: true });
         await db
@@ -241,5 +243,27 @@ export class AuthController {
     res.clearCookie(COOKIE, this.cookieOptions());
     res.setHeader('Cache-Control', 'no-store');
     return { user: null };
+  }
+
+  @Post('world/start') async worldStart(
+    @Body() body: unknown,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    this.checkOrigin(req);
+    res.setHeader('Cache-Control', 'no-store');
+    const { db, user } = await this.owner(req);
+    await migrateLegacyPets(db, user);
+    return withWorldLock(user._id, () => startWorldBattle(db, user._id, body));
+  }
+  @Post('world/finish') async worldFinish(
+    @Body() body: unknown,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    this.checkOrigin(req);
+    res.setHeader('Cache-Control', 'no-store');
+    const { db, user } = await this.owner(req);
+    return withWorldLock(user._id, () => finishWorldBattle(db, user._id, body));
   }
 }

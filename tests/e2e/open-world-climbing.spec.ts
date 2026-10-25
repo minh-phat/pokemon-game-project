@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { createWorld, tileAt, traversable } from '../../apps/frontend/src/game/open-world-world';
+import { createWorld, tileAt, traversable } from '@arena/game-data/world';
 
 test.use({ launchOptions: { args: [] } });
 const world = createWorld(42);

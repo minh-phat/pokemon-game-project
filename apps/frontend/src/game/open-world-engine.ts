@@ -1,3 +1,19 @@
+import type { WorldArenaLayer } from './world-arena-layer';
+import { ASSETS, fighterDefinition } from '@arena/game-data';
+import {
+  WORLD_COMBAT_HEIGHT_SCALE,
+  worldCombatOffset,
+  worldArenaPlacement,
+} from './world-combat-visuals';
+import {
+  speciesIds,
+  type OwnedPet,
+  type SpeciesId,
+  type WorldEncounterTicket,
+  type WorldBattleAction,
+  type ManualBattleCommand,
+} from '@arena/shared-types';
+import { createWorldEncounter, applyWorldAction, type BattleEngine } from '@arena/game-core';
 import { createMotion, stepMotion, type Motion, type MotionAction } from './open-world-motion';
 import {
   BIOMES,
@@ -36,7 +52,13 @@ export type WorldStatus = {
   y: number;
   seen: Species[];
   visited: Biome[];
-  nearby: { species: Species; count: number } | null;
+  nearby: { id: number; species: Species; level: number; quality: string; count: number } | null;
+  companion: OwnedPet | null;
+  target: WildPokemon | null;
+  combatVisualError: string;
+  combatVisualReady: boolean;
+  combat: import('@arena/shared-types').BattleSnapshot | null;
+  approaching: boolean;
   fps: number;
   active: number;
   chunks: number;
@@ -103,7 +125,168 @@ export class OpenWorldEngine {
   private viewportHeight = 1;
   private chunks = new Map<string, HTMLCanvasElement>();
   private decorations = new Map<string, HTMLCanvasElement>();
-  private sprites = new Map<Species, HTMLCanvasElement>();
+  private sprites = new Map<SpeciesId, HTMLCanvasElement>();
+  companion: OwnedPet | null = null;
+  rewardPending = false;
+  private companionMotion: Motion | null = null;
+  private target: WildPokemon | null = null;
+  private encounter: BattleEngine | null = null;
+  private arenaLayer: WorldArenaLayer | null = null;
+  private arenaError = '';
+  private combatLevel = 0;
+  private ticket: WorldEncounterTicket | null = null;
+  private actions: WorldBattleAction[] = [];
+  private combatAccumulator = 0;
+  private starting = false;
+  private companionPath: Point[] = [];
+  private companionRepath = 0;
+  private finishedReported = false;
+  private removed = new Set<number>();
+  onEngage?: (wild: WildPokemon) => void;
+  onNeedPet?: () => void;
+  onBattleFinished?: (
+    ticket: WorldEncounterTicket,
+    actions: WorldBattleAction[],
+    ticks: number,
+    capturable: boolean,
+  ) => void;
+  hideCaptured(ids: number[]) {
+    for (const id of ids) this.removed.add(id);
+  }
+  summon(pet: OwnedPet | null) {
+    if (this.target) return;
+    this.companion = pet;
+    this.companionMotion = pet ? createMotion(this.world, this.player) : null;
+    this.report();
+  }
+  selectWild(id: number) {
+    if (this.input.paused || this.target || this.rewardPending) return;
+    if (!this.companion) {
+      this.onNeedPet?.();
+      return;
+    }
+    const wild = this.world.wildlife.find((a) => a.id === id && !this.removed.has(a.id));
+    if (!wild || Math.hypot(wild.x - this.player.x, wild.y - this.player.y) > 18) return;
+    this.target = wild;
+    this.clearInput();
+    this.report();
+  }
+  beginEncounter(ticket: WorldEncounterTicket) {
+    if (!this.target || this.disposed) return;
+    this.target.x = ticket.wild.x;
+    this.target.y = ticket.wild.y;
+    this.ticket = ticket;
+    this.encounter = createWorldEncounter(ticket);
+    this.actions = [];
+    this.combatAccumulator = 0;
+    this.finishedReported = false;
+    this.combatLevel = tileAt(this.world, this.target.x, this.target.y)?.level ?? 0;
+    this.arenaError = '';
+    void import('./world-arena-layer')
+      .then(({ WorldArenaLayer }) => {
+        if (this.disposed || this.ticket !== ticket) return;
+        this.arenaLayer = new WorldArenaLayer(this.encounter!.state.rules.arena, () => ({
+          snapshot: this.encounter?.state ?? null,
+          paused: this.input.paused || document.hidden || this.encounter?.state.phase !== 'battle',
+          reducedMotion: this.input.reducedMotion,
+        }));
+      })
+      .catch(() => {
+        if (this.ticket === ticket)
+          this.arenaError = 'Không tải được hiệu ứng chiến đấu. Hãy rút lui và thử lại.';
+      });
+    this.report();
+  }
+  battleAction(
+    action: { type: 'mode'; manual: boolean } | { type: 'command'; command: ManualBattleCommand },
+  ) {
+    if (
+      !this.encounter ||
+      this.encounter.state.phase !== 'battle' ||
+      this.input.paused ||
+      this.actions.length >= 3600
+    )
+      return;
+    const entry = { ...action, tick: this.encounter.state.tick } as WorldBattleAction;
+    this.actions.push(entry);
+    applyWorldAction(this.encounter, entry);
+    this.report();
+  }
+  endEncounter(remove = false, pet?: OwnedPet) {
+    this.arenaLayer?.destroy();
+    this.arenaLayer = null;
+    this.arenaError = '';
+    if (remove && this.target) this.removed.add(this.target.id);
+    if (pet) this.companion = pet;
+    this.target = null;
+    this.encounter = null;
+    this.ticket = null;
+    this.starting = false;
+    this.companionMotion = this.companion ? createMotion(this.world, this.player) : null;
+    this.report();
+  }
+  private combatPoint(x: number, depth: number): Point {
+    // Keep the arena's screen-space axes and scale so sprites, hitboxes and VFX stay aligned.
+    const origin = project(this.target!.x, this.target!.y);
+    const offset = worldCombatOffset(x, depth);
+    return unproject(origin.x + offset.x, origin.y + offset.y);
+  }
+  private updateCompanion(dt: number) {
+    if (!this.companionMotion || !this.companion) return;
+    if (this.encounter) {
+      if (!this.arenaLayer?.ready) return;
+      this.combatAccumulator += dt;
+      while (this.combatAccumulator >= 1 / 60 && this.encounter.state.phase === 'battle') {
+        this.encounter.updateBattle(1 / 60);
+        this.combatAccumulator -= 1 / 60;
+      }
+      if (this.encounter.state.phase === 'finished' && !this.finishedReported) {
+        this.finishedReported = true;
+        const wild = this.encounter.state.fighters[1];
+        this.onBattleFinished?.(
+          this.ticket!,
+          this.actions,
+          this.encounter.state.tick,
+          this.encounter.state.result?.winner === 0 &&
+            wild.hp > 0 &&
+            wild.hp < fighterDefinition(wild).hp * 0.1,
+        );
+      }
+      return;
+    }
+    const destination = this.target ?? this.player;
+    const position = this.companionMotion.position;
+    const distance = Math.hypot(destination.x - position.x, destination.y - position.y);
+    if (this.target && distance <= 2.5 && !this.starting) {
+      this.starting = true;
+      this.onEngage?.(this.target);
+    }
+    if (this.starting) return;
+    // The companion uses the same terrain, gravity and climbing constraints as the trainer.
+    this.companionRepath -= dt;
+    if (this.companionRepath <= 0) {
+      this.companionPath = distance > 2 ? findPath(this.world, position, destination) : [];
+      this.companionRepath = 0.5;
+    }
+    while (
+      this.companionPath.length &&
+      Math.hypot(this.companionPath[0].x - position.x, this.companionPath[0].y - position.y) < 0.4
+    )
+      this.companionPath.shift();
+    const waypoint = this.companionPath[0] ?? destination;
+    stepMotion(
+      this.world,
+      this.companionMotion,
+      {
+        x: distance > 1.3 ? waypoint.x - position.x : 0,
+        y: distance > 1.3 ? waypoint.y - position.y : 0,
+        sprint: true,
+        climb: true,
+        jump: this.companionMotion.action === 'blocked',
+      },
+      dt,
+    );
+  }
   private propAtlas: HTMLImageElement | null = null;
   private terrainAtlas: HTMLImageElement | null = null;
   private cliffAtlas: HTMLImageElement | null = null;
@@ -252,6 +435,19 @@ export class OpenWorldEngine {
       ((event.clientY - r.top) * this.viewportHeight) / r.height +
       this.camera.y -
       this.viewportHeight / 2;
+    const hit = this.world.wildlife
+      .filter((a) => !this.removed.has(a.id))
+      .map((actor) => {
+        const p = project(actor.x, actor.y, tileAt(this.world, actor.x, actor.y)?.level ?? 0);
+        return { actor, distance: Math.hypot(sx - p.x, sy - (p.y - 13)) };
+      })
+      .filter((a) => a.distance < 18)
+      .sort((a, b) => a.distance - b.distance)[0];
+    if (hit) {
+      this.selectWild(hit.actor.id);
+      return;
+    }
+    if (this.target) return;
     let target = unproject(sx, sy);
     for (let i = 0; i < 5; i++)
       target = unproject(sx, sy + (tileAt(this.world, target.x, target.y)?.level ?? 0) * LIFT);
@@ -259,7 +455,7 @@ export class OpenWorldEngine {
     this.surface.focus({ preventScroll: true });
   };
   private loadSprites() {
-    for (const species of speciesList) {
+    for (const species of speciesIds) {
       const img = new Image();
       img.onload = () => {
         if (this.disposed) return;
@@ -270,7 +466,7 @@ export class OpenWorldEngine {
         ctx.drawImage(img, 0, 0, 960, 320, 0, 0, 960, 320);
         this.sprites.set(species, sheet);
       };
-      img.src = `/assets/${species}-sheet.${species === 'eevee' ? 'png' : 'svg'}`;
+      img.src = ASSETS.sprites[species];
     }
   }
   private loadEnvironment() {
@@ -639,7 +835,11 @@ export class OpenWorldEngine {
     c.fillStyle = '#364a4b';
     c.fillRect(x + (this.facing > 0 ? 2 : -3), y - 19, 1, 2);
   }
-  private drawPokemon(actor: WildPokemon, x: number, y: number) {
+  private drawPokemon(
+    actor: Omit<WildPokemon, 'species'> & { species: SpeciesId },
+    x: number,
+    y: number,
+  ) {
     const c = this.context;
     c.fillStyle = '#214b4338';
     c.beginPath();
@@ -662,7 +862,15 @@ export class OpenWorldEngine {
     c.scale(actor.facing, 1);
     c.drawImage(sprite, frame * 160, actor.moving ? 160 : 0, 160, 160, -16, -28, 32, 32);
     c.restore();
+    c.textAlign = 'center';
+    c.font = 'bold 7px sans-serif';
+    c.fillStyle = '#102e2be6';
+    c.fillRect(x - 24, y - 43, 48, 10);
+    c.fillStyle =
+      actor.quality === 'SS' ? '#ffbe63' : actor.quality === 'S' ? '#e7a4ff' : '#f4edcc';
+    c.fillText(`Lv.${actor.level} · ${actor.quality}`, x, y - 35);
   }
+
   private drawCamp(x: number, y: number) {
     const c = this.context;
     polygon(c, '#25493e38', [x - 15, y + 4, x + 30, y, x + 40, y + 10, x, y + 14]);
@@ -708,6 +916,18 @@ export class OpenWorldEngine {
     const left = Math.round(this.camera.x - w / 2),
       top = Math.round(this.camera.y - h / 2);
     const playerScreen = project(this.player.x, this.player.y, this.motion.z);
+    const visibleActors = [{ ...playerScreen, depth: this.player.x + this.player.y }];
+    for (const fighter of this.encounter?.state.fighters ?? []) {
+      const pos = this.combatPoint(fighter.x, fighter.depth);
+      const point = project(pos.x, pos.y, this.combatLevel);
+      visibleActors.push({
+        x: point.x,
+        y:
+          point.y -
+          (fighter.y + (fighterDefinition(fighter).hoverHeight ?? 0)) * WORLD_COMBAT_HEIGHT_SCALE,
+        depth: pos.x + pos.y,
+      });
+    }
     c.fillStyle = '#286b8b';
     c.fillRect(0, 0, w, h);
     for (let cy = Math.floor(top / CHUNK); cy <= Math.floor((top + h) / CHUNK); cy++)
@@ -798,10 +1018,13 @@ export class OpenWorldEngine {
               : Math.round(Math.sin(animation * 1.7 + x * 0.35 + y * 0.28));
           const coversPlayer =
             (t.decoration === 'tree' || t.decoration === 'pine') &&
-            x + y + 1 > this.player.x + this.player.y &&
-            Math.abs(sx - (playerScreen.x - left)) < 48 &&
-            sy > playerScreen.y - top - 12 &&
-            sy < playerScreen.y - top + 106;
+            visibleActors.some(
+              (actor) =>
+                x + y + 1 > actor.depth &&
+                Math.abs(sx - (actor.x - left)) < 48 &&
+                sy > actor.y - top - 12 &&
+                sy < actor.y - top + 106,
+            );
           objects.push({
             depth: x + y + 1,
             draw: () => {
@@ -819,6 +1042,7 @@ export class OpenWorldEngine {
         }
       }
     for (const actor of this.world.wildlife) {
+      if (this.removed.has(actor.id) || (this.encounter && actor.id === this.target?.id)) continue;
       if (Math.abs(actor.x - this.player.x) > 27 || Math.abs(actor.y - this.player.y) > 27)
         continue;
       const t = tileAt(this.world, actor.x, actor.y)!;
@@ -827,6 +1051,33 @@ export class OpenWorldEngine {
         y = p.y - top;
       if (x < -32 || x > w + 32 || y < -32 || y > h + 32) continue;
       objects.push({ depth: actor.x + actor.y, draw: () => this.drawPokemon(actor, x, y) });
+    }
+    if (!this.encounter && this.companion && this.companionMotion) {
+      const pos = this.companionMotion.position;
+      const p = project(pos.x, pos.y, this.companionMotion.z);
+      const actor = {
+        ...pos,
+        id: -1,
+        species: this.companion.species,
+        level: this.companion.level,
+        quality: this.companion.quality,
+        home: this.player,
+        group: -1,
+        leader: -1,
+        phase: 0,
+        moving: Math.hypot(pos.x - this.player.x, pos.y - this.player.y) > 1.5,
+        facing: 1,
+      };
+      objects.push({
+        depth: pos.x + pos.y,
+        draw: () => {
+          c.strokeStyle = '#96ffe1';
+          c.beginPath();
+          c.ellipse(p.x - left, p.y - top, 11, 4, 0, 0, Math.PI * 2);
+          c.stroke();
+          this.drawPokemon(actor, p.x - left, p.y - top);
+        },
+      });
     }
     if (Math.hypot(this.world.spawn.x - this.player.x, this.world.spawn.y - this.player.y) < 60) {
       const camp = project(
@@ -848,6 +1099,17 @@ export class OpenWorldEngine {
     });
     objects.sort((a, b) => a.depth - b.depth);
     objects.forEach((o) => o.draw());
+    if (this.target && this.encounter && this.arenaLayer?.ready) {
+      const origin = project(this.target.x, this.target.y, this.combatLevel);
+      const placement = worldArenaPlacement(origin.x - left, origin.y - top, this.arenaLayer.view);
+      c.drawImage(
+        this.arenaLayer.canvas,
+        placement.x,
+        placement.y,
+        placement.width,
+        placement.height,
+      );
+    }
     if (this.path.length) {
       const target = this.path[this.path.length - 1],
         tile = tileAt(this.world, target.x, target.y)!;
@@ -884,6 +1146,25 @@ export class OpenWorldEngine {
     this.path = [];
   }
   private move(dt: number) {
+    if (this.target) {
+      this.moving = false;
+      const fighters = this.encounter?.state.fighters;
+      const focus = fighters
+        ? this.combatPoint(
+            (fighters[0].x + fighters[1].x) / 2,
+            (fighters[0].depth + fighters[1].depth) / 2,
+          )
+        : this.target;
+      const point = project(
+        focus.x,
+        focus.y,
+        this.encounter ? this.combatLevel : (tileAt(this.world, focus.x, focus.y)?.level ?? 0),
+      );
+      const easing = this.input.reducedMotion ? 1 : 1 - Math.exp(-dt * 5);
+      this.camera.x += (point.x - this.camera.x) * easing;
+      this.camera.y += (point.y - this.camera.y) * easing;
+      return;
+    }
     let sx =
       this.input.x +
       (this.keys.has('d') || this.keys.has('arrowright') ? 1 : 0) -
@@ -934,6 +1215,7 @@ export class OpenWorldEngine {
     let closest: WildPokemon | undefined,
       distance = 4;
     for (const actor of this.world.wildlife) {
+      if (this.removed.has(actor.id)) continue;
       const d = Math.hypot(actor.x - this.player.x, actor.y - this.player.y);
       if (d < 4) this.seen.add(actor.species);
       if (d < distance) {
@@ -943,6 +1225,9 @@ export class OpenWorldEngine {
     }
     this.nearby = closest
       ? {
+          id: closest.id,
+          level: closest.level,
+          quality: closest.quality,
           species: closest.species,
           count: this.world.wildlife.filter((a) => a.group === closest!.group).length,
         }
@@ -969,6 +1254,20 @@ export class OpenWorldEngine {
       seen: [...this.seen],
       visited: BIOMES.filter((b) => this.visited.has(b)),
       nearby: this.nearby,
+      companion: this.companion,
+      target: this.target ? { ...this.target } : null,
+      combatVisualError: this.arenaError || this.arenaLayer?.error || '',
+      combatVisualReady: this.arenaLayer?.ready ?? false,
+      combat: this.encounter
+        ? {
+            ...this.encounter.state,
+            fighters: this.encounter.state.fighters.map((f) => ({
+              ...f,
+              cooldowns: { ...f.cooldowns },
+            })),
+          }
+        : null,
+      approaching: Boolean(this.target && !this.encounter),
       fps: this.fps,
       active: this.active,
       chunks: this.chunks.size,
@@ -987,9 +1286,15 @@ export class OpenWorldEngine {
     if (!this.input.paused) {
       this.time += dt;
       this.move(dt);
+      this.updateCompanion(dt);
       this.wildlifeElapsed += dt;
       if (this.wildlifeElapsed >= 0.1) {
+        const anchor = this.target ? { x: this.target.x, y: this.target.y } : null;
         this.active = updateWildlife(this.world, this.player, this.wildlifeElapsed, this.time);
+        if (this.target && anchor) {
+          Object.assign(this.target, anchor);
+          this.target.moving = false;
+        }
         this.wildlifeElapsed = 0;
       }
       const renderStart = performance.now();
@@ -1026,10 +1331,12 @@ export class OpenWorldEngine {
     this.travelTo(this.world.spawn);
   }
   travelTo(destination: Point) {
+    if (this.target) return;
     if (!traversable(this.world, destination.x, destination.y)) return;
     this.clearInput();
     this.motion = createMotion(this.world, destination);
     this.player = this.motion.position;
+    this.companionMotion = this.companion ? createMotion(this.world, this.player) : null;
     this.path = [];
     this.camera = project(this.player.x, this.player.y, this.motion.z);
     this.lastMini = '';
@@ -1055,6 +1362,8 @@ export class OpenWorldEngine {
   };
   destroy() {
     this.disposed = true;
+    this.arenaLayer?.destroy();
+    this.arenaLayer = null;
     this.save();
     cancelAnimationFrame(this.frame);
     this.observer.disconnect();

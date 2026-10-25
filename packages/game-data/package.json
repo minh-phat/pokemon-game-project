@@ -1,1 +1,1 @@
-{"name":"@arena/game-data","version":"1.0.0","private":true,"type":"module","exports":"./src/index.ts","dependencies":{"@arena/shared-types":"*"}}
+{"name": "@arena/game-data", "version": "1.0.0", "private": true, "type": "module", "exports": {".": "./src/index.ts", "./world": "./src/world/world.ts", "./geography": "./src/world/geography.ts", "./terrain": "./src/terrain.ts", "./world-combat": "./src/world/combat.ts"}, "dependencies": {"@arena/shared-types": "*"}}

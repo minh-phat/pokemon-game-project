@@ -174,9 +174,25 @@ export interface PokemonDefinition {
     retreat: number;
   };
 }
+/** Height samples in a rectangular or isometric basis; shared by simulation and rendering. */
+export interface ArenaSurface {
+  origin: { x: number; depth: number };
+  axisX: { x: number; depth: number };
+  axisZ: { x: number; depth: number };
+  columns: number;
+  rows: number;
+  heights: number[];
+  blocked: boolean[];
+  /** World tile props occupy only the center, just like exploration collision. */
+  props?: boolean[];
+  water?: boolean[];
+  stepHeight: number;
+  climbHeight: number;
+}
 export interface ArenaObstacle {
   id: string;
   kind: 'rock' | 'pillar' | 'wall';
+  climbable?: boolean;
   x: number;
   depth: number;
   width: number;
@@ -184,6 +200,7 @@ export interface ArenaObstacle {
   height: number;
 }
 export interface ArenaDefinition {
+  surface?: ArenaSurface;
   height?: number;
   background?: string;
   thumbnail?: string;
@@ -222,6 +239,19 @@ export interface Cast {
   bindEligible?: boolean;
 }
 export interface Fighter {
+  groundHeight?: number;
+  traversal?: 'jump' | 'fall' | 'climb';
+  climbing?: {
+    fromX: number;
+    fromDepth: number;
+    fromY: number;
+    x: number;
+    depth: number;
+    y: number;
+    elapsed: number;
+    duration: number;
+  };
+  progression?: PetProgression;
   id: string;
   playerId: string;
   team: 0 | 1;
@@ -266,6 +296,8 @@ export interface Fighter {
   dodgeEarned?: boolean;
 }
 export interface Projectile {
+  vy?: number;
+  previousY?: number;
   id: string;
   ownerId: string;
   team: 0 | 1;
@@ -320,6 +352,10 @@ export interface BattleEvent {
   depth?: number;
 }
 export interface BattleConfig {
+  arenaDefinition?: ArenaDefinition;
+  progressions?: [PetProgression[], PetProgression[]];
+  /** Stop a wild encounter below 10% HP, including otherwise lethal hits. */
+  captureTeam?: 0 | 1;
   rules: MatchRules;
   players: [string, string];
   teams?: [SpeciesId[], SpeciesId[]];
@@ -331,6 +367,7 @@ export interface BattleResult {
   scores: [number, number];
 }
 export interface BattleSnapshot {
+  arenaDefinition?: ArenaDefinition;
   seed: number;
   tick: number;
   elapsed: number;
@@ -430,6 +467,7 @@ export const SUMMON_GUARANTEES = [
   { quality: 'SS', interval: 1001 },
 ] as const;
 export interface OwnedPet {
+  experience?: number;
   id: string;
   species: SpeciesId;
   quality: PetQuality;
@@ -477,4 +515,42 @@ export interface PetCollection {
 }
 export interface SummonResult extends PetCollection {
   received: OwnedPet;
+}
+
+export interface WorldWildPet extends PetProgression {
+  id: number;
+  species: SpeciesId;
+  x: number;
+  y: number;
+}
+export interface WorldEncounterTicket {
+  /** Missing on older tickets, whose deterministic replay keeps the original AI. */
+  combatVersion?: 2 | 3;
+  arenaDefinition?: ArenaDefinition;
+  id: string;
+  seed: number;
+  pet: OwnedPet;
+  wild: WorldWildPet;
+}
+export const WorldBattleActionSchema = z.discriminatedUnion('type', [
+  z
+    .object({
+      tick: z.number().int().min(0).max(7200),
+      type: z.literal('mode'),
+      manual: z.boolean(),
+    })
+    .strict(),
+  z
+    .object({
+      tick: z.number().int().min(0).max(7200),
+      type: z.literal('command'),
+      command: ManualBattleCommandSchema,
+    })
+    .strict(),
+]);
+export type WorldBattleAction = z.infer<typeof WorldBattleActionSchema>;
+export interface WorldBattleReward {
+  pet: OwnedPet;
+  experience: number;
+  captured: OwnedPet | null;
 }

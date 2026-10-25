@@ -1,4 +1,4 @@
-import { terrainContact } from '@arena/game-core';
+import { terrainContact, terrainHeight } from '@arena/game-core';
 import * as Phaser from 'phaser';
 import { ARENAS, ELEMENTS, POKEMON, SKILL_BY_ID } from '@arena/game-data';
 import type { BattleEvent, BattleSnapshot, Element } from '@arena/shared-types';
@@ -119,7 +119,14 @@ export class SkillVfx {
       const age = SKILL_BY_ID[hazard.skillId].groundHazard!.duration - hazard.duration;
       const appear = Math.max(0.25, Math.min(1, age / 0.18));
       const fade = Math.min(1, hazard.duration / 0.55);
-      const y = 520 + hazard.depth + 4;
+      const y =
+        520 +
+        hazard.depth -
+        terrainHeight(
+          snapshot.arenaDefinition ?? ARENAS.find((a) => a.id === snapshot.rules.arena)!,
+          hazard,
+        ) +
+        4;
       this.place(
         id,
         'skill-vfx-sludge-puddle',
@@ -393,7 +400,7 @@ export class SkillVfx {
         ? oldAngle +
           Math.atan2(Math.sin(targetAngle - oldAngle), Math.cos(targetAngle - oldAngle)) * alpha
         : targetAngle;
-      const arena = ARENAS.find((a) => a.id === snapshot.rules.arena)!;
+      const arena = snapshot.arenaDefinition ?? ARENAS.find((a) => a.id === snapshot.rules.arena)!;
       const contact = directional
         ? terrainContact(arena, f, {
             x: f.x + Math.cos(angle) * skill.range,
