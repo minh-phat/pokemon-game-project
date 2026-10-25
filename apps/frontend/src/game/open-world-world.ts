@@ -340,7 +340,7 @@ export function createWorld(seed: number): World {
         Math.hypot(a.x - GEO_SIZE * 0.48, a.y - GEO_SIZE * 0.58) -
         Math.hypot(b.x - GEO_SIZE * 0.48, b.y - GEO_SIZE * 0.58),
     );
-  for (const t of candidates.slice(0, 400)) {
+  for (const t of candidates) {
     const cx = (t.x + 0.5) * SCALE,
       cy = (t.y + 0.5) * SCALE;
     if (nearestRiver(world, cx, cy).distance > 36) continue;

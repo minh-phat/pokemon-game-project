@@ -134,26 +134,51 @@ export function createWorld(inputSeed: number): World {
   const n = WORLD_SIZE,
     tiles: Tile[] = [],
     volcanic = new Uint8Array(n * n);
-  const snowX = 0.29 + hash(1, 1, seed) * 0.12,
-    snowY = 0.24 + hash(2, 1, seed) * 0.1;
-  const volcanoX = 0.67 + hash(3, 1, seed) * 0.09,
-    volcanoY = 0.38 + hash(4, 1, seed) * 0.12;
+  // Separate, bounded island shelves keep open sea between landmasses even at high peaks.
+  // Rotate mountain types through the archipelago so no biome is confined to one corner.
+  const rotation = Math.floor(hash(20, 1, seed) * 3);
+  const islands = Array.from({ length: 9 }, (_, i) => {
+    const kind = (i + Math.floor(i / 3) + rotation) % 3;
+    return {
+      x: 0.19 + (i % 3) * 0.31 + (hash(i, 21, seed) - 0.5) * 0.035,
+      y: 0.19 + Math.floor(i / 3) * 0.31 + (hash(i, 22, seed) - 0.5) * 0.035,
+      rx: 0.105 + hash(i, 23, seed) * 0.055,
+      ry: 0.1 + hash(i, 24, seed) * 0.055,
+      peakX: (hash(i, 25, seed) - 0.5) * 0.045,
+      peakY: (hash(i, 26, seed) - 0.5) * 0.045,
+      // Both snowy and volcanic islands include lower summits and towering peaks.
+      peak: (kind === 2 ? 0.23 : 0.48 + Math.floor(i / 3) * 0.25) + hash(i, 27, seed) * 0.09,
+      volcanic: kind === 1,
+    };
+  });
   for (let y = 0; y < n; y++)
     for (let x = 0; x < n; x++) {
       const u = x / n,
         v = y / n;
-      const radius = Math.hypot((u - 0.5) * 1.9, (v - 0.51) * 1.95);
-      const continental = Math.max(0, 1 - radius * radius);
-      const mountain = Math.exp(-((u - snowX) ** 2 / 0.016 + (v - snowY) ** 2 / 0.025));
-      const cone = Math.max(0, 1 - Math.hypot(u - volcanoX, v - volcanoY) / 0.145);
-      const h =
-        0.015 +
-        continental * 0.36 +
-        mountain * 0.57 +
-        cone * 0.49 +
-        (noise(x / 24, y / 24, seed) - 0.5) * 0.12 +
-        (noise(x / 8, y / 8, seed + 13) - 0.5) * 0.035;
-      volcanic[y * n + x] = cone > 0.2 ? 1 : 0;
+      const coast = (noise(x / 13, y / 13, seed + 30) - 0.5) * 0.15;
+      let h = 0.045,
+        cone = 0;
+      for (const island of islands) {
+        const radius = Math.hypot((u - island.x) / island.rx, (v - island.y) / island.ry);
+        const shelf = Math.max(0, 1 - (radius + coast) ** 2);
+        if (!shelf) continue;
+        const distance = Math.hypot(
+          (u - island.x - island.peakX) / (island.rx * 0.6),
+          (v - island.y - island.peakY) / (island.ry * 0.6),
+        );
+        const summit = Math.max(0, 1 - distance);
+        const ridge = island.volcanic ? summit : summit ** 1.35;
+        const elevation =
+          0.045 +
+          shelf * 0.36 +
+          ridge * island.peak +
+          (noise(x / 8, y / 8, seed + 13) - 0.5) * 0.035 * shelf;
+        if (elevation > h) {
+          h = elevation;
+          cone = island.volcanic ? summit : 0;
+        }
+      }
+      volcanic[y * n + x] = cone > 0.16 ? 1 : 0;
       tiles.push({
         x,
         y,
@@ -219,8 +244,8 @@ export function createWorld(inputSeed: number): World {
                 : wet > 0.47
                   ? 'forest'
                   : 'meadow';
-    // Accumulation naturally merges small headwater streams into larger rivers.
-    if (t.flow > 68 && t.height > SEA && !volcanic[id]) t.biome = 'river';
+    // Smaller island catchments need less accumulation to form rivers.
+    if (t.flow > 32 && t.height > SEA && !volcanic[id]) t.biome = 'river';
     t.water = t.biome === 'ocean' || t.biome === 'river';
     t.level = t.biome === 'ocean' ? 0 : Math.max(1, Math.round((t.height - SEA) * 29));
     const r = t.variant;

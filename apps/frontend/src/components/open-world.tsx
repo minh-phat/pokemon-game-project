@@ -255,12 +255,12 @@ export default function OpenWorld() {
       </div>
       <aside
         className={`world-map ${mapOpen ? 'expanded' : ''}`}
-        aria-label={t('Bản đồ lục địa', 'Continent map')}
+        aria-label={t('Bản đồ quần đảo', 'Archipelago map')}
       >
         <div className="world-map-heading">
           <span>
             <Map size={13} />
-            {mapOpen ? t('LỤC ĐỊA', 'CONTINENT') : t('XUNG QUANH', 'NEARBY')}
+            {mapOpen ? t('QUẦN ĐẢO', 'ARCHIPELAGO') : t('XUNG QUANH', 'NEARBY')}
           </span>
           <button
             aria-label={
@@ -568,7 +568,7 @@ export default function OpenWorld() {
             <div className="world-new-expedition">
               <h3>
                 <Mountain size={17} />
-                {t('Một lục địa khác', 'Another continent')}
+                {t('Một quần đảo khác', 'Another archipelago')}
               </h3>
               <p>
                 {t(

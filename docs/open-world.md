@@ -5,7 +5,7 @@ Vào **Chơi Ngay → Thế giới mở**. Đây là chế độ khám phá chơ
 - **WASD / phím mũi tên**: di chuyển theo hướng màn hình; **Shift**: chạy.
 - **Space**: nhảy; **giữ E + hướng di chuyển**: leo lên/xuống vách. Điện thoại dùng nút **Nhảy** và giữ **Leo** đồng thời với cần điều khiển.
 - Chạm hoặc bấm mặt đất để tìm đường đi bộ ở gần, có xét độ cao. Điện thoại có cần điều khiển và nút chạy.
-- **M**: bản đồ lục địa; **J**: nhật ký; **Esc**: tạm dừng.
+- **M**: bản đồ quần đảo; **J**: nhật ký; **Esc**: tạm dừng.
 - Bản đồ lớn có các điểm dịch chuyển tới từng môi trường, kèm khoảng cách bằng km. Bản đồ nhỏ hiển thị khu vực 192 × 192 m quanh người chơi và thước 50 m.
 - Nhân vật tự dùng thuyền khi xuống nước; **Về trại** đưa về điểm xuất phát.
 - Đến gần Pokémon để ghi vào nhật ký. Pokémon có nhóm và cá thể đơn lẻ, di chuyển trong môi trường phù hợp.
@@ -14,6 +14,8 @@ Vào **Chơi Ngay → Thế giới mở**. Đây là chế độ khám phá chơ
 ## Quy mô và địa hình
 
 Bản đồ có **8.192 × 8.192 ô**, mỗi ô tương ứng **2 × 2 m**: kích thước **16,384 × 16,384 km**, diện tích **268,435456 km²**, bao gồm đất liền và biển. Đây là quy ước khoảng cách của game. Người chơi có thể đi liên tục trong toàn bộ giới hạn bản đồ; các điểm dịch chuyển giúp khám phá những vùng cách nhau nhiều km.
+
+Thế giới gồm chín đảo chính lớn nhỏ, ngăn cách bởi các eo biển. Núi tuyết và núi lửa phân bố trên nhiều đảo, xen kẽ vùng đồi thấp; các đỉnh có độ cao khác nhau, từ núi thấp đến đỉnh cao vượt trội. Vị trí, đường bờ và độ cao thay đổi theo mã thế giới. Thuyền tự động giúp di chuyển giữa các đảo.
 
 Lớp địa lý tổng quát 256 × 256 xác định cao độ, độ ẩm, lưu vực, núi, tuyết và núi lửa. Thuật toán priority flood xử lý vùng trũng, nối dòng chảy xuống biển và tích lũy lưu lượng để suối hợp thành sông. Lớp chi tiết nội suy địa hình, nối các nhánh sông qua biên vùng, thay đổi bề rộng theo lưu lượng và thêm bờ sông, cây, hoa, đá bằng tọa độ tuyệt đối. Vì vậy vùng đã rời khỏi bộ nhớ sẽ xuất hiện giống nhau khi quay lại với cùng mã thế giới. Tuyết ở cao độ lớn; dung nham trong vùng núi lửa.
 

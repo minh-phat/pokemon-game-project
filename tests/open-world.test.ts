@@ -56,6 +56,52 @@ describe('continental geography and streaming', () => {
       }
     },
   );
+  it.each([0, 1, 42, 90210, 4294967295])(
+    'seed %s separates substantial islands by sea and spreads varied mountains across them',
+    (seed) => {
+      const world = createWorld(seed);
+      const tiles = world.geography.tiles;
+      const seen = new Set<number>();
+      const islands: { size: number; snow: number; volcano: number; peak: number }[] = [];
+      for (let start = 0; start < tiles.length; start++) {
+        if (seen.has(start) || tiles[start].height <= SEA) continue;
+        const stack = [start];
+        seen.add(start);
+        const island = { size: 0, snow: 0, volcano: 0, peak: 0 };
+        while (stack.length) {
+          const id = stack.pop()!;
+          const tile = tiles[id];
+          island.size++;
+          island.snow += Number(tile.biome === 'snow');
+          island.volcano += Number(tile.biome === 'volcano');
+          island.peak = Math.max(island.peak, tile.height);
+          // Include diagonal contacts: even a corner bridge would join the islands.
+          for (let dy = -1; dy <= 1; dy++)
+            for (let dx = -1; dx <= 1; dx++) {
+              const x = tile.x + dx,
+                y = tile.y + dy;
+              if (x < 0 || y < 0 || x >= 256 || y >= 256) continue;
+              const next = y * 256 + x;
+              if (seen.has(next) || tiles[next].height <= SEA) continue;
+              seen.add(next);
+              stack.push(next);
+            }
+        }
+        if (island.size > 100) islands.push(island);
+      }
+      expect(islands.length).toBeGreaterThanOrEqual(9);
+      expect(islands.filter((island) => island.snow > 10).length).toBeGreaterThanOrEqual(3);
+      expect(islands.filter((island) => island.volcano > 10).length).toBeGreaterThanOrEqual(3);
+      const peaks = islands.map((island) => island.peak);
+      expect(Math.max(...peaks) - Math.min(...peaks)).toBeGreaterThan(0.5);
+      expect(Math.max(...islands.map((island) => island.size)) / seen.size).toBeLessThan(0.25);
+      expect(tiles.filter((tile) => tile.height <= SEA).length / tiles.length).toBeGreaterThan(0.4);
+      for (const tile of tiles.filter((tile) => tile.lava)) {
+        expect(tile.biome).toBe('volcano');
+        expect(tile.water).toBe(false);
+      }
+    },
+  );
   it('recreates identical chunks after eviction with seamless absolute-coordinate samples', () => {
     const world = createWorld(42);
     const original = structuredClone(getTerrainChunk(world, 100, 100));
