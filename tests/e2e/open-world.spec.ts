@@ -12,6 +12,51 @@ async function enterWorld(page: Page) {
   await expect(page.getByTestId('world-canvas')).toHaveAttribute('data-world-size', '8192');
 }
 
+test.describe('sharp open world rendering', () => {
+  test.use({ deviceScaleFactor: 2 });
+
+  test('uses Retina resolution and original sprite frames after resizing', async ({ page }) => {
+    await page.addInitScript(() => {
+      const drawImage = CanvasRenderingContext2D.prototype.drawImage;
+      CanvasRenderingContext2D.prototype.drawImage = function (
+        this: CanvasRenderingContext2D,
+        ...args: unknown[]
+      ) {
+        const [source, , , sourceWidth, sourceHeight] = args;
+        if (
+          this.canvas.dataset.testid === 'world-canvas' &&
+          source instanceof HTMLCanvasElement &&
+          source.width === 960 &&
+          source.height === 320 &&
+          args.length === 9 &&
+          sourceWidth === 160 &&
+          sourceHeight === 160
+        )
+          this.canvas.dataset.fullResolutionSprite = 'true';
+        return Reflect.apply(drawImage, this, args);
+      } as typeof drawImage;
+    });
+    await enterWorld(page);
+    const surface = page.getByTestId('world-canvas');
+    await expect(surface).toHaveAttribute('data-full-resolution-sprite', 'true');
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 390, height: 844 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await expect
+        .poll(() =>
+          surface.evaluate((canvas: HTMLCanvasElement) => ({
+            width: canvas.width,
+            height: canvas.height,
+          })),
+        )
+        .toEqual({ width: viewport.width * 2, height: viewport.height * 2 });
+    }
+    await page.screenshot({ path: 'test-results/open-world-sharp-retina.png' });
+  });
+});
+
 test('continent map travels kilometers, keeps streaming bounded and restores old journals', async ({
   page,
 }) => {

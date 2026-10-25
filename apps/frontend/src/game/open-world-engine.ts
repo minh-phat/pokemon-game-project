@@ -83,7 +83,7 @@ function shade(hex: string, offset: number) {
   return `rgb(${Math.min(255, Math.max(0, (v >> 16) + offset))},${Math.min(255, Math.max(0, ((v >> 8) & 255) + offset))},${Math.min(255, Math.max(0, (v & 255) + offset))})`;
 }
 
-/** Canvas at a capped pixel resolution, cached ground, bounded simulation and no per-frame React. */
+/** Display-resolution canvas, cached ground, bounded simulation and no per-frame React. */
 export class OpenWorldEngine {
   readonly world: World;
   readonly input: WorldInput = {
@@ -99,6 +99,8 @@ export class OpenWorldEngine {
   private motion: Motion;
   private jumpRequested = false;
   private context: CanvasRenderingContext2D;
+  private viewportWidth = 1;
+  private viewportHeight = 1;
   private chunks = new Map<string, HTMLCanvasElement>();
   private decorations = new Map<string, HTMLCanvasElement>();
   private sprites = new Map<Species, HTMLCanvasElement>();
@@ -139,7 +141,7 @@ export class OpenWorldEngine {
     saved: WorldSave | null,
     onStatus: (status: WorldStatus) => void,
   ) {
-    const ctx = surface.getContext('2d', { alpha: false, willReadFrequently: true });
+    const ctx = surface.getContext('2d', { alpha: false });
     if (!ctx) throw new Error('Canvas 2D is unavailable');
     this.context = ctx;
     this.world = createWorld(seed);
@@ -170,10 +172,22 @@ export class OpenWorldEngine {
   }
   private resize = () => {
     const r = this.surface.getBoundingClientRect();
-    // 2 CSS pixels per art pixel, with a hard cap on large / high-DPI displays.
-    const scale = Math.max(2, r.width / 960, r.height / 600);
-    this.surface.width = Math.max(1, Math.round(r.width / scale));
-    this.surface.height = Math.max(1, Math.round(r.height / scale));
+    // Keep the same world zoom, but rasterize sprites at display resolution.
+    // Limit Retina density to 2x to bound the full-screen framebuffer cost.
+    const zoom = Math.max(2, r.width / 960, r.height / 600);
+    const density = Math.min(2, window.devicePixelRatio || 1);
+    this.viewportWidth = Math.max(1, r.width / zoom);
+    this.viewportHeight = Math.max(1, r.height / zoom);
+    this.surface.width = Math.max(1, Math.round(r.width * density));
+    this.surface.height = Math.max(1, Math.round(r.height * density));
+    this.context.setTransform(
+      this.surface.width / this.viewportWidth,
+      0,
+      0,
+      this.surface.height / this.viewportHeight,
+      0,
+      0,
+    );
     this.context.imageSmoothingEnabled = false;
   };
   private keyDown = (e: KeyboardEvent) => {
@@ -231,13 +245,13 @@ export class OpenWorldEngine {
     if (this.input.paused || event.button !== 0) return;
     const r = this.surface.getBoundingClientRect();
     const sx =
-      ((event.clientX - r.left) * this.surface.width) / r.width +
+      ((event.clientX - r.left) * this.viewportWidth) / r.width +
       this.camera.x -
-      this.surface.width / 2;
+      this.viewportWidth / 2;
     const sy =
-      ((event.clientY - r.top) * this.surface.height) / r.height +
+      ((event.clientY - r.top) * this.viewportHeight) / r.height +
       this.camera.y -
-      this.surface.height / 2;
+      this.viewportHeight / 2;
     let target = unproject(sx, sy);
     for (let i = 0; i < 5; i++)
       target = unproject(sx, sy + (tileAt(this.world, target.x, target.y)?.level ?? 0) * LIFT);
@@ -249,11 +263,11 @@ export class OpenWorldEngine {
       const img = new Image();
       img.onload = () => {
         if (this.disposed) return;
-        // Pre-downsample the existing sheets once, avoiding repeated large SVG raster work.
-        const sheet = canvas(6 * 32, 2 * 32),
+        // Rasterize only the idle/walk rows once at their original frame resolution.
+        const sheet = canvas(960, 320),
           ctx = sheet.getContext('2d')!;
         ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(img, 0, 0, 960, 320, 0, 0, 192, 64);
+        ctx.drawImage(img, 0, 0, 960, 320, 0, 0, 960, 320);
         this.sprites.set(species, sheet);
       };
       img.src = `/assets/${species}-sheet.${species === 'eevee' ? 'png' : 'svg'}`;
@@ -646,7 +660,7 @@ export class OpenWorldEngine {
     c.save();
     c.translate(Math.round(x), Math.round(y + bob));
     c.scale(actor.facing, 1);
-    c.drawImage(sprite, frame * 32, actor.moving ? 32 : 0, 32, 32, -16, -28, 32, 32);
+    c.drawImage(sprite, frame * 160, actor.moving ? 160 : 0, 160, 160, -16, -28, 32, 32);
     c.restore();
   }
   private drawCamp(x: number, y: number) {
@@ -689,8 +703,8 @@ export class OpenWorldEngine {
   }
   private render() {
     const c = this.context,
-      w = this.surface.width,
-      h = this.surface.height;
+      w = this.viewportWidth,
+      h = this.viewportHeight;
     const left = Math.round(this.camera.x - w / 2),
       top = Math.round(this.camera.y - h / 2);
     const playerScreen = project(this.player.x, this.player.y, this.motion.z);

@@ -49,7 +49,7 @@ Không tạo sẵn hơn 67 triệu ô. Địa hình chi tiết được sinh t�
 - Nền đã vẽ có tối đa **48 vùng đệm** 256 × 256 pixel (~12 MiB dữ liệu pixel).
 - Quần thể Pokémon tạo theo vùng quanh người chơi, giữ tối đa **25 vùng**; tối đa **80 Pokémon gần nhất** được mô phỏng ở **10 Hz**.
 - Tìm đường giới hạn 96 ô và tối đa 6.000 nút, không cấp phát mảng theo diện tích thế giới.
-- Chỉ vẽ vật thể gần camera. Canvas tối đa 960 × 600 pixel, HUD cập nhật khoảng 3 lần/giây.
+- Chỉ vẽ vật thể gần camera. Canvas vẽ theo kích thước màn hình, hỗ trợ mật độ Retina tối đa 2×. Khung nhìn logic vẫn giới hạn 960 × 600 để giữ mức zoom và lượng địa hình cần vẽ; HUD cập nhật khoảng 3 lần/giây. Sprite Pokémon giữ nguyên khung 160 × 160, không thu xuống 32 × 32 trước khi hiển thị.
 - Dừng vòng lặp khi tab ẩn; giải phóng sự kiện, RAF, vùng đệm khi rời chế độ.
 
 ## Lưu hành trình
