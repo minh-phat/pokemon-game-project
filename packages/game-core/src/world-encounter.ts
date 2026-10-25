@@ -8,12 +8,18 @@ import { terrainHeight, terrainWalkable, terrainReachable } from './terrain';
 import { BattleEngine } from './index';
 
 export function createWorldEncounter(ticket: WorldEncounterTicket) {
-  if (ticket.combatVersion === 3 && !ticket.arenaDefinition?.surface)
+  const pets = ticket.pets ?? [ticket.pet];
+  const wilds = ticket.wilds ?? [ticket.wild];
+  if (
+    (ticket.combatVersion === 3 || ticket.combatVersion === 4) &&
+    !ticket.arenaDefinition?.surface
+  )
     throw new Error('Missing world battle terrain');
   const engine = new BattleEngine(
     {
+      worldEncounter: ticket.combatVersion === 4,
       arenaDefinition:
-        ticket.combatVersion === 3
+        ticket.combatVersion === 3 || ticket.combatVersion === 4
           ? ticket.arenaDefinition
           : { ...ARENAS[0], obstacles: undefined },
       rules: {
@@ -26,19 +32,25 @@ export function createWorldEncounter(ticket: WorldEncounterTicket) {
       },
       aiTeams: [0, 1],
       players: ['trainer', 'wild'],
-      teams: [[ticket.pet.species], [ticket.wild.species]],
-      progressions: [[ticket.pet], [ticket.wild]],
+      teams: [pets.map((p) => p.species), wilds.map((p) => p.species)],
+      progressions: [pets, wilds],
       captureTeam: 1,
     },
     ticket.seed,
   );
   engine.startBattle();
-  engine.state.fighters[0].x = 450;
-  engine.state.fighters[1].x = 650;
+  for (const f of engine.state.fighters) {
+    f.x = f.team === 0 ? 450 : 650;
+    if (ticket.combatVersion === 4) f.depth = ((f.slot % 7) - 3) * 24;
+  }
   const arena = engine.config.arenaDefinition;
   if (arena) {
-    const wild = engine.state.fighters[1];
-    for (const f of [...engine.state.fighters].reverse()) {
+    const wild = engine.state.fighters.find((f) => f.team === 1)!;
+    const ordered =
+      ticket.combatVersion === 4
+        ? [wild, ...engine.state.fighters.filter((f) => f !== wild)]
+        : [...engine.state.fighters].reverse();
+    for (const f of ordered) {
       // Find a legal spawn on the actual map without clearing props or flattening it.
       const preferred = { x: f.x, depth: f.depth };
       let found = false;
@@ -63,6 +75,7 @@ export function createWorldEncounter(ticket: WorldEncounterTicket) {
   return engine;
 }
 export function applyWorldAction(engine: BattleEngine, action: WorldBattleAction) {
+  if (action.type === 'control') return engine.selectControlledFighter('trainer', action.fighterId);
   if (action.type === 'mode') return engine.setManualMode('trainer', action.manual);
   return engine.command('trainer', action.command);
 }

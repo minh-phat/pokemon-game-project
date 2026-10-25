@@ -22,6 +22,7 @@ interface EncounterDocument {
   status: 'active' | 'finished' | 'aborted';
   experience?: number;
   capturable?: boolean;
+  capturableIds?: number[];
 }
 const worlds = new Map<number, World>();
 const locks = new Map<string, Promise<unknown>>();
@@ -38,9 +39,11 @@ export async function withWorldLock<T>(owner: ObjectId, action: () => Promise<T>
 }
 const startSchema = z
   .object({
-    petId: z.string().min(1).max(200),
+    petId: z.string().min(1).max(200).optional(),
+    petIds: z.array(z.string().min(1).max(200)).min(1).optional(),
     seed: z.number().int().min(0).max(0xffffffff),
-    wildId: z.number().int().min(0).max(4194303),
+    wildId: z.number().int().min(0).max(4194303).optional(),
+    wildIds: z.array(z.number().int().min(0).max(4194303)).min(1).optional(),
   })
   .strict();
 const finishSchema = z
@@ -54,30 +57,58 @@ const finishSchema = z
 export async function startWorldBattle(db: Db, ownerId: ObjectId, body: unknown) {
   const parsed = startSchema.safeParse(body);
   if (!parsed.success) throw new BadRequestException('Mục tiêu không hợp lệ.');
-  const { petId, seed, wildId } = parsed.data;
-  const pet = await db.collection<PetDocument>('pets').findOne({ _id: petId, ownerId });
-  if (!pet) throw new NotFoundException('Bạn chưa sở hữu thú này.');
-  if (
-    await db
-      .collection<PetDocument>('pets')
-      .findOne({ _id: captureId(ownerId, seed, wildId), ownerId })
-  )
-    throw new ConflictException('Bạn đã lập khế ước với cá thể này.');
+  const { seed } = parsed.data;
+  const petIds = [...new Set(parsed.data.petIds ?? (parsed.data.petId ? [parsed.data.petId] : []))];
+  const wildIds = [
+    ...new Set(
+      parsed.data.wildIds ?? (parsed.data.wildId !== undefined ? [parsed.data.wildId] : []),
+    ),
+  ];
+  if (!petIds.length || !wildIds.length) throw new BadRequestException('Mục tiêu không hợp lệ.');
+  const pets = [];
+  for (const petId of petIds) {
+    const pet = await db.collection<PetDocument>('pets').findOne({ _id: petId, ownerId });
+    if (!pet) throw new NotFoundException('Bạn chưa sở hữu thú này.');
+    pets.push(pet);
+  }
+  for (const wildId of wildIds) {
+    if (
+      await db
+        .collection<PetDocument>('pets')
+        .findOne({ _id: captureId(ownerId, seed, wildId), ownerId })
+    )
+      throw new ConflictException('Bạn đã lập khế ước với cá thể này.');
+  }
   let world = worlds.get(seed);
   if (!world) {
     world = createWorld(seed);
     worlds.set(seed, world);
     if (worlds.size > 2) worlds.delete(worlds.keys().next().value!);
   }
-  const chunk = Math.floor(wildId / 64);
-  syncWildlife(world, { x: (chunk % 256) * 32 + 16, y: Math.floor(chunk / 256) * 32 + 16 });
-  const wild = world.wildlife.find((a) => a.id === wildId);
-  if (!wild) throw new NotFoundException('Không tìm thấy thú hoang.');
+  const wilds = [];
+  for (const wildId of wildIds) {
+    const chunk = Math.floor(wildId / 64);
+    syncWildlife(world, { x: (chunk % 256) * 32 + 16, y: Math.floor(chunk / 256) * 32 + 16 });
+    const wild = world.wildlife.find((a) => a.id === wildId);
+    if (!wild) throw new NotFoundException('Không tìm thấy thú hoang.');
+    wilds.push({
+      id: wild.id,
+      species: wild.species,
+      level: wild.level,
+      quality: wild.quality,
+      x: wild.x,
+      y: wild.y,
+    });
+  }
+  const wild = wilds[0];
+  const pet = pets[0];
   const encounters = db.collection<EncounterDocument>('worldEncounters');
   // A new deployment abandons the previous fight without rewards.
   await encounters.updateMany({ ownerId, status: 'active' }, { $set: { status: 'aborted' } });
   const ticket: WorldEncounterTicket = {
-    combatVersion: 3,
+    combatVersion: 4,
+    pets: pets.map(publicPet),
+    wilds,
     arenaDefinition: createWorldBattleArena(world, wild),
     id: randomUUID(),
     seed: randomInt(0x7fffffff),
@@ -126,10 +157,21 @@ export async function finishWorldBattle(
     } catch {
       throw new BadRequestException('Không xác minh được trận đấu.');
     }
-    const wild = state.fighters.find((f) => f.team === 1)!;
-    encounter.capturable =
-      state.result?.winner === 0 && wild.hp > 0 && wild.hp < fighterDefinition(wild).hp * 0.1;
-    encounter.experience = wildBattleExperience(encounter.ticket.wild, state.result?.winner === 0);
+    const wilds = encounter.ticket.wilds ?? [encounter.ticket.wild];
+    encounter.capturableIds = state.fighters
+      .filter(
+        (f) =>
+          f.team === 1 &&
+          state.result?.winner === 0 &&
+          f.hp > 0 &&
+          f.hp < fighterDefinition(f).hp * 0.1,
+      )
+      .map((f) => wilds[f.slot].id);
+    encounter.capturable = encounter.capturableIds.length > 0;
+    encounter.experience = wilds.reduce(
+      (total, wild) => total + wildBattleExperience(wild, state.result?.winner === 0),
+      0,
+    );
     encounter.status = 'finished';
     await encounters.updateOne(
       { _id: id, ownerId },
@@ -138,6 +180,7 @@ export async function finishWorldBattle(
           status: encounter.status,
           experience: encounter.experience,
           capturable: encounter.capturable,
+          capturableIds: encounter.capturableIds,
         },
       },
     );
@@ -145,39 +188,44 @@ export async function finishWorldBattle(
   if (capture && !encounter.capturable)
     throw new BadRequestException('Chỉ lập khế ước khi thắng và thú còn dưới 10% HP.');
   const pets = db.collection<PetDocument>('pets');
-  const pet = await pets.findOne({ _id: encounter.ticket.pet.id, ownerId });
-  if (!pet) throw new NotFoundException('Không tìm thấy pet tham chiến.');
-  if (!pet.worldRewards?.includes(id)) {
-    const progress = gainExperience(pet, encounter.experience!);
-    await pets.updateOne(
-      { _id: pet._id, ownerId, worldRewards: { $ne: id } },
-      {
-        $set: progress,
-        $addToSet: { worldRewards: id },
-      },
-    );
+  const updatedPets = [];
+  for (const participant of encounter.ticket.pets ?? [encounter.ticket.pet]) {
+    const pet = await pets.findOne({ _id: participant.id, ownerId });
+    if (!pet) throw new NotFoundException('Không tìm thấy pet tham chiến.');
+    if (!pet.worldRewards?.includes(id)) {
+      await pets.updateOne(
+        { _id: pet._id, ownerId, worldRewards: { $ne: id } },
+        {
+          $set: gainExperience(pet, encounter.experience!),
+          $addToSet: { worldRewards: id },
+        },
+      );
+    }
+    updatedPets.push(publicPet((await pets.findOne({ _id: pet._id, ownerId }))!));
   }
-  let captured = await pets.findOne({
-    _id: captureId(ownerId, encounter.worldSeed, encounter.ticket.wild.id),
-    ownerId,
-  });
-  if (capture) {
-    const wild = encounter.ticket.wild;
-    const newPet: PetDocument = {
-      _id: captureId(ownerId, encounter.worldSeed, wild.id),
-      ownerId,
-      species: wild.species,
-      quality: wild.quality,
-      level: wild.level,
-      experience: 0,
-      createdAt: new Date(),
-    };
-    await pets.updateOne({ _id: newPet._id, ownerId }, { $setOnInsert: newPet }, { upsert: true });
-    captured = await pets.findOne({ _id: newPet._id, ownerId });
+  const capturedPets = [];
+  for (const wild of encounter.ticket.wilds ?? [encounter.ticket.wild]) {
+    const petId = captureId(ownerId, encounter.worldSeed, wild.id);
+    if (capture && (encounter.capturableIds ?? [encounter.ticket.wild.id]).includes(wild.id)) {
+      const newPet: PetDocument = {
+        _id: petId,
+        ownerId,
+        species: wild.species,
+        quality: wild.quality,
+        level: wild.level,
+        experience: 0,
+        createdAt: new Date(),
+      };
+      await pets.updateOne({ _id: petId, ownerId }, { $setOnInsert: newPet }, { upsert: true });
+    }
+    const captured = await pets.findOne({ _id: petId, ownerId });
+    if (captured) capturedPets.push(publicPet(captured));
   }
   return {
-    pet: publicPet((await pets.findOne({ _id: pet._id, ownerId }))!),
+    pet: updatedPets[0],
+    pets: updatedPets,
     experience: encounter.experience!,
-    captured: captured ? publicPet(captured) : null,
+    captured: capturedPets[0] ?? null,
+    capturedPets,
   };
 }

@@ -43,7 +43,7 @@ for (const mobile of [false, true]) {
       if (path === '/auth/world/start') {
         startCount++;
         const body = route.request().postDataJSON();
-        const wild = world.wildlife.find((w) => w.id === body.wildId)!;
+        const wild = world.wildlife.find((w) => w.id === body.wildIds[0])!;
         ticket = {
           combatVersion: 3,
           arenaDefinition: createWorldBattleArena(world, wild),
@@ -90,7 +90,8 @@ for (const mobile of [false, true]) {
     await expect(page.getByTestId('world-canvas')).toHaveAttribute('data-position', /\d/);
     await page.getByRole('button', { name: 'Triệu hồi Pets' }).click();
     await page.locator('.world-pet-list button').first().click();
-    await expect(page.locator('.world-pets-toggle')).toContainText('Pikachu · Lv.1');
+    await page.getByRole('button', { name: /Xong ·/ }).click();
+    await expect(page.locator('.world-pets-toggle')).toContainText('Đội ra trận');
     await expect(page.locator('.world-discovery')).toContainText('Lv.1 · C');
     if (mobile) {
       const wild = world.wildlife.find(
@@ -109,6 +110,7 @@ for (const mobile of [false, true]) {
         },
       });
     } else await page.getByRole('button', { name: 'Chọn mục tiêu' }).click();
+    await page.getByRole('button', { name: 'Ra trận', exact: true }).click();
     const panel = page.getByRole('complementary', { name: 'Chiến đấu thế giới mở' });
     await panel.getByRole('button', { name: 'Tự điều khiển', exact: true }).click();
     await expect(page.locator('.world-skill-grid')).toBeVisible();
@@ -141,7 +143,8 @@ for (const mobile of [false, true]) {
     await expect(page.locator('.world-pet-list button')).toHaveCount(2);
     await expect(page.locator('.world-pet-list')).toContainText('Lv.2 · SS · 40/130 EXP');
     await page.locator('.world-pet-list button').filter({ hasText: 'Lv.1 · C' }).click();
-    await expect(page.locator('.world-pets-toggle')).toContainText('Pikachu · Lv.1');
+    await page.getByRole('button', { name: /Xong ·/ }).click();
+    await expect(page.locator('.world-pets-toggle')).toContainText('Đội ra trận');
     expect(startCount).toBe(1);
     expect(errors).toEqual([]);
   });
@@ -218,7 +221,7 @@ test('Auto renders arena sprites, charge, projectiles and impacts on the world w
     const path = new URL(route.request().url()).pathname;
     if (path === '/auth/pets') return route.fulfill({ json: { pets: [pet] } });
     if (path === '/auth/world/start') {
-      const wild = world.wildlife.find((w) => w.id === route.request().postDataJSON().wildId)!;
+      const wild = world.wildlife.find((w) => w.id === route.request().postDataJSON().wildIds[0])!;
       return route.fulfill({
         json: {
           combatVersion: 3,
@@ -240,7 +243,9 @@ test('Auto renders arena sprites, charge, projectiles and impacts on the world w
   await page.getByRole('button', { name: /THIÊN NHIÊN KHÔNG NGỪNG/ }).click();
   await page.getByRole('button', { name: 'Triệu hồi Pets' }).click();
   await page.locator('.world-pet-list button').click();
+  await page.getByRole('button', { name: /Xong ·/ }).click();
   await page.getByRole('button', { name: 'Chọn mục tiêu' }).click();
+  await page.getByRole('button', { name: 'Ra trận', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Auto', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
@@ -291,5 +296,86 @@ test('Auto renders arena sprites, charge, projectiles and impacts on the world w
   const stopped = await compositeCount();
   await page.waitForTimeout(250);
   expect(await compositeCount()).toBe(stopped);
+  expect(errors).toEqual([]);
+});
+
+test('deploys six companions and drag-selects multiple enemies before fighting', async ({
+  page,
+}) => {
+  const world = createWorld(42);
+  const pets: OwnedPet[] = Array.from({ length: 6 }, (_, i) => ({
+    id: `squad-${i}`,
+    species: 'pikachu',
+    level: 50,
+    quality: 'SS',
+    experience: 0,
+    acquiredAt: '',
+  }));
+  let started: { petIds: string[]; wildIds: number[] } | undefined;
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.addInitScript(
+    (spawn) =>
+      localStorage.setItem(
+        'arena-open-world-v2',
+        JSON.stringify({
+          version: 2,
+          seed: 42,
+          player: spawn,
+          visited: [],
+          seen: [],
+        }),
+      ),
+    world.spawn,
+  );
+  await page.route('**/auth/**', async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === '/auth/pets') return route.fulfill({ json: { pets } });
+    if (path === '/auth/world/start') {
+      started = route.request().postDataJSON();
+      const wilds = started!.wildIds.map((id) => world.wildlife.find((w) => w.id === id)!);
+      return route.fulfill({
+        json: {
+          combatVersion: 4,
+          id: '00000000-0000-4000-8000-000000000004',
+          seed: 42,
+          pet: pets[0],
+          pets,
+          wild: wilds[0],
+          wilds,
+          arenaDefinition: createWorldBattleArena(world, wilds[0]),
+        },
+      });
+    }
+    return route.fulfill({
+      json: { user: { id: 'squad-trainer', name: 'Trainer', email: 'squad@example.com' } },
+    });
+  });
+  await page.goto('/');
+  await page.locator('.play-card').click();
+  await page.getByRole('button', { name: /THIÊN NHIÊN KHÔNG NGỪNG/ }).click();
+  const canvas = page.getByTestId('world-canvas');
+  await expect(canvas).toHaveAttribute('data-position', /\d/);
+  await page.getByRole('button', { name: 'Triệu hồi Pets' }).click();
+  await page.getByRole('button', { name: 'Chọn tất cả', exact: true }).click();
+  await expect(page.locator('.world-pet-list button[aria-pressed="true"]')).toHaveCount(6);
+  await page.getByRole('button', { name: 'Xong · 6 thú' }).click();
+  const before = await canvas.getAttribute('data-position');
+  await page.mouse.move(430, 300);
+  await page.mouse.down();
+  await page.mouse.move(1050, 760, { steps: 12 });
+  await page.mouse.up();
+  const selection = page.getByRole('complementary', { name: 'Mục tiêu đã chọn' });
+  await expect(selection).toBeVisible();
+  const count = Number((await selection.locator('strong').innerText()).match(/\d+/)![0]);
+  expect(count).toBeGreaterThan(1);
+  expect(await canvas.getAttribute('data-position')).toBe(before);
+  await page.screenshot({ path: 'test-results/world-squad-selection.png' });
+  await page.getByRole('button', { name: 'Ra trận', exact: true }).click();
+  await expect.poll(() => started?.petIds.length).toBe(6);
+  expect(started!.wildIds).toHaveLength(count);
+  await expect(page.locator('.world-rosters')).toContainText(`Đội bạn: 6 · Quái: ${count}`);
+  await expect(page.getByText('Đang tải hiệu ứng chiến đấu…')).toHaveCount(0);
+  await page.screenshot({ path: 'test-results/world-squad-battle.png' });
   expect(errors).toEqual([]);
 });

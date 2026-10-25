@@ -54,6 +54,8 @@ export type WorldStatus = {
   visited: Biome[];
   nearby: { id: number; species: Species; level: number; quality: string; count: number } | null;
   companion: OwnedPet | null;
+  companions: OwnedPet[];
+  selectedTargets: WildPokemon[];
   target: WildPokemon | null;
   combatVisualError: string;
   combatVisualReady: boolean;
@@ -126,7 +128,13 @@ export class OpenWorldEngine {
   private chunks = new Map<string, HTMLCanvasElement>();
   private decorations = new Map<string, HTMLCanvasElement>();
   private sprites = new Map<SpeciesId, HTMLCanvasElement>();
-  companion: OwnedPet | null = null;
+  companions: OwnedPet[] = [];
+  get companion() {
+    return this.companions[0] ?? null;
+  }
+  private followers = new Map<string, { motion: Motion; path: Point[]; repath: number }>();
+  selectedTargets: WildPokemon[] = [];
+  private drag: { id: number; start: Point; end: Point } | null = null;
   rewardPending = false;
   private companionMotion: Motion | null = null;
   private target: WildPokemon | null = null;
@@ -138,8 +146,6 @@ export class OpenWorldEngine {
   private actions: WorldBattleAction[] = [];
   private combatAccumulator = 0;
   private starting = false;
-  private companionPath: Point[] = [];
-  private companionRepath = 0;
   private finishedReported = false;
   private removed = new Set<number>();
   onEngage?: (wild: WildPokemon) => void;
@@ -154,20 +160,49 @@ export class OpenWorldEngine {
     for (const id of ids) this.removed.add(id);
   }
   summon(pet: OwnedPet | null) {
-    if (this.target) return;
-    this.companion = pet;
-    this.companionMotion = pet ? createMotion(this.world, this.player) : null;
+    if (this.target || this.rewardPending) return;
+    if (!pet) this.companions = [];
+    else if (this.companions.some((p) => p.id === pet.id))
+      this.companions = this.companions.filter((p) => p.id !== pet.id);
+    else this.companions = [...this.companions, pet];
+    this.resetFollowers();
     this.report();
+  }
+  private resetFollowers() {
+    this.followers.clear();
+    this.companions.forEach((pet) =>
+      this.followers.set(pet.id, {
+        motion: createMotion(this.world, this.player),
+        path: [],
+        repath: 0,
+      }),
+    );
+    this.companionMotion = this.companion ? this.followers.get(this.companion.id)!.motion : null;
+  }
+  updatePets(pets: OwnedPet[]) {
+    this.companions = this.companions.map((p) => pets.find((next) => next.id === p.id) ?? p);
   }
   selectWild(id: number) {
     if (this.input.paused || this.target || this.rewardPending) return;
+    const wild = this.world.wildlife.find((a) => a.id === id && !this.removed.has(a.id));
+    if (!wild) return;
+    this.selectedTargets = this.selectedTargets.some((a) => a.id === id)
+      ? this.selectedTargets.filter((a) => a.id !== id)
+      : [...this.selectedTargets, wild];
+    this.report();
+  }
+  clearTargets() {
+    this.selectedTargets = [];
+    this.report();
+  }
+  engageSelected() {
+    if (this.input.paused || this.target || this.rewardPending || !this.selectedTargets.length)
+      return;
     if (!this.companion) {
       this.onNeedPet?.();
       return;
     }
-    const wild = this.world.wildlife.find((a) => a.id === id && !this.removed.has(a.id));
-    if (!wild || Math.hypot(wild.x - this.player.x, wild.y - this.player.y) > 18) return;
-    this.target = wild;
+    this.target = this.selectedTargets[0];
     this.clearInput();
     this.report();
   }
@@ -198,7 +233,10 @@ export class OpenWorldEngine {
     this.report();
   }
   battleAction(
-    action: { type: 'mode'; manual: boolean } | { type: 'command'; command: ManualBattleCommand },
+    action:
+      | { type: 'control'; fighterId: string }
+      | { type: 'mode'; manual: boolean }
+      | { type: 'command'; command: ManualBattleCommand },
   ) {
     if (
       !this.encounter ||
@@ -216,13 +254,14 @@ export class OpenWorldEngine {
     this.arenaLayer?.destroy();
     this.arenaLayer = null;
     this.arenaError = '';
-    if (remove && this.target) this.removed.add(this.target.id);
-    if (pet) this.companion = pet;
+    if (remove && this.target) for (const wild of this.selectedTargets) this.removed.add(wild.id);
+    if (pet) this.updatePets([pet]);
+    this.selectedTargets = [];
     this.target = null;
     this.encounter = null;
     this.ticket = null;
     this.starting = false;
-    this.companionMotion = this.companion ? createMotion(this.world, this.player) : null;
+    this.resetFollowers();
     this.report();
   }
   private combatPoint(x: number, depth: number): Point {
@@ -242,51 +281,58 @@ export class OpenWorldEngine {
       }
       if (this.encounter.state.phase === 'finished' && !this.finishedReported) {
         this.finishedReported = true;
-        const wild = this.encounter.state.fighters[1];
+        const wild = this.encounter.state.fighters.find(
+          (f) => f.team === 1 && f.hp > 0 && f.hp < fighterDefinition(f).hp * 0.1,
+        );
         this.onBattleFinished?.(
           this.ticket!,
           this.actions,
           this.encounter.state.tick,
-          this.encounter.state.result?.winner === 0 &&
-            wild.hp > 0 &&
-            wild.hp < fighterDefinition(wild).hp * 0.1,
+          this.encounter.state.result?.winner === 0 && Boolean(wild),
         );
       }
       return;
     }
-    const destination = this.target ?? this.player;
-    const position = this.companionMotion.position;
-    const distance = Math.hypot(destination.x - position.x, destination.y - position.y);
-    if (this.target && distance <= 2.5 && !this.starting) {
-      this.starting = true;
-      this.onEngage?.(this.target);
+    let index = 0;
+    for (const follower of this.followers.values()) {
+      const angle = index++ * 2.4;
+      const destination = this.target ?? {
+        x: this.player.x + Math.cos(angle) * 2,
+        y: this.player.y + Math.sin(angle) * 2,
+      };
+      const position = follower.motion.position;
+      const distance = Math.hypot(destination.x - position.x, destination.y - position.y);
+      if (this.target && distance <= 2.5 && !this.starting) {
+        this.starting = true;
+        this.onEngage?.(this.target);
+      }
+      if (this.starting) return;
+      follower.repath -= dt;
+      if (follower.repath <= 0) {
+        follower.path = distance > 1.3 ? findPath(this.world, position, destination) : [];
+        follower.repath = 0.5;
+      }
+      while (
+        follower.path.length &&
+        Math.hypot(follower.path[0].x - position.x, follower.path[0].y - position.y) < 0.4
+      )
+        follower.path.shift();
+      const waypoint = follower.path[0] ?? destination;
+      stepMotion(
+        this.world,
+        follower.motion,
+        {
+          x: distance > 1.3 ? waypoint.x - position.x : 0,
+          y: distance > 1.3 ? waypoint.y - position.y : 0,
+          sprint: true,
+          climb: true,
+          jump: follower.motion.action === 'blocked',
+        },
+        dt,
+      );
     }
-    if (this.starting) return;
-    // The companion uses the same terrain, gravity and climbing constraints as the trainer.
-    this.companionRepath -= dt;
-    if (this.companionRepath <= 0) {
-      this.companionPath = distance > 2 ? findPath(this.world, position, destination) : [];
-      this.companionRepath = 0.5;
-    }
-    while (
-      this.companionPath.length &&
-      Math.hypot(this.companionPath[0].x - position.x, this.companionPath[0].y - position.y) < 0.4
-    )
-      this.companionPath.shift();
-    const waypoint = this.companionPath[0] ?? destination;
-    stepMotion(
-      this.world,
-      this.companionMotion,
-      {
-        x: distance > 1.3 ? waypoint.x - position.x : 0,
-        y: distance > 1.3 ? waypoint.y - position.y : 0,
-        sprint: true,
-        climb: true,
-        jump: this.companionMotion.action === 'blocked',
-      },
-      dt,
-    );
   }
+
   private propAtlas: HTMLImageElement | null = null;
   private terrainAtlas: HTMLImageElement | null = null;
   private cliffAtlas: HTMLImageElement | null = null;
@@ -350,7 +396,11 @@ export class OpenWorldEngine {
     window.addEventListener('blur', this.clearInput);
     document.addEventListener('visibilitychange', this.visibility);
     window.addEventListener('pagehide', this.save);
-    surface.addEventListener('pointerdown', this.tap);
+    surface.addEventListener('pointerdown', this.pointerDown);
+    surface.addEventListener('pointermove', this.pointerMove);
+    surface.addEventListener('pointerup', this.pointerUp);
+    surface.addEventListener('pointercancel', this.cancelDrag);
+    surface.addEventListener('lostpointercapture', this.cancelDrag);
     this.frame = requestAnimationFrame(this.tick);
   }
   private resize = () => {
@@ -408,6 +458,7 @@ export class OpenWorldEngine {
     this.keys.delete(e.key.toLowerCase());
   };
   private clearInput = () => {
+    this.cancelDrag();
     this.keys.clear();
     this.input.x = 0;
     this.input.y = 0;
@@ -423,6 +474,54 @@ export class OpenWorldEngine {
       cancelAnimationFrame(this.frame);
       this.last = 0;
     } else if (!this.disposed) this.frame = requestAnimationFrame(this.tick);
+  };
+  private pointerPoint(event: PointerEvent): Point {
+    const r = this.surface.getBoundingClientRect();
+    return {
+      x: ((event.clientX - r.left) * this.viewportWidth) / r.width,
+      y: ((event.clientY - r.top) * this.viewportHeight) / r.height,
+    };
+  }
+  private cancelDrag = () => {
+    this.drag = null;
+  };
+  private pointerDown = (event: PointerEvent) => {
+    if (this.input.paused || this.target || event.button !== 0 || this.rewardPending) return;
+    this.surface.setPointerCapture(event.pointerId);
+    const point = this.pointerPoint(event);
+    this.drag = { id: event.pointerId, start: point, end: point };
+  };
+  private pointerMove = (event: PointerEvent) => {
+    if (this.drag?.id === event.pointerId) this.drag.end = this.pointerPoint(event);
+  };
+  private pointerUp = (event: PointerEvent) => {
+    const drag = this.drag;
+    if (!drag || drag.id !== event.pointerId) return;
+    drag.end = this.pointerPoint(event);
+    this.drag = null;
+    if (this.surface.hasPointerCapture(event.pointerId))
+      this.surface.releasePointerCapture(event.pointerId);
+    if (this.input.paused || this.target || this.rewardPending) return;
+    if (Math.hypot(drag.end.x - drag.start.x, drag.end.y - drag.start.y) < 4) {
+      this.tap(event);
+      return;
+    }
+    const selected = this.world.wildlife.filter((actor) => {
+      if (this.removed.has(actor.id)) return false;
+      const p = project(actor.x, actor.y, tileAt(this.world, actor.x, actor.y)?.level ?? 0);
+      const x = p.x - this.camera.x + this.viewportWidth / 2;
+      const y = p.y - 13 - this.camera.y + this.viewportHeight / 2;
+      return (
+        x >= Math.min(drag.start.x, drag.end.x) &&
+        x <= Math.max(drag.start.x, drag.end.x) &&
+        y >= Math.min(drag.start.y, drag.end.y) &&
+        y <= Math.max(drag.start.y, drag.end.y)
+      );
+    });
+    this.selectedTargets = event.shiftKey
+      ? [...new Map([...this.selectedTargets, ...selected].map((a) => [a.id, a])).values()]
+      : selected;
+    this.report();
   };
   private tap = (event: PointerEvent) => {
     if (this.input.paused || event.button !== 0) return;
@@ -1042,7 +1141,11 @@ export class OpenWorldEngine {
         }
       }
     for (const actor of this.world.wildlife) {
-      if (this.removed.has(actor.id) || (this.encounter && actor.id === this.target?.id)) continue;
+      if (
+        this.removed.has(actor.id) ||
+        (this.encounter && this.selectedTargets.some((a) => a.id === actor.id))
+      )
+        continue;
       if (Math.abs(actor.x - this.player.x) > 27 || Math.abs(actor.y - this.player.y) > 27)
         continue;
       const t = tileAt(this.world, actor.x, actor.y)!;
@@ -1050,17 +1153,30 @@ export class OpenWorldEngine {
         x = p.x - left,
         y = p.y - top;
       if (x < -32 || x > w + 32 || y < -32 || y > h + 32) continue;
-      objects.push({ depth: actor.x + actor.y, draw: () => this.drawPokemon(actor, x, y) });
+      objects.push({
+        depth: actor.x + actor.y,
+        draw: () => {
+          if (this.selectedTargets.some((a) => a.id === actor.id)) {
+            c.strokeStyle = '#ffcc66';
+            c.lineWidth = 1.5;
+            c.beginPath();
+            c.ellipse(x, y, 13, 5, 0, 0, Math.PI * 2);
+            c.stroke();
+          }
+          this.drawPokemon(actor, x, y);
+        },
+      });
     }
-    if (!this.encounter && this.companion && this.companionMotion) {
-      const pos = this.companionMotion.position;
-      const p = project(pos.x, pos.y, this.companionMotion.z);
+    for (const pet of this.encounter ? [] : this.companions) {
+      const motion = this.followers.get(pet.id)!.motion;
+      const pos = motion.position;
+      const p = project(pos.x, pos.y, motion.z);
       const actor = {
         ...pos,
         id: -1,
-        species: this.companion.species,
-        level: this.companion.level,
-        quality: this.companion.quality,
+        species: pet.species,
+        level: pet.level,
+        quality: pet.quality,
         home: this.player,
         group: -1,
         leader: -1,
@@ -1139,6 +1255,14 @@ export class OpenWorldEngine {
         c.fillRect(Math.round(px), Math.round(py), i % 3 === 0 ? 2 : 1, 1);
       }
     }
+    if (this.drag) {
+      const { start, end } = this.drag;
+      c.fillStyle = '#62d9ff30';
+      c.strokeStyle = '#8ce8ff';
+      c.lineWidth = 1;
+      c.fillRect(start.x, start.y, end.x - start.x, end.y - start.y);
+      c.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
+    }
   }
   requestJump() {
     if (this.input.paused || this.disposed) return;
@@ -1146,13 +1270,14 @@ export class OpenWorldEngine {
     this.path = [];
   }
   private move(dt: number) {
+    if (this.drag) return;
     if (this.target) {
       this.moving = false;
       const fighters = this.encounter?.state.fighters;
       const focus = fighters
         ? this.combatPoint(
-            (fighters[0].x + fighters[1].x) / 2,
-            (fighters[0].depth + fighters[1].depth) / 2,
+            fighters.reduce((sum, f) => sum + f.x, 0) / fighters.length,
+            fighters.reduce((sum, f) => sum + f.depth, 0) / fighters.length,
           )
         : this.target;
       const point = project(
@@ -1255,6 +1380,8 @@ export class OpenWorldEngine {
       visited: BIOMES.filter((b) => this.visited.has(b)),
       nearby: this.nearby,
       companion: this.companion,
+      companions: [...this.companions],
+      selectedTargets: this.selectedTargets.map((a) => ({ ...a })),
       target: this.target ? { ...this.target } : null,
       combatVisualError: this.arenaError || this.arenaLayer?.error || '',
       combatVisualReady: this.arenaLayer?.ready ?? false,
@@ -1334,9 +1461,10 @@ export class OpenWorldEngine {
     if (this.target) return;
     if (!traversable(this.world, destination.x, destination.y)) return;
     this.clearInput();
+    this.selectedTargets = [];
     this.motion = createMotion(this.world, destination);
     this.player = this.motion.position;
-    this.companionMotion = this.companion ? createMotion(this.world, this.player) : null;
+    this.resetFollowers();
     this.path = [];
     this.camera = project(this.player.x, this.player.y, this.motion.z);
     this.lastMini = '';
@@ -1372,7 +1500,11 @@ export class OpenWorldEngine {
     window.removeEventListener('blur', this.clearInput);
     window.removeEventListener('pagehide', this.save);
     document.removeEventListener('visibilitychange', this.visibility);
-    this.surface.removeEventListener('pointerdown', this.tap);
+    this.surface.removeEventListener('pointerdown', this.pointerDown);
+    this.surface.removeEventListener('pointermove', this.pointerMove);
+    this.surface.removeEventListener('pointerup', this.pointerUp);
+    this.surface.removeEventListener('pointercancel', this.cancelDrag);
+    this.surface.removeEventListener('lostpointercapture', this.cancelDrag);
     this.chunks.clear();
     this.decorations.clear();
     this.sprites.clear();

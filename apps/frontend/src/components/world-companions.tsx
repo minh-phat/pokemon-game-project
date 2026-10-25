@@ -57,6 +57,7 @@ export function WorldCompanions({
   const { t } = useLanguage();
   const user = useGame((s) => s.user);
   const [open, setOpen] = useState(false);
+  const [controlledId, setControlledId] = useState('0-0');
   const [pets, setPets] = useState<OwnedPet[]>([]);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -102,11 +103,13 @@ export function WorldCompanions({
       if (version !== generation.current) return;
       collectionRevision.current++;
       setReward(data);
+      engine?.updatePets(data.pets ?? [data.pet]);
       setPets((current) => {
-        const updated = current.map((p) => (p.id === data.pet.id ? data.pet : p));
-        return data.captured && !updated.some((p) => p.id === data.captured!.id)
-          ? [data.captured, ...updated]
-          : updated;
+        const updates = [
+          ...(data.pets ?? [data.pet]),
+          ...(data.capturedPets ?? (data.captured ? [data.captured] : [])),
+        ];
+        return [...new Map([...current, ...updates].map((p) => [p.id, p])).values()];
       });
     } catch (e) {
       if (version === generation.current) setError((e as Error).message);
@@ -164,9 +167,9 @@ export function WorldCompanions({
       setError('');
       try {
         const ticket = await request<WorldEncounterTicket>('world/start', {
-          petId: engine.companion.id,
+          petIds: engine.companions.map((p) => p.id),
           seed: engine.world.seed,
-          wildId: wild.id,
+          wildIds: engine.selectedTargets.map((p) => p.id),
         });
         if (version === generation.current) engine.beginEncounter(ticket);
       } catch (e) {
@@ -207,8 +210,10 @@ export function WorldCompanions({
     );
   }, [engine, pets, user?.id]);
   const combat = status?.combat;
-  const fighter = combat?.fighters[0];
-  const wildFighter = combat?.fighters[1];
+  const allies = combat?.fighters.filter((f) => f.team === 0) ?? [];
+  const enemies = combat?.fighters.filter((f) => f.team === 1) ?? [];
+  const fighter = allies.find((f) => f.id === controlledId) ?? allies[0];
+  const wildFighter = enemies[0];
   const manual = combat?.manualTeams[0] ?? false;
   const companion = reward?.pet ?? status?.companion;
   const target = status?.target ?? pending?.ticket.wild;
@@ -234,9 +239,32 @@ export function WorldCompanions({
       >
         <PawPrint size={17} />{' '}
         {companion
-          ? `${POKEMON[companion.species].name} · Lv.${companion.level}`
+          ? t(
+              `Đội ra trận · ${status?.companions.length ?? 0} thú`,
+              `Deployed · ${status?.companions.length ?? 0} pets`,
+            )
           : t('Triệu hồi Pets', 'Summon Pets')}
       </button>
+      {!target && Boolean(status?.selectedTargets.length) && (
+        <aside className="world-combat" aria-label={t('Mục tiêu đã chọn', 'Selected targets')}>
+          <strong>
+            {t(
+              `Đã chọn ${status!.selectedTargets.length} quái`,
+              `${status!.selectedTargets.length} targets selected`,
+            )}
+          </strong>
+          <p>
+            {t(
+              'Bấm quái để chọn/bỏ chọn. Giữ Shift và kéo để chọn thêm.',
+              'Click to toggle targets. Shift-drag to add more.',
+            )}
+          </p>
+          <button onClick={() => engine?.engageSelected()}>{t('Ra trận', 'Fight')}</button>
+          <button onClick={() => engine?.clearTargets()}>
+            {t('Bỏ chọn tất cả', 'Clear selection')}
+          </button>
+        </aside>
+      )}
       {(target || error || pending) && (
         <aside
           className="world-combat"
@@ -246,6 +274,33 @@ export function WorldCompanions({
             <small>{t('Đang tải hiệu ứng chiến đấu…', 'Loading battle effects…')}</small>
           )}
           {status?.combatVisualError && <p role="alert">{status.combatVisualError}</p>}
+          {combat && (allies.length > 1 || enemies.length > 1) && (
+            <div className="world-rosters">
+              <strong>
+                {t(
+                  `Đội bạn: ${allies.length} · Quái: ${enemies.length}`,
+                  `Your team: ${allies.length} · Wild: ${enemies.length}`,
+                )}
+              </strong>
+              {allies.map((ally) => (
+                <button
+                  key={ally.id}
+                  aria-pressed={fighter?.id === ally.id}
+                  onClick={() => {
+                    setControlledId(ally.id);
+                    engine?.battleAction({ type: 'control', fighterId: ally.id });
+                  }}
+                >
+                  {POKEMON[ally.species].name} · {Math.ceil(ally.hp)} HP
+                </button>
+              ))}
+              {enemies.map((enemy) => (
+                <small key={enemy.id}>
+                  {POKEMON[enemy.species].name} · {Math.ceil(enemy.hp)} HP
+                </small>
+              ))}
+            </div>
+          )}
           {target && (
             <>
               <strong>
@@ -320,7 +375,10 @@ export function WorldCompanions({
                 </button>
                 <button
                   aria-pressed={manual}
-                  onClick={() => engine?.battleAction({ type: 'mode', manual: true })}
+                  onClick={() => {
+                    engine?.battleAction({ type: 'mode', manual: true });
+                    if (fighter) engine?.battleAction({ type: 'control', fighterId: fighter.id });
+                  }}
                 >
                   {t('Tự điều khiển', 'Manual')}
                 </button>
@@ -405,7 +463,8 @@ export function WorldCompanions({
               {reward ? (
                 <>
                   <p>
-                    +{reward.experience} EXP · {t('Cấp', 'Level')} {reward.pet.level}
+                    +{reward.experience} EXP / {t('thú', 'pet')} · {t('Cấp', 'Level')}{' '}
+                    {reward.pet.level}
                     {reward.pet.level > pending.ticket.pet.level
                       ? ` ↑ +${reward.pet.level - pending.ticket.pet.level}`
                       : ''}
@@ -425,7 +484,10 @@ export function WorldCompanions({
                   ) : (
                     pending.capturable && (
                       <button disabled={busy} onClick={() => void settle(pending, true)}>
-                        {t('Lập khế ước · dưới 10% HP', 'Form contract · below 10% HP')}
+                        {t(
+                          'Lập khế ước với các quái dưới 10% HP',
+                          'Capture wild Pokémon below 10% HP',
+                        )}
                       </button>
                     )
                   )}
@@ -479,10 +541,10 @@ export function WorldCompanions({
         open={open}
         onOpenChange={toggle}
         className="world-dialog"
-        title={t('Triệu hồi pet đồng hành', 'Summon a companion')}
+        title={t('Chọn đội thú ra trận', 'Choose your companions')}
         description={t(
-          'Chọn pet sở hữu, sau đó bấm vào thú hoang trên bản đồ để chiến đấu.',
-          'Choose an owned pet, then select a wild Pokémon on the map to battle.',
+          'Chọn bao nhiêu thú tùy ý. Kéo chuột trên bản đồ để chọn quái, rồi bấm Ra trận.',
+          'Choose any number of pets. Drag a box on the map to select enemies, then press Fight.',
         )}
       >
         {!user ? (
@@ -514,14 +576,30 @@ export function WorldCompanions({
                 )}
               </p>
             )}
+            <div className="world-combat-actions">
+              <button
+                disabled={loading || !pets.length}
+                onClick={() => {
+                  for (const pet of pets)
+                    if (!engine?.companions.some((p) => p.id === pet.id)) engine?.summon(pet);
+                }}
+              >
+                {t('Chọn tất cả', 'Deploy all')}
+              </button>
+              <button onClick={() => toggle(false)}>
+                {t(
+                  `Xong · ${status?.companions.length ?? 0} thú`,
+                  `Done · ${status?.companions.length ?? 0} pets`,
+                )}
+              </button>
+            </div>
             <div className="world-pet-list">
               {pets.map((pet) => (
                 <button
                   key={pet.id}
-                  aria-pressed={status?.companion?.id === pet.id}
+                  aria-pressed={status?.companions.some((p) => p.id === pet.id)}
                   onClick={() => {
                     engine?.summon(pet);
-                    toggle(false);
                   }}
                 >
                   <img src={ASSETS.portraits[pet.species]} alt="" />
@@ -548,7 +626,7 @@ export function WorldCompanions({
                     toggle(false);
                   }}
                 >
-                  {t('Thu hồi pet', 'Recall pet')}
+                  {t('Thu hồi tất cả', 'Recall all')}
                 </button>
               )}
             </div>

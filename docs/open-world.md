@@ -13,24 +13,24 @@ Vào **Chơi Ngay → Thế giới mở**. Đây là chế độ khám phá chơ
 
 ## Pets, chiến đấu và khế ước
 
-Đăng nhập, mở **Triệu hồi Pets**, chọn một cá thể trong bộ sưu tập. Pet xuất hiện trên bản đồ và đi theo bạn; có thể thu hồi hoặc đổi pet khi ngoài trận. Nếu chưa có pet, dùng **Triệu Hồi** ở trang chủ để nhận thú đầu tiên. Khách vẫn khám phá và ghi nhật ký như trước.
+Đăng nhập, mở **Triệu hồi Pets**, chọn nhiều thú tùy ý hoặc **Chọn tất cả**, rồi bấm **Xong**. Các thú cùng xuất hiện trên bản đồ và đi theo bạn. Bấm lại một thú để thu hồi riêng hoặc chọn **Thu hồi tất cả** khi ngoài trận. Nếu chưa có pet, dùng **Triệu Hồi** ở trang chủ để nhận thú đầu tiên. Khách vẫn khám phá và ghi nhật ký như trước.
 
 Thú hoang có nhãn **Lv. / phẩm chất C–SS**. Level và phẩm chất được sinh ổn định theo mã thế giới và mã cá thể; càng xa trại, cấp độ thường càng cao (1–60). Ba Pikachu tại trại luôn cấp 1/C. Các phẩm chất ngoài trại có tỉ lệ C 60%, B 25%, A 11%, S 3,8%, SS 0,2%.
 
-Bấm vào thú hoang ở gần (tối đa 18 ô), hoặc **Chọn mục tiêu** trong thẻ quan sát. Pet sẽ chạy tới; khi đến gần, trận đấu diễn ra ngay trên bản đồ. Trong trận, người chơi đứng quan sát và không dịch chuyển sang vùng khác. Có thể **Rút lui** nếu không muốn tiếp tục; rút lui không có EXP.
+Bấm từng thú hoang để chọn/bỏ chọn, hoặc kéo chuột tạo khung chữ nhật để chọn quái trong vùng. Giữ **Shift** khi kéo để thêm mục tiêu. Có thể **Bỏ chọn tất cả**; kéo chọn không làm nhân vật di chuyển. Bấm **Ra trận** để cả đội cùng chiến đấu với các quái đã chọn. Luật thế giới mở không giới hạn số lượng thú và mục tiêu. Trong trận, người chơi đứng quan sát và không dịch chuyển sang vùng khác. Có thể **Rút lui** nếu không muốn tiếp tục; rút lui không có EXP.
 
 - **Auto**: cả pet và thú hoang dùng AI mức khó, tự chọn kỹ năng theo tầm đánh, năng lượng và hồi chiêu; né ngang khi đối thủ chuẩn bị bắn, nhảy qua đạn thấp, lướt khỏi tia/vùng sát thương và tránh lướt vào biên đấu. Các phản ứng phụ thuộc tình huống và thể lực.
-- **Tự điều khiển**: pet tự tìm vị trí và đánh thường; người chơi chọn kỹ năng, Đỡ hoặc Né. Nút kỹ năng hiển thị năng lượng và hồi chiêu.
+- **Tự điều khiển**: bấm thú trong danh sách đội để điều khiển thú đó; các thú khác tiếp tục Auto. Pet tự tìm vị trí và đánh thường; người chơi chọn kỹ năng, Đỡ hoặc Né. Nút kỹ năng hiển thị năng lượng và hồi chiêu.
 - Trận dùng cùng `BattleEngine` và AI với đấu máy/PvP, áp dụng level/phẩm chất riêng cho từng cá thể, kể cả hai thú cùng loài. Sprite, đòn đánh, tia năng lượng, vùng sát thương và số sát thương được vẽ trên bản đồ.
 - Trận được vẽ bằng chính `ArenaScene` của đấu máy/PvP trên lớp Canvas trong suốt: dùng chung `SkillVfx`, `DashWind`, hoạt ảnh từng loài, tụ lực, đạn và vệt đạn, tia, nổ khi trúng, trạng thái, chiêu trói và âm thanh. Không còn dùng chấm đạn/đường tia thay cho hiệu ứng thật. Nhãn level/phẩm chất và thẻ hành động vẫn hiển thị trong thế giới mở.
 - Lớp chiến đấu giữ nguyên trục di chuyển và tỉ lệ của đấu trường, đặt trên mặt phẳng ở cao độ mục tiêu; bản đồ vẫn hiện phía dưới. Thế giới mở giữ quyền cập nhật mô phỏng 60 Hz; lớp vẽ chỉ đọc snapshot riêng, không cập nhật thêm một lần và không dùng chung trận đang lưu trong `battleFeed`. Tải tài nguyên xong mới bắt đầu mô phỏng; lỗi tải có thông báo và người chơi có thể rút lui để thử lại. Tạm dừng dừng hoạt ảnh/âm thanh; rút lui hoặc rời bản đồ giải phóng lớp vẽ.
-- Mã trận mới dùng `combatVersion: 2`; trận cũ vẫn phát lại với AI cũ để giữ nguyên kết quả khi thử lưu thưởng.
-- Khi thú hoang còn **dưới 10% HP**, trận dừng và cho chọn **Lập khế ước** hoặc **Thả đi**. Đòn vượt quá lượng máu còn lại chừa 1 HP. Đúng 10% chưa đủ điều kiện. Khế ước thành công chắc chắn, giữ nguyên loài, cấp và phẩm chất; mỗi cá thể trong cùng mã thế giới chỉ lập khế ước một lần với mỗi tài khoản.
+- Mã trận mới dùng `combatVersion: 4`; trận cũ vẫn phát lại với AI cũ để giữ nguyên kết quả khi thử lưu thưởng.
+- Khi thú hoang còn **dưới 10% HP**, nó ngừng tham chiến. Khi tất cả quái chịu thua, trận dừng và cho chọn **Lập khế ước** với các quái đủ điều kiện hoặc **Thả đi**. Đòn vượt quá lượng máu còn lại chừa 1 HP. Đúng 10% chưa đủ điều kiện. Khế ước thành công chắc chắn, giữ nguyên loài, cấp và phẩm chất; mỗi cá thể trong cùng mã thế giới chỉ lập khế ước một lần với mỗi tài khoản.
 - Trận tối đa 120 giây. Kết thúc do hết giờ vẫn tính EXP theo kết quả, nhưng chỉ được lập khế ước nếu thực sự thắng và thú hoang dưới 10% HP. Pet được hồi phục khi bắt đầu trận tiếp theo.
 
 ## Kinh nghiệm
 
-Chỉ pet sở hữu đã tham chiến nhận EXP. EXP thắng trận là `round((35 + 15 × cấp thú hoang) × hệ số phẩm chất)`; thua/hòa nhận 25% (làm tròn). Hệ số C/B/A/S/SS lần lượt là 1 / 1,1 / 1,25 / 1,5 / 2. Ví dụ thắng thú cấp 1/C nhận 50 EXP.
+Mỗi pet sở hữu đã tham chiến nhận tổng EXP của các mục tiêu; máy chủ xác minh và chỉ cộng một lần cho mỗi pet. EXP thắng mỗi mục tiêu là `round((35 + 15 × cấp thú hoang) × hệ số phẩm chất)`; thua/hòa nhận 25% (làm tròn). Hệ số C/B/A/S/SS lần lượt là 1 / 1,1 / 1,25 / 1,5 / 2. Ví dụ thắng thú cấp 1/C nhận 50 EXP.
 
 EXP cần để lên cấp tiếp theo từ cấp `L` là `100 + 25 × (L − 1) + 5 × (L − 1)²`: cấp 1→2 cần 100, 2→3 cần 130, 3→4 cần 170, 10→11 cần 730 EXP. EXP dư được chuyển sang cấp kế tiếp, hỗ trợ lên nhiều cấp và giới hạn cấp 100. Chỉ số mới áp dụng từ trận tiếp theo. Thẻ kết quả và chi tiết Pets hiển thị EXP hiện tại.
 
@@ -101,10 +101,10 @@ Nếu chỉ có dữ liệu v1, game giữ mã thế giới và nhật ký, đ�
 
 ## AI chiến đấu theo địa hình
 
-Trận mới dùng `combatVersion: 3`. Máy chủ lấy vùng 33 × 33 ô quanh thú hoang từ chính dữ liệu thế giới và lưu độ cao, nước, dung nham, gốc cây/đá trong vé trận đấu. Client và replay máy chủ dùng cùng vùng này; không làm phẳng nền khi bước vào giao chiến. Phép chiếu giữ 32 đơn vị chiến đấu cho mỗi cấp độ cao của thế giới.
+Trận mới dùng `combatVersion: 4`, hỗ trợ hai đội khác số lượng. Máy chủ lấy vùng 33 × 33 ô quanh mục tiêu đầu tiên từ chính dữ liệu thế giới và lưu độ cao, nước, dung nham, gốc cây/đá trong vé trận đấu. Client và replay máy chủ dùng cùng vùng này; không làm phẳng nền khi bước vào giao chiến. Phép chiếu giữ 32 đơn vị chiến đấu cho mỗi cấp độ cao của thế giới.
 
 AI và nhân vật chiến đấu dùng chung va chạm theo độ cao: đi lên/xuống bậc một cấp, nhảy lên bậc trong tầm sức bật của loài, leo bậc cao tối đa tám cấp khi còn thể lực, rơi và tiếp đất ở nền thực tế. Leo có thời gian, tiêu hao thể lực và bị ngắt khi trúng đòn/choáng. Nước làm chậm di chuyển; không tự leo từ nước. Dung nham, gốc cây và những vách không thể vượt buộc AI tìm đường khác. Việc giao chiến vẫn giới hạn trong vùng trận đấu quanh mục tiêu.
 
-Tìm đường A* giới hạn 2.400 nút và lưu lộ trình ngắn hạn. AI cân nhắc chỗ khuất đạn, đường bắn thông thoáng và vị trí cao, rồi quay lại giao chiến sau khi tránh né. Các sàn rừng, núi lửa và hồ có bục thấp/cao hiển thị được; thành cổ dùng chiều cao của đá, cột và tường có sẵn, giữ các tường biên không thể leo. Đạn, tia, bóng và vùng sát thương sử dụng cao độ chiến đấu.
+Tìm đường A\* giới hạn 2.400 nút và lưu lộ trình ngắn hạn. AI cân nhắc chỗ khuất đạn, đường bắn thông thoáng và vị trí cao, rồi quay lại giao chiến sau khi tránh né. Các sàn rừng, núi lửa và hồ có bục thấp/cao hiển thị được; thành cổ dùng chiều cao của đá, cột và tường có sẵn, giữ các tường biên không thể leo. Đạn, tia, bóng và vùng sát thương sử dụng cao độ chiến đấu.
 
 `tests/terrain-traversal.test.ts` kiểm tra nhảy, leo tự động, xuống bậc, ngắt leo, vách vượt tầm, che chắn, va chạm ở bước di chuyển ngắn, cao độ âm, đối chiếu phép chiếu với thế giới và replay sau khi tuần tự hóa dữ liệu địa hình.

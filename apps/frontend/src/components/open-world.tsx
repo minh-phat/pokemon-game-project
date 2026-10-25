@@ -405,7 +405,10 @@ export default function OpenWorld() {
           <span>
             <kbd>Shift</kbd> {t('Chạy', 'Run')}
             <i />
-            {t('Chạm đất để đi tới', 'Tap ground to walk')}
+            {t(
+              'Bấm đất để đi · Kéo chuột để chọn quái',
+              'Click ground to walk · Drag to select enemies',
+            )}
           </span>
           <span>
             <kbd>Space</kbd> {t('Nhảy', 'Jump')} <kbd>E</kbd>{' '}

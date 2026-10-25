@@ -94,7 +94,15 @@ export class BattleEngine {
   ) {
     if (config.players.length !== 2 || config.players[0] === config.players[1])
       throw new Error('Two distinct players are required');
-    this.config = { ...config, rules: RulesSchema.parse(config.rules) };
+    const rules = RulesSchema.parse(
+      config.worldEncounter ? { ...config.rules, teamSize: 1, activeSize: 1 } : config.rules,
+    );
+    if (config.worldEncounter) {
+      if (!config.teams?.every((team) => team.length > 0)) throw new Error('Empty world roster');
+      rules.teamSize = rules.activeSize = Math.max(...config.teams.map((team) => team.length));
+      rules.duplicates = true;
+    }
+    this.config = { ...config, rules };
     this.rng = seededRandom(seed);
     this.state = this.emptyState();
     config.teams?.forEach((team, i) => this.submitTeamSelection(config.players[i], team));
@@ -120,7 +128,11 @@ export class BattleEngine {
   submitTeamSelection(playerId: string, team: SpeciesId[]) {
     if (this.state.phase !== 'selection') throw new Error('Selection is closed');
     if (!this.config.players.includes(playerId)) throw new Error('Unknown player');
-    this.selections.set(playerId, validateTeam(team, this.config.rules));
+    const selected = this.config.worldEncounter
+      ? team.map((species) => validateTeam([species], { ...this.config.rules, teamSize: 1 })[0])
+      : validateTeam(team, this.config.rules);
+    if (!selected.length) throw new Error('Empty world roster');
+    this.selections.set(playerId, selected);
   }
   startBattle() {
     if (this.state.phase !== 'selection') throw new Error('Battle already started');
@@ -324,7 +336,12 @@ export class BattleEngine {
     const subdued = this.state.fighters.find(
       (f) => f.team === this.config.captureTeam && f.hp < fighterDefinition(f).hp * 0.1,
     );
-    if (subdued && survivors[subdued.team === 0 ? 1 : 0] > 0)
+    if (
+      subdued &&
+      (!this.config.worldEncounter ||
+        rosters[subdued.team].every((f) => f.hp < fighterDefinition(f).hp * 0.1)) &&
+      survivors[subdued.team === 0 ? 1 : 0] > 0
+    )
       return { winner: subdued.team === 0 ? 1 : 0, reason: 'elimination', scores };
     if (survivors[0] === 0 || survivors[1] === 0)
       return {
@@ -1854,6 +1871,11 @@ export class BattleEngine {
   private faint(f: Fighter) {
     if (this.config.captureTeam === f.team && f.hp < fighterDefinition(f).hp * 0.1) {
       f.hp = Math.max(1, f.hp);
+      if (this.config.worldEncounter) {
+        f.active = false;
+        f.cast = null;
+        f.vx = f.vy = f.vDepth = 0;
+      }
       return;
     }
     if (f.hp <= 0 && f.state !== 'Fainted') {
@@ -1902,6 +1924,7 @@ export class BattleEngine {
     this.event('deploy', f, `${fighterDefinition(f).name} enters the arena`);
   }
   private deployReserves() {
+    if (this.config.worldEncounter) return;
     for (const team of [0, 1]) {
       let active = this.state.fighters.filter(
         (f) => f.team === team && f.hp > 0 && f.active,

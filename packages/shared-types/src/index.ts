@@ -352,6 +352,8 @@ export interface BattleEvent {
   depth?: number;
 }
 export interface BattleConfig {
+  /** Server-verified open-world rosters may have unequal, unrestricted sizes. */
+  worldEncounter?: boolean;
   arenaDefinition?: ArenaDefinition;
   progressions?: [PetProgression[], PetProgression[]];
   /** Stop a wild encounter below 10% HP, including otherwise lethal hits. */
@@ -525,14 +527,23 @@ export interface WorldWildPet extends PetProgression {
 }
 export interface WorldEncounterTicket {
   /** Missing on older tickets, whose deterministic replay keeps the original AI. */
-  combatVersion?: 2 | 3;
+  combatVersion?: 2 | 3 | 4;
   arenaDefinition?: ArenaDefinition;
   id: string;
   seed: number;
   pet: OwnedPet;
   wild: WorldWildPet;
+  pets?: OwnedPet[];
+  wilds?: WorldWildPet[];
 }
 export const WorldBattleActionSchema = z.discriminatedUnion('type', [
+  z
+    .object({
+      tick: z.number().int().min(0).max(7200),
+      type: z.literal('control'),
+      fighterId: z.string().min(1),
+    })
+    .strict(),
   z
     .object({
       tick: z.number().int().min(0).max(7200),
@@ -550,6 +561,8 @@ export const WorldBattleActionSchema = z.discriminatedUnion('type', [
 ]);
 export type WorldBattleAction = z.infer<typeof WorldBattleActionSchema>;
 export interface WorldBattleReward {
+  pets?: OwnedPet[];
+  capturedPets?: OwnedPet[];
   pet: OwnedPet;
   experience: number;
   captured: OwnedPet | null;

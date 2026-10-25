@@ -246,3 +246,50 @@ describe('server verified world rewards', () => {
     expect(records.get('pets')!.get('owned').experience).toBeUndefined();
   });
 });
+
+describe('open-world squads', () => {
+  it('deploys more than four pets against multiple targets and verifies every reward exactly once', async () => {
+    const { db, ownerId, records, pet } = database();
+    const petIds = Array.from({ length: 6 }, (_, i) => `squad-${i}`);
+    for (const id of petIds) await db.collection('pets').insertOne({ ...pet, _id: id } as any);
+    const world = createWorld(42);
+    const wilds = world.wildlife
+      .filter((w) => Math.hypot(w.home.x - world.spawn.x, w.home.y - world.spawn.y) < 1)
+      .slice(0, 2);
+    expect(wilds).toHaveLength(2);
+    const value = await startWorldBattle(db, ownerId, {
+      petIds: [...petIds, petIds[0]],
+      wildIds: wilds.map((w) => w.id),
+      seed: 42,
+    });
+    const engine = createWorldEncounter(value);
+    expect(engine.state.fighters.filter((f) => f.team === 0 && f.active)).toHaveLength(6);
+    expect(engine.state.fighters.filter((f) => f.team === 1 && f.active)).toHaveLength(2);
+    const enemies = engine.state.fighters.filter((f) => f.team === 1);
+    enemies[0].hp = 1;
+    expect(engine.determineWinner()).toBeNull();
+    const actions: WorldBattleAction[] = [
+      { tick: 0, type: 'mode', manual: true },
+      { tick: 0, type: 'control', fighterId: '0-5' },
+      { tick: 1, type: 'command', command: { type: 'guard', fighterId: '0-5', active: true } },
+      { tick: 2, type: 'mode', manual: false },
+    ];
+    const state = complete(value, actions);
+    expect(state.result?.winner).toBe(0);
+    expect(replayWorldEncounter(value, actions, state.tick)).toEqual(state);
+    records.get('worldEncounters')!.get(value.id).startedAt = new Date(Date.now() - 180000);
+    const body = { id: value.id, ticks: state.tick, actions, capture: true };
+    const reward = await finishWorldBattle(db, ownerId, body);
+    expect(reward.pets).toHaveLength(6);
+    expect(reward.capturedPets).toHaveLength(2);
+    expect(reward.pets!.every((p) => p.experience === reward.experience)).toBe(true);
+    expect(await finishWorldBattle(db, ownerId, body)).toEqual(reward);
+    await expect(
+      startWorldBattle(db, ownerId, {
+        petIds: [petIds[0], 'stolen'],
+        wildIds: [wilds[0].id],
+        seed: 42,
+      }),
+    ).rejects.toThrow('sở hữu');
+  });
+});

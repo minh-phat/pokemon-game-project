@@ -1175,3 +1175,13 @@ body:has(.fantasy-app) .dialog-content.play-mode-dialog {
     padding: 6px;
   }
 }
+
+.world-rosters {
+  display: grid;
+  gap: 5px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.world-rosters button[aria-pressed='true'] {
+  outline: 2px solid #96ffe1;
+}
