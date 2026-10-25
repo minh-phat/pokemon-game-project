@@ -2406,3 +2406,124 @@ body:has(.fantasy-app) .dialog-content.pets-dialog {
   display: table;
   margin: 6px auto 0;
 }
+
+.owned-pet {
+  color: #fff3dc;
+  cursor: pointer;
+  width: 100%;
+}
+.owned-pet:hover {
+  background: radial-gradient(circle at 50% 35%, #485f80, #15213a 75%);
+}
+.pet-level {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: #0b1528;
+  border: 1px solid #776443;
+  color: #ffe3a0;
+  font-size: 12px;
+  font-weight: 700;
+}
+.pet-card-hint {
+  display: block;
+  margin-top: 12px;
+  color: #b8c9e0;
+  font-size: 11px;
+}
+.pet-back {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 0;
+  color: #eed3a0;
+  background: transparent;
+  border: 0;
+}
+.pet-detail-hero {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin: 12px 0;
+}
+.pet-detail-hero > img {
+  width: 144px;
+  height: 144px;
+  object-fit: contain;
+}
+.pet-detail-hero h3 {
+  font-size: 24px;
+  margin: 0 0 8px;
+  color: #ffe3a0;
+}
+.pet-detail-hero p,
+.pet-description,
+.pet-passive p,
+.pet-detail-skills p {
+  color: #bdcbe0;
+  line-height: 1.6;
+  font-size: 13px;
+}
+.pet-detail-hero strong,
+.owned-pet-detail h4 {
+  color: #ffe3a0;
+}
+.owned-pet-detail h4 {
+  margin: 22px 0 12px;
+}
+.pet-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.pet-detail-stats > div {
+  background: #0b152880;
+  border: 1px solid #48566d;
+  border-radius: 8px;
+  padding: 12px;
+}
+.pet-detail-stats dt {
+  color: #bdcbe0;
+  font-size: 12px;
+}
+.pet-detail-stats dd {
+  margin: 6px 0 0;
+  color: #fff0c9;
+  font-weight: 800;
+}
+.pet-detail-skills {
+  display: grid;
+  gap: 10px;
+}
+.pet-detail-skills article,
+.pet-passive {
+  background: #0b152880;
+  border: 1px solid #5d5b53;
+  border-radius: 8px;
+  padding: 14px;
+}
+.pet-passive h4 {
+  margin-top: 0;
+}
+.pet-detail-skills .element-badge {
+  margin-left: 8px;
+}
+.pet-detail-skills small {
+  color: #d5bb8c;
+}
+@media (max-width: 480px) {
+  .pet-detail-hero {
+    gap: 12px;
+  }
+  .pet-detail-hero > img {
+    width: 90px;
+    height: 90px;
+  }
+  .pet-detail-hero h3 {
+    font-size: 20px;
+  }
+  .pet-detail-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

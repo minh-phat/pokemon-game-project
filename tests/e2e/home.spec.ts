@@ -286,12 +286,15 @@ test('every summon grants a quality pet, milestones are visible and collection s
   await page.route('**/auth/summon', (route) => {
     attempts++;
     const quality = attempts === 11 ? 'A' : 'C';
-    const pet = pets.find((pet) => pet.quality === quality);
-    if (pet) pet.count++;
-    else pets.push({ species: 'pikachu', quality, count: 1 });
-    return route.fulfill({
-      json: { ...collection(attempts, pets), received: { species: 'pikachu', quality } },
-    });
+    const pet: OwnedPet = {
+      id: `pet-${attempts}`,
+      species: 'pikachu',
+      quality,
+      level: 1,
+      acquiredAt: new Date().toISOString(),
+    };
+    pets.push(pet);
+    return route.fulfill({ json: { ...collection(attempts, pets), received: pet } });
   });
   await page.goto('/');
   await page.getByRole('button', { name: /Pets Khám phá/ }).click();
@@ -303,17 +306,28 @@ test('every summon grants a quality pet, milestones are visible and collection s
   );
   await dialog.getByRole('button', { name: 'Triệu hồi · 0 vàng' }).click();
   await expect(dialog.locator('.summon-result')).toContainText('Pikachu C');
+  await expect(dialog.locator('.summon-result')).toContainText('Cấp 1');
   await expect(dialog).toContainText('Bảo đảm lượt tới!');
   await expect(dialog.locator('.summon-quality-odds > div').first()).toContainText('0%');
   await dialog.getByRole('button', { name: 'Triệu hồi · 0 vàng' }).click();
   await expect(dialog.locator('.summon-result')).toContainText('Pikachu A');
   await dialog.getByRole('button', { name: 'Triệu hồi · 0 vàng' }).click();
   await expect(dialog.locator('.summon-result')).toContainText('Pikachu C');
+  await expect(dialog.locator('.summon-result')).toContainText('Cấp 1');
   await page.screenshot({ path: 'test-results/summon-quality-desktop.png' });
   await dialog.getByRole('button', { name: 'Pets (3)' }).click();
-  await expect(dialog.locator('.owned-pet')).toHaveCount(2);
-  await expect(dialog.locator('.pet-border-C')).toContainText('×2');
-  await expect(dialog.locator('.pet-border-A')).toContainText('×1');
+  await expect(dialog.locator('.owned-pet')).toHaveCount(3);
+  await expect(dialog.locator('.pet-border-C')).toHaveCount(2);
+  await expect(dialog.locator('.owned-pet-count')).toHaveCount(0);
+  await expect(dialog.locator('.pet-level')).toHaveText(['Cấp 1', 'Cấp 1', 'Cấp 1']);
+  await dialog.locator('.pet-border-A').click();
+  await expect(dialog.getByRole('region', { name: 'Thông tin pet' })).toBeVisible();
+  await expect(dialog.locator('.pet-detail-hero')).toContainText('Cấp 1');
+  await expect(dialog.locator('.pet-detail-hero')).toContainText('Phẩm chất A');
+  await expect(dialog.locator('.pet-detail-stats')).toContainText('Sinh lực');
+  await expect(dialog.locator('.pet-detail-skills article')).not.toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Về bộ sưu tập' }).click();
+  await expect(dialog.locator('.pet-border-A')).toBeFocused();
   for (const [width, height] of [
     [1440, 900],
     [390, 844],
@@ -332,12 +346,18 @@ test('every summon grants a quality pet, milestones are visible and collection s
         );
       }),
     ).toBe(true);
-    await page.screenshot({ path: `test-results/pets-quality-${width}.png` });
+    await page.screenshot({ path: `test-results/pets-individual-${width}.png` });
+    await dialog.locator('.pet-border-A').click();
+    await expect(dialog.locator('.pet-detail-hero')).toContainText('Cấp 1');
+    expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    await page.screenshot({ path: `test-results/pet-details-${width}.png` });
+    await dialog.getByRole('button', { name: 'Về bộ sưu tập' }).click();
   }
   await page.keyboard.press('Escape');
   await page.reload();
   await page.getByRole('button', { name: /Pets Khám phá/ }).click();
-  await expect(dialog.locator('.pet-border-C')).toContainText('×2');
+  await expect(dialog.locator('.pet-border-C')).toHaveCount(2);
+  await expect(dialog.locator('.owned-pet')).toHaveCount(3);
   await expect(dialog.locator('.pet-border-A')).toContainText('Phẩm chất A');
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Triệu Hồi', exact: true }).click();

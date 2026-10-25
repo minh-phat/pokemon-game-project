@@ -430,9 +430,11 @@ export const SUMMON_GUARANTEES = [
   { quality: 'SS', interval: 1001 },
 ] as const;
 export interface OwnedPet {
+  id: string;
   species: SpeciesId;
   quality: PetQuality;
-  count: number;
+  level: number;
+  acquiredAt: string;
 }
 export function summonQualityOdds(attempts: number): Record<PetQuality, number> {
   const progress = Math.min(1000, Math.max(0, attempts)) / 1000;
@@ -474,5 +476,5 @@ export interface PetCollection {
   cost: number;
 }
 export interface SummonResult extends PetCollection {
-  received: { species: SpeciesId; quality: PetQuality };
+  received: OwnedPet;
 }

@@ -1,18 +1,21 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { Sparkles, PawPrint } from 'lucide-react';
-import { POKEMON } from '@arena/game-data';
+import { Sparkles, PawPrint, ArrowLeft } from 'lucide-react';
+import { POKEMON, calculatePetStats, combatPower } from '@arena/game-data';
 import {
   speciesIds,
   PET_QUALITIES,
   type PetCollection,
+  type OwnedPet,
   type SummonResult,
 } from '@arena/shared-types';
-import { useLanguage } from '@/lib/i18n';
+import { useLanguage, useCopy } from '@/lib/i18n';
 import { Dialog } from './ui/dialog';
 import { Portrait, ElementBadge } from './common';
 
-async function requestCollection(summon = false): Promise<SummonResult> {
+async function requestCollection(summon: true): Promise<SummonResult>;
+async function requestCollection(summon?: false): Promise<PetCollection>;
+async function requestCollection(summon = false): Promise<PetCollection | SummonResult> {
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'}/auth/${summon ? 'summon' : 'pets'}`,
     {
@@ -30,6 +33,7 @@ async function requestCollection(summon = false): Promise<SummonResult> {
 export function PetsDialog({ view, onClose }: { view: 'pets' | 'summon'; onClose: () => void }) {
   const { t } = useLanguage();
   const [tab, setTab] = useState(view);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [collection, setCollection] = useState<PetCollection | null>(null);
   const [result, setResult] = useState<SummonResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -81,7 +85,8 @@ export function PetsDialog({ view, onClose }: { view: 'pets' | 'summon'; onClose
     }
   };
   const owned = collection?.pets ?? [];
-  const total = owned.reduce((sum, pet) => sum + pet.count, 0);
+  const total = owned.length;
+  const selectedPet = owned.find((pet) => pet.id === selectedId);
   const speciesCount = new Set(owned.map((pet) => pet.species)).size;
   return (
     <Dialog
@@ -101,11 +106,23 @@ export function PetsDialog({ view, onClose }: { view: 'pets' | 'summon'; onClose
       )}
     >
       <div className="pets-tabs">
-        <button aria-pressed={tab === 'summon'} onClick={() => setTab('summon')}>
+        <button
+          aria-pressed={tab === 'summon'}
+          onClick={() => {
+            setTab('summon');
+            setSelectedId(null);
+          }}
+        >
           <Sparkles size={18} />
           {t('Triệu Hồi', 'Summon')}
         </button>
-        <button aria-pressed={tab === 'pets'} onClick={() => setTab('pets')}>
+        <button
+          aria-pressed={tab === 'pets'}
+          onClick={() => {
+            setTab('pets');
+            setSelectedId(null);
+          }}
+        >
           <PawPrint size={18} />
           Pets{collection && ` (${total})`}
         </button>
@@ -151,6 +168,9 @@ export function PetsDialog({ view, onClose }: { view: 'pets' | 'summon'; onClose
                       {result.received.quality}
                     </span>
                   </h3>
+                  <p className="pet-level">
+                    {t('Cấp', 'Level')} {result.received.level}
+                  </p>
                   <p>{t('Linh thú đã vào Pets của bạn!', 'Your companion is now in Pets!')}</p>
                 </>
               ) : (
@@ -196,8 +216,8 @@ export function PetsDialog({ view, onClose }: { view: 'pets' | 'summon'; onClose
             </div>
             <p className="pets-note">
               {t(
-                'Mỗi lượt đều nhận 1 thú. Càng triệu hồi nhiều, cơ hội ra phẩm chất cao càng tăng (đạt tối đa sau 1.000 lượt). Bảo đảm lặp lại: mỗi 11 lượt ≥ A, 101 lượt ≥ S, 1.001 lượt SS. Ra phẩm chất cao sớm không đặt lại bộ đếm. Trùng mốc nhận bảo đảm cao nhất.',
-                'Every summon grants a companion. Higher-quality chances grow with total summons (capped after 1,000). Repeating guarantees: every 11 summons ≥ A, 101 ≥ S, 1,001 SS. Early lucky rolls do not reset counters. Overlapping milestones use the highest guarantee.',
+                'Mỗi lượt đều nhận 1 thú cấp 1. Càng triệu hồi nhiều, cơ hội ra phẩm chất cao càng tăng (đạt tối đa sau 1.000 lượt). Bảo đảm lặp lại: mỗi 11 lượt ≥ A, 101 lượt ≥ S, 1.001 lượt SS. Ra phẩm chất cao sớm không đặt lại bộ đếm. Trùng mốc nhận bảo đảm cao nhất.',
+                'Every summon grants a level 1 companion. Higher-quality chances grow with total summons (capped after 1,000). Repeating guarantees: every 11 summons ≥ A, 101 ≥ S, 1,001 SS. Early lucky rolls do not reset counters. Overlapping milestones use the highest guarantee.',
               )}
             </p>
             <button
@@ -220,18 +240,41 @@ export function PetsDialog({ view, onClose }: { view: 'pets' | 'summon'; onClose
                 {speciesCount}/{speciesIds.length} {t('loài', 'species')} · {total} pets
               </b>
             </div>
-            {owned.length ? (
+            {selectedPet ? (
+              <OwnedPetDetails
+                pet={selectedPet}
+                onBack={() => {
+                  setSelectedId(null);
+                  requestAnimationFrame(() =>
+                    document.getElementById(`pet-card-${selectedPet.id}`)?.focus(),
+                  );
+                }}
+              />
+            ) : owned.length ? (
               <div className="owned-pets-grid">
-                {owned.map(({ species: id, quality, count }) => (
-                  <article className={`owned-pet pet-border-${quality}`} key={`${id}-${quality}`}>
-                    <span className="owned-pet-count">×{count}</span>
-                    <Portrait id={id} />
-                    <h3>{POKEMON[id].name}</h3>
-                    <span className={`pet-quality quality-${quality}`}>
-                      {t('Phẩm chất', 'Quality')} {quality}
+                {owned.map((pet) => (
+                  <button
+                    type="button"
+                    id={`pet-card-${pet.id}`}
+                    className={`owned-pet pet-border-${pet.quality}`}
+                    key={pet.id}
+                    onClick={() => setSelectedId(pet.id)}
+                    aria-label={t(
+                      `Xem ${POKEMON[pet.species].name}, cấp ${pet.level}, phẩm chất ${pet.quality}`,
+                      `View ${POKEMON[pet.species].name}, level ${pet.level}, quality ${pet.quality}`,
+                    )}
+                  >
+                    <span className="pet-level">
+                      {t('Cấp', 'Level')} {pet.level}
                     </span>
-                    <ElementBadge element={POKEMON[id].element} />
-                  </article>
+                    <Portrait id={pet.species} />
+                    <h3>{POKEMON[pet.species].name}</h3>
+                    <span className={`pet-quality quality-${pet.quality}`}>
+                      {t('Phẩm chất', 'Quality')} {pet.quality}
+                    </span>
+                    <ElementBadge element={POKEMON[pet.species].element} />
+                    <span className="pet-card-hint">{t('Xem thông tin', 'View details')}</span>
+                  </button>
                 ))}
               </div>
             ) : (
@@ -246,7 +289,10 @@ export function PetsDialog({ view, onClose }: { view: 'pets' | 'summon'; onClose
                 </p>
                 <button
                   className="fantasy-frame fantasy-action gold"
-                  onClick={() => setTab('summon')}
+                  onClick={() => {
+                    setTab('summon');
+                    setSelectedId(null);
+                  }}
                 >
                   {t('Triệu hồi ngay', 'Start summoning')}
                 </button>
@@ -255,5 +301,90 @@ export function PetsDialog({ view, onClose }: { view: 'pets' | 'summon'; onClose
           </>
         ))}
     </Dialog>
+  );
+}
+
+function OwnedPetDetails({ pet, onBack }: { pet: OwnedPet; onBack: () => void }) {
+  const { t, language } = useLanguage();
+  const c = useCopy();
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    heading.current?.focus();
+  }, [pet.id]);
+  const definition = POKEMON[pet.species];
+  const stats = calculatePetStats(definition, pet);
+  return (
+    <section className="owned-pet-detail" aria-label={t('Thông tin pet', 'Pet details')}>
+      <button className="pet-back" onClick={onBack}>
+        <ArrowLeft size={16} />
+        {t('Về bộ sưu tập', 'Back to collection')}
+      </button>
+      <div className="pet-detail-hero">
+        <Portrait id={pet.species} />
+        <div>
+          <h3 ref={heading} tabIndex={-1}>
+            {definition.name}
+          </h3>
+          <span className="pet-level">
+            {t('Cấp', 'Level')} {pet.level}
+          </span>
+          <span className={`pet-quality quality-${pet.quality}`}>
+            {t('Phẩm chất', 'Quality')} {pet.quality}
+          </span>
+          <ElementBadge element={definition.element} />
+          <p>{c(definition.role)}</p>
+          <strong>
+            {t('Lực chiến', 'Combat power')}:{' '}
+            {combatPower(stats).toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US')}
+          </strong>
+        </div>
+      </div>
+      <p className="pet-description">{c(definition.description)}</p>
+      <h4>{t('Chỉ số', 'Stats')}</h4>
+      <dl className="pet-detail-stats">
+        {[
+          [t('Sinh lực', 'Health'), stats.hp],
+          [t('Tấn công', 'Attack'), stats.attack],
+          [t('Phòng thủ', 'Defense'), stats.defense],
+          [t('Tốc độ', 'Speed'), stats.speed],
+          [t('Tốc độ chạy', 'Sprint speed'), stats.sprintSpeed],
+          [t('Thể lực', 'Stamina'), stats.maxStamina],
+          [t('Năng lượng', 'Energy'), definition.energy],
+        ].map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="pets-note">
+        {t(
+          'Chỉ số theo cấp độ và phẩm chất hiện tại của pet.',
+          'Stats reflect this pet’s current level and quality.',
+        )}
+      </p>
+      {definition.passive && (
+        <div className="pet-passive">
+          <h4>
+            {t('Nội tại', 'Passive')} · {definition.passive.name}
+          </h4>
+          <p>{definition.passive.description}</p>
+        </div>
+      )}
+      <h4>{t('Kỹ năng', 'Skills')}</h4>
+      <div className="pet-detail-skills">
+        {definition.skills.map((skill) => (
+          <article key={skill.id}>
+            <strong>{skill.name}</strong>
+            <ElementBadge element={skill.element} />
+            <p>{skill.description}</p>
+            <small>
+              {skill.damagePercent}% {t('tấn công', 'attack')} · {skill.energy}{' '}
+              {t('năng lượng', 'energy')} · {skill.cooldown}s {t('hồi chiêu', 'cooldown')}
+            </small>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }

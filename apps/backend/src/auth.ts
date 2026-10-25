@@ -11,41 +11,29 @@ import {
   ServiceUnavailableException,
   ForbiddenException,
 } from '@nestjs/common';
-import {
-  createHash,
-  randomInt,
-  randomBytes,
-  scrypt as scryptCallback,
-  timingSafeEqual,
-} from 'node:crypto';
+import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { MongoClient, MongoServerError, ObjectId } from 'mongodb';
 import type { Request, Response } from 'express';
 
+import type { SummonResult } from '@arena/shared-types';
 import {
-  speciesIds,
-  summonQualityOdds,
-  rollSummonQuality,
-  SUMMON_GUARANTEES,
-  PET_QUALITIES,
-  type PetQuality,
-  type SpeciesId,
-  type PetCollection,
-  type SummonResult,
-} from '@arena/shared-types';
+  createPetIndexes,
+  migrateLegacyPets,
+  loadPetCollection,
+  summonPet,
+  type PetOwner,
+} from './pets';
 
 const scrypt = promisify(scryptCallback);
 const COOKIE = 'arena_session';
 const SESSION_MS = 7 * 24 * 60 * 60 * 1000;
-interface User {
+interface User extends PetOwner {
   _id: ObjectId;
   email: string;
   name: string;
   passwordHash: string;
   createdAt: Date;
-  summonAttempts?: number;
-  pets?: Partial<Record<SpeciesId, number>>;
-  petQualities?: Partial<Record<SpeciesId, Partial<Record<PetQuality, number>>>>;
 }
 interface Session {
   tokenHash: string;
@@ -96,6 +84,7 @@ export class AuthDatabase {
       this.pending = (async () => {
         await client.connect();
         const db = client.db(process.env.MONGODB_DB_NAME || 'pokemon_arena');
+        await createPetIndexes(db);
         await db.collection<User>('users').createIndex({ email: 1 }, { unique: true });
         await db.collection<Session>('sessions').createIndex({ tokenHash: 1 }, { unique: true });
         await db
@@ -226,31 +215,11 @@ export class AuthController {
     if (!user) throw new UnauthorizedException('Vui lòng đăng nhập.');
     return { db, user };
   }
-  private collection(user: User): PetCollection {
-    const attempts = user.summonAttempts ?? 0;
-    const pets = speciesIds.flatMap((species) =>
-      PET_QUALITIES.flatMap((quality) => {
-        // Preserve pets from the initial implementation as quality C.
-        const count =
-          (user.petQualities?.[species]?.[quality] ?? 0) +
-          (quality === 'C' ? (user.pets?.[species] ?? 0) : 0);
-        return count > 0 ? [{ species, quality, count }] : [];
-      }),
-    );
-    return {
-      attempts,
-      pets,
-      qualityOdds: summonQualityOdds(attempts),
-      cost: 0,
-      guarantees: SUMMON_GUARANTEES.map(({ quality, interval }) => ({
-        quality,
-        remaining: interval - (attempts % interval),
-      })),
-    };
-  }
   @Get('pets') async pets(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     res.setHeader('Cache-Control', 'no-store');
-    return this.collection((await this.owner(req)).user);
+    const { db, user } = await this.owner(req);
+    await migrateLegacyPets(db, user);
+    return loadPetCollection(db, user);
   }
   @Post('summon') async summon(
     @Req() req: Request,
@@ -259,21 +228,8 @@ export class AuthController {
     this.checkOrigin(req);
     res.setHeader('Cache-Control', 'no-store');
     const { db, user } = await this.owner(req);
-    const received = {
-      species: speciesIds[randomInt(speciesIds.length)],
-      quality: rollSummonQuality(user.summonAttempts ?? 0, randomInt(10000)),
-    };
-    // Compare-and-swap keeps the roll, attempt counter and reward atomic across tabs.
-    const updated = await db.collection<User>('users').findOneAndUpdate(
-      { _id: user._id, summonAttempts: user.summonAttempts ?? { $exists: false } },
-      {
-        $inc: { summonAttempts: 1, [`petQualities.${received.species}.${received.quality}`]: 1 },
-      },
-      { returnDocument: 'after' },
-    );
-    if (!updated)
-      throw new ConflictException('Một lượt khác vừa hoàn tất. Vui lòng tải lại bộ sưu tập.');
-    return { ...this.collection(updated), received };
+    await migrateLegacyPets(db, user);
+    return summonPet(db, user);
   }
   @Post('logout') async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     this.checkOrigin(req);
