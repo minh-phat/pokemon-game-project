@@ -10,7 +10,6 @@ import {
   Mountain,
   Pause,
   Play,
-  RefreshCw,
   Tent,
   Waves,
   X,
@@ -21,6 +20,7 @@ import { OpenWorldEngine, type WorldStatus } from '@/game/open-world-engine';
 import {
   BIOMES,
   SAVE_KEY,
+  MAIN_WORLD_SEED,
   LEGACY_SAVE_KEY,
   METERS_PER_TILE,
   WORLD_KM,
@@ -34,9 +34,6 @@ import {
 import { Dialog } from './ui/dialog';
 import { WorldCompanions } from './world-companions';
 
-function newSeed() {
-  return crypto.getRandomValues(new Uint32Array(1))[0];
-}
 const names = {
   pikachu: 'Pikachu',
   bulbasaur: 'Bulbasaur',
@@ -58,8 +55,6 @@ export default function OpenWorld() {
   const [petPanelOpen, setPetPanelOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false),
     [error, setError] = useState('');
-  const [seedInput, setSeedInput] = useState(''),
-    [seedError, setSeedError] = useState(false);
   const [stick, setStick] = useState({ x: 0, y: 0 });
   const [running, setRunning] = useState(false);
   const [climbHeld, setClimbHeld] = useState(false);
@@ -74,7 +69,10 @@ export default function OpenWorld() {
     } catch {
       /* Storage can be disabled. */
     }
-    setExpedition({ seed: saved?.seed ?? newSeed(), saved });
+    if (saved && saved.seed !== MAIN_WORLD_SEED) {
+      saved = { ...saved, seed: MAIN_WORLD_SEED, player: { x: -1, y: -1 } };
+    }
+    setExpedition({ seed: MAIN_WORLD_SEED, saved });
   }, []);
   useEffect(() => {
     if (!expedition || !surface.current || !minimap.current) return;
@@ -156,20 +154,6 @@ export default function OpenWorld() {
       engine.current.input.x = 0;
       engine.current.input.y = 0;
     }
-  }
-  function regenerate() {
-    const text = seedInput.trim();
-    if (text && (!/^\d{1,10}$/.test(text) || Number(text) > 0xffffffff)) {
-      setSeedError(true);
-      return;
-    }
-    setStatus(null);
-    setError('');
-    setExpedition({ seed: text ? Number(text) : newSeed(), saved: null });
-    setPanel(null);
-    setMapOpen(false);
-    setSeedInput('');
-    setSeedError(false);
   }
   const label = (biome: keyof typeof biomeNames) => biomeNames[biome][language === 'vi' ? 0 : 1];
   return (
@@ -666,44 +650,6 @@ export default function OpenWorld() {
               >
                 <Tent size={17} />
                 {t('Trở về trại', 'Return to camp')}
-              </button>
-            </div>
-            <div className="world-new-expedition">
-              <h3>
-                <Mountain size={17} />
-                {t('Một quần đảo khác', 'Another archipelago')}
-              </h3>
-              <p>
-                {t(
-                  'Tạo bản đồ mới sẽ thay hành trình đang lưu trên máy. Dùng cùng mã để tạo lại cùng địa hình.',
-                  'A new world replaces this device’s saved expedition. Use the same seed to recreate its terrain.',
-                )}
-              </p>
-              <label htmlFor="world-seed">
-                {t('Mã thế giới (để trống = ngẫu nhiên)', 'World seed (empty = random)')}
-              </label>
-              <input
-                id="world-seed"
-                inputMode="numeric"
-                placeholder={String(expedition?.seed ?? '')}
-                value={seedInput}
-                onChange={(e) => {
-                  setSeedInput(e.target.value);
-                  setSeedError(false);
-                }}
-                aria-invalid={seedError}
-              />
-              {seedError && (
-                <p role="alert">
-                  {t(
-                    'Nhập số nguyên từ 0 đến 4294967295.',
-                    'Enter an integer from 0 to 4294967295.',
-                  )}
-                </p>
-              )}
-              <button onClick={regenerate}>
-                <RefreshCw size={16} />
-                {t('Tạo thế giới mới', 'Create new world')}
               </button>
             </div>
             <div className="world-performance">

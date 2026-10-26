@@ -170,6 +170,12 @@ function database() {
 }
 
 describe('server verified world rewards', () => {
+  it('rejects encounters from a different world seed', async () => {
+    const { db, ownerId } = database();
+    await expect(
+      startWorldBattle(db, ownerId, { petId: 'owned', seed: 90210, wildId: 1 }),
+    ).rejects.toThrow('hợp lệ');
+  });
   it('ignores client species/level, verifies ownership and rejects invalid wild IDs', async () => {
     const { db, ownerId } = database();
     await expect(

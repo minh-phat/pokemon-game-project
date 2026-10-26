@@ -8,7 +8,7 @@ import {
   type WorldBattleReward,
 } from '@arena/shared-types';
 import { gainExperience, fighterDefinition, wildBattleExperience } from '@arena/game-data';
-import { createWorld, syncWildlife, type World } from '@arena/game-data/world';
+import { MAIN_WORLD_SEED, createWorld, syncWildlife, type World } from '@arena/game-data/world';
 import { createRoamingWorldBattleArena } from '@arena/game-data/world-combat';
 import { replayWorldEncounter } from '@arena/game-core';
 import { publicPet, type PetDocument } from './pets';
@@ -41,7 +41,7 @@ const startSchema = z
   .object({
     petId: z.string().min(1).max(200).optional(),
     petIds: z.array(z.string().min(1).max(200)).min(1).optional(),
-    seed: z.number().int().min(0).max(0xffffffff),
+    seed: z.literal(MAIN_WORLD_SEED),
     wildId: z.number().int().min(0).max(4194303).optional(),
     wildIds: z.array(z.number().int().min(0).max(4194303)).min(1).optional(),
   })

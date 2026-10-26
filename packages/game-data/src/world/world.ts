@@ -34,6 +34,8 @@ export function wildProgression(world: World, id: number, position: Point): PetP
   };
 }
 
+// Shared by every player entering the main open world.
+export const MAIN_WORLD_SEED = 42;
 export const WORLD_SIZE = 8192;
 export const METERS_PER_TILE = 2;
 export const METERS_PER_LEVEL = 1;

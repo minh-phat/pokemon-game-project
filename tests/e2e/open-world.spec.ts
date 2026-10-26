@@ -154,13 +154,13 @@ test('open world movement, pause, map, journal, save restoration and regeneratio
   await expect(canvas).toHaveAttribute('data-seed', seed!);
   await expect(canvas).toHaveAttribute('data-position', position!);
   await page.getByRole('button', { name: 'Tạm dừng khám phá' }).click();
-  await page.getByLabel('Mã thế giới').fill('90210');
-  await page.getByRole('button', { name: 'Tạo thế giới mới' }).click();
-  await expect(canvas).toHaveAttribute('data-seed', '90210');
+  await expect(page.getByLabel('Mã thế giới')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Tạo thế giới mới' })).toHaveCount(0);
+  await expect(canvas).toHaveAttribute('data-seed', '42');
   await page.reload();
   await page.getByRole('button', { name: 'Chơi Ngay', exact: true }).click();
   await page.getByRole('button', { name: /THIÊN NHIÊN KHÔNG NGỪNG/ }).click();
-  await expect(canvas).toHaveAttribute('data-seed', '90210');
+  await expect(canvas).toHaveAttribute('data-seed', '42');
   expect(errors).toEqual([]);
 });
 
