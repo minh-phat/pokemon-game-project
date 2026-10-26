@@ -1493,8 +1493,9 @@ export class OpenWorldEngine {
     this.travelTo(this.world.spawn);
   }
   travelTo(destination: Point) {
-    if (this.target) return;
-    if (!traversable(this.world, destination.x, destination.y)) return;
+    if (this.target || this.encounter) return false;
+    if (!Number.isFinite(destination.x) || !Number.isFinite(destination.y)) return false;
+    if (!traversable(this.world, destination.x, destination.y)) return false;
     this.clearInput();
     this.selectedTargets = [];
     this.motion = createMotion(this.world, destination);
@@ -1507,6 +1508,7 @@ export class OpenWorldEngine {
     this.chunks.clear();
     this.report();
     this.save();
+    return true;
   }
   save = () => {
     const data: WorldSave = {

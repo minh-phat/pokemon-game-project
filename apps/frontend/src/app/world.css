@@ -1228,3 +1228,59 @@ body:has(.fantasy-app) .dialog-content.play-mode-dialog {
     max-height: 110px;
   }
 }
+
+.world-coordinate-travel {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid #d5d6a747;
+  border-radius: 6px;
+  background: #102f2b;
+}
+.world-coordinate-travel strong {
+  font-size: 13px;
+}
+.world-coordinate-travel p {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #cfddc6;
+}
+.world-coordinate-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.world-coordinate-fields label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+}
+.world-coordinate-fields input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid #829780;
+  border-radius: 4px;
+  background: #183e38;
+  color: #fff3dc;
+  font-size: 16px;
+}
+.world-coordinate-travel button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #e5d69f;
+  border-radius: 4px;
+  background: #526749;
+  color: #fff3dc;
+}
+.world-coordinate-travel #world-coordinate-error {
+  color: #ffb4a5;
+}
+.world-coordinate-travel #world-coordinate-error:empty {
+  display: none;
+}

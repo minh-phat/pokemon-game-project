@@ -24,6 +24,7 @@ import {
   LEGACY_SAVE_KEY,
   METERS_PER_TILE,
   WORLD_KM,
+  WORLD_SIZE,
   WORLD_AREA_KM2,
   biomeColors,
   biomeNames,
@@ -62,6 +63,8 @@ export default function OpenWorld() {
   const [stick, setStick] = useState({ x: 0, y: 0 });
   const [running, setRunning] = useState(false);
   const [climbHeld, setClimbHeld] = useState(false);
+  const [coordinates, setCoordinates] = useState({ x: '', y: '' });
+  const [travelError, setTravelError] = useState('');
   useEffect(() => {
     let saved: WorldSave | null = null;
     try {
@@ -302,6 +305,83 @@ export default function OpenWorld() {
                 'Choose a waygate to explore a new region.',
               )}
             </p>
+            <form
+              className="world-coordinate-travel"
+              aria-label={t('Dịch chuyển theo tọa độ', 'Travel to coordinates')}
+              onSubmit={(event) => {
+                event.preventDefault();
+                const x = Number(coordinates.x.trim());
+                const y = Number(coordinates.y.trim());
+                if (
+                  !coordinates.x.trim() ||
+                  !coordinates.y.trim() ||
+                  !Number.isFinite(x) ||
+                  !Number.isFinite(y) ||
+                  x <= 1 ||
+                  y <= 1 ||
+                  x >= WORLD_SIZE - 2 ||
+                  y >= WORLD_SIZE - 2
+                ) {
+                  setTravelError(
+                    t(
+                      `Nhập X và Y lớn hơn 1, nhỏ hơn ${WORLD_SIZE - 2}.`,
+                      `Enter X and Y greater than 1 and less than ${WORLD_SIZE - 2}.`,
+                    ),
+                  );
+                  return;
+                }
+                if (!engine.current?.travelTo({ x, y })) {
+                  setTravelError(
+                    t(
+                      'Không thể đến vị trí này. Hãy chọn tọa độ khác, tránh cây, đá và dung nham.',
+                      'Cannot travel here. Choose another position away from trees, rocks and lava.',
+                    ),
+                  );
+                  return;
+                }
+                setTravelError('');
+                setMapOpen(false);
+                surface.current?.focus();
+              }}
+            >
+              <strong>{t('Dịch chuyển theo tọa độ', 'Travel to coordinates')}</strong>
+              <p id="world-coordinate-hint">
+                {t(
+                  'Tọa độ ô bản đồ · X hướng Đông, Y hướng Nam · 1 ô = 2 m.',
+                  'Map tile coordinates · X east, Y south · 1 tile = 2 m.',
+                )}{' '}
+                {t('Hiện tại:', 'Current:')} X {status?.x.toFixed(2) ?? '—'}, Y{' '}
+                {status?.y.toFixed(2) ?? '—'}
+              </p>
+              <div className="world-coordinate-fields">
+                {(['x', 'y'] as const).map((axis) => (
+                  <label key={axis}>
+                    {t('Tọa độ', 'Coordinate')} {axis.toUpperCase()}
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="any"
+                      required
+                      value={coordinates[axis]}
+                      placeholder={status?.[axis].toFixed(2)}
+                      aria-describedby="world-coordinate-hint world-coordinate-error"
+                      aria-invalid={Boolean(travelError)}
+                      onChange={(event) => {
+                        setCoordinates((previous) => ({ ...previous, [axis]: event.target.value }));
+                        setTravelError('');
+                      }}
+                    />
+                  </label>
+                ))}
+              </div>
+              <p id="world-coordinate-error" role="alert">
+                {travelError}
+              </p>
+              <button type="submit" disabled={!status || inCombat}>
+                <Compass size={16} />
+                {t('Dịch chuyển', 'Teleport')}
+              </button>
+            </form>
             <div className="world-map-legend">
               {status?.landmarks.map((landmark) => (
                 <button

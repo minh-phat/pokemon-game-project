@@ -281,3 +281,53 @@ test('snow, volcano and coast render without errors with bounded caches', async 
   console.log(`Paused browser baseline: ${JSON.stringify(pausedTiming)} ms`);
   expect(errors).toEqual([]);
 });
+
+for (const viewport of [
+  { width: 1440, height: 900 },
+  { width: 390, height: 844 },
+  { width: 844, height: 390 },
+]) {
+  test(`coordinate travel validates, moves and saves (${viewport.width}x${viewport.height})`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    const world = createWorld(42);
+    await page.addInitScript(
+      (spawn) =>
+        localStorage.setItem(
+          'arena-open-world-v2',
+          JSON.stringify({
+            version: 2,
+            seed: 42,
+            player: spawn,
+            seen: [],
+            visited: [],
+          }),
+        ),
+      world.spawn,
+    );
+    await enterWorld(page);
+    await page.getByRole('button', { name: 'Mở bản đồ', exact: true }).click();
+    const form = page.getByRole('form', { name: 'Dịch chuyển theo tọa độ' });
+    await form.getByLabel('Tọa độ X').fill('-5');
+    await form.getByLabel('Tọa độ Y').fill('100');
+    await form.getByRole('button', { name: 'Dịch chuyển', exact: true }).click();
+    await expect(form.getByRole('alert')).toContainText('Nhập X và Y');
+    const destination = world.landmarks.find(
+      (point) => Math.hypot(point.x - world.spawn.x, point.y - world.spawn.y) > 100,
+    )!;
+    await form.getByLabel('Tọa độ X').fill(String(destination.x));
+    await form.getByLabel('Tọa độ Y').fill(String(destination.y));
+    await page.screenshot({ path: `test-results/coordinate-travel-${viewport.width}.png` });
+    await form.getByRole('button', { name: 'Dịch chuyển', exact: true }).click();
+    await expect(form).toHaveCount(0);
+    await expect(page.getByTestId('world-canvas')).toHaveAttribute(
+      'data-position',
+      `${destination.x.toFixed(2)},${destination.y.toFixed(2)}`,
+    );
+    const saved = await page.evaluate(
+      () => JSON.parse(localStorage.getItem('arena-open-world-v2')!).player,
+    );
+    expect(saved).toEqual({ x: destination.x, y: destination.y });
+  });
+}
