@@ -118,6 +118,17 @@ for (const mobile of [false, true]) {
     await panel.getByRole('button', { name: 'Tự điều khiển', exact: true }).click();
     const controls = page.getByRole('region', { name: 'Manual battle controls' });
     await expect(controls).toBeVisible();
+    if (mobile) {
+      for (const viewport of [
+        { width: 390, height: 844 },
+        { width: 844, height: 390 },
+      ]) {
+        await page.setViewportSize(viewport);
+        await expect(controls).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+        await expect(controls).toHaveCSS('background-image', 'none');
+      }
+      await page.setViewportSize({ width: 390, height: 844 });
+    }
     await expect(page.locator('.world-map')).toBeHidden();
     await expect(page.locator('.world-toolbar')).toBeHidden();
     await expect(page.locator('.world-traversal')).toBeHidden();

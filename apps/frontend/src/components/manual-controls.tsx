@@ -336,7 +336,7 @@ export function ManualControls({
   }, [active, enemies, selected, disabled, canAct, canDodge, command, onSelect]);
   if (!selected) return null;
   return (
-    <section className="manual-controls panel" aria-label="Manual battle controls">
+    <section className="manual-controls" aria-label="Manual battle controls">
       <span className="manual-move-hint">Move: WASD / arrow keys</span>
       <span className="manual-target" aria-live="polite">
         Target: <strong>{target ? POKEMON[target.species].name : 'None'}</strong>
