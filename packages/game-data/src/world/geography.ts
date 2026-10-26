@@ -1,6 +1,10 @@
+import { createWorld as createLegacyGeography } from './legacy-geography';
+
 /** Coarse continental height field and drainage graph. Never expanded to full world resolution. */
 export const WORLD_SIZE = 256;
 export const SEA = 0.19;
+export const GEOGRAPHY_VERSION = 2;
+export type GeographyVersion = 1 | 2;
 export const BIOMES = [
   'ocean',
   'beach',
@@ -58,6 +62,22 @@ export const biomeColors: Record<Biome, string> = {
   volcano: '#675862',
   river: '#56aaa8',
 };
+/** Shared atlas shading: shallow shelves and northwest-lit mountain relief. */
+export function geographyColor(world: World, tile: Tile): string {
+  if (tile.lava) return '#ff914e';
+  const color = biomeColors[tile.biome];
+  const west = tileAt(world, Math.max(0, tile.x - 1), tile.y)!.height;
+  const north = tileAt(world, tile.x, Math.max(0, tile.y - 1))!.height;
+  const shade =
+    tile.biome === 'ocean'
+      ? -Math.min(30, (SEA - tile.height) * 180)
+      : Math.max(-45, Math.min(35, (west + north - tile.height * 2) * 260));
+  const channels = [1, 3, 5].map((offset) =>
+    Math.round(Math.max(0, Math.min(255, parseInt(color.slice(offset, offset + 2), 16) + shade))),
+  );
+  return `rgb(${channels.join(',')})`;
+}
+
 export function hash(x: number, y: number, seed: number): number {
   let n = Math.imul(x ^ seed, 374761393) + Math.imul(y, 668265263);
   n = Math.imul(n ^ (n >>> 13), 1274126177);
@@ -129,56 +149,191 @@ export function habitat(species: Species, tile: Tile) {
   if (species === 'pikachu') return tile.biome === 'meadow' || tile.biome === 'forest';
   return tile.biome !== 'volcano';
 }
-export function createWorld(inputSeed: number): World {
+type Spine = readonly (readonly [x: number, y: number, width: number])[];
+
+/** Signed distance to a branching shelf, with a different width at each node. */
+function spineField(x: number, y: number, nodes: Spine) {
+  let field = -1;
+  for (let i = 1; i < nodes.length; i++) {
+    const a = nodes[i - 1],
+      b = nodes[i];
+    const dx = b[0] - a[0],
+      dy = b[1] - a[1];
+    const t = Math.max(
+      0,
+      Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / (dx * dx + dy * dy || 1)),
+    );
+    field = Math.max(field, mix(a[2], b[2], t) - Math.hypot(x - a[0] - dx * t, y - a[1] - dy * t));
+  }
+  return field;
+}
+
+function createLandforms(seed: number) {
+  // Broad connected interiors, asymmetrical peninsulas and a deep central sea.
+  // These are geological spines, not coast polygons: multiscale noise erodes the shores.
+  const shelves: Spine[] = [
+    [
+      [0.15, 0.19, 0.065],
+      [0.28, 0.24, 0.12],
+      [0.29, 0.4, 0.135],
+      [0.24, 0.54, 0.105],
+      [0.32, 0.66, 0.075],
+      [0.28, 0.82, 0.028],
+    ],
+    [
+      [0.27, 0.28, 0.075],
+      [0.4, 0.18, 0.048],
+      [0.48, 0.2, 0.018],
+    ],
+    [
+      [0.29, 0.42, 0.08],
+      [0.43, 0.43, 0.045],
+      [0.49, 0.51, 0.018],
+    ],
+    [
+      [0.23, 0.53, 0.065],
+      [0.13, 0.62, 0.04],
+      [0.1, 0.72, 0.014],
+    ],
+    [
+      [0.76, 0.28, 0.035],
+      [0.81, 0.41, 0.08],
+      [0.73, 0.56, 0.105],
+      [0.77, 0.72, 0.105],
+      [0.63, 0.8, 0.065],
+      [0.53, 0.85, 0.023],
+    ],
+    [
+      [0.76, 0.58, 0.07],
+      [0.89, 0.54, 0.035],
+      [0.92, 0.45, 0.012],
+    ],
+    [
+      [0.78, 0.71, 0.065],
+      [0.87, 0.84, 0.025],
+      [0.83, 0.91, 0.012],
+    ],
+    // An elongated northern island and a hooked southern island.
+    [
+      [0.59, 0.1, 0.023],
+      [0.64, 0.16, 0.043],
+      [0.6, 0.24, 0.027],
+    ],
+    [
+      [0.11, 0.83, 0.022],
+      [0.14, 0.89, 0.035],
+      [0.22, 0.92, 0.018],
+    ],
+  ];
+  // Unequal islands along a broken arc through the inland sea, never a regular grid.
+  for (let i = 0; i < 11; i++) {
+    const t = i / 10;
+    const x = 0.53 + Math.sin(t * Math.PI * 1.5) * 0.08 + (hash(i, 320, seed) - 0.5) * 0.025;
+    const y = 0.34 + t * 0.39;
+    const width = 0.006 + hash(i, 321, seed) ** 2 * 0.013;
+    const angle = -0.9 + t * 3.8;
+    const length = width * (1.2 + hash(i, 322, seed) * 1.4);
+    shelves.push([
+      [x - Math.cos(angle) * length, y - Math.sin(angle) * length, width * 0.45],
+      [x, y, width],
+      [x + Math.cos(angle + 0.7) * length, y + Math.sin(angle + 0.7) * length, width * 0.35],
+    ]);
+  }
+  const ranges: Spine[] = [
+    [
+      [0.18, 0.2, 0.018],
+      [0.25, 0.28, 0.047],
+      [0.28, 0.39, 0.052],
+      [0.23, 0.5, 0.043],
+      [0.3, 0.63, 0.025],
+      [0.28, 0.76, 0.007],
+    ],
+    [
+      [0.28, 0.31, 0.033],
+      [0.37, 0.23, 0.025],
+      [0.44, 0.2, 0.008],
+    ],
+    [
+      [0.8, 0.37, 0.014],
+      [0.76, 0.49, 0.042],
+      [0.72, 0.6, 0.052],
+      [0.76, 0.71, 0.039],
+      [0.66, 0.78, 0.018],
+    ],
+    [
+      [0.63, 0.14, 0.012],
+      [0.64, 0.17, 0.028],
+      [0.61, 0.22, 0.012],
+    ],
+  ];
+  const vents = [
+    { x: 0.34, y: 0.47, radius: 0.047, height: 0.58 },
+    { x: 0.81, y: 0.7, radius: 0.044, height: 0.69 },
+    { x: 0.14, y: 0.88, radius: 0.03, height: 0.61 },
+  ];
+  // Shared affine variation preserves navigable straits while changing orientation by seed.
+  const angle = (hash(1, 330, seed) - 0.5) * 0.32;
+  const flipX = hash(2, 330, seed) > 0.5 ? -1 : 1;
+  const flipY = hash(3, 330, seed) > 0.5 ? -1 : 1;
+  const transform = (x: number, y: number) => ({
+    x: 0.5 + ((x - 0.5) * Math.cos(angle) - (y - 0.5) * Math.sin(angle)) * flipX,
+    y: 0.5 + ((x - 0.5) * Math.sin(angle) + (y - 0.5) * Math.cos(angle)) * flipY,
+  });
+  const warp = (spines: Spine[]) =>
+    spines.map((spine) =>
+      spine.map(([x, y, width]) => {
+        const p = transform(x, y);
+        return [p.x, p.y, width] as const;
+      }),
+    );
+  return {
+    shelves: warp(shelves),
+    ranges: warp(ranges),
+    vents: vents.map((v) => ({ ...v, ...transform(v.x, v.y) })),
+  };
+}
+
+export function createWorld(
+  inputSeed: number,
+  version: GeographyVersion = GEOGRAPHY_VERSION,
+): World {
+  if (version === 1) return createLegacyGeography(inputSeed);
   const seed = inputSeed >>> 0;
   const n = WORLD_SIZE,
     tiles: Tile[] = [],
     volcanic = new Uint8Array(n * n);
-  // Separate, bounded island shelves keep open sea between landmasses even at high peaks.
-  // Rotate mountain types through the archipelago so no biome is confined to one corner.
-  const rotation = Math.floor(hash(20, 1, seed) * 3);
-  const islands = Array.from({ length: 9 }, (_, i) => {
-    const kind = (i + Math.floor(i / 3) + rotation) % 3;
-    return {
-      x: 0.19 + (i % 3) * 0.31 + (hash(i, 21, seed) - 0.5) * 0.035,
-      y: 0.19 + Math.floor(i / 3) * 0.31 + (hash(i, 22, seed) - 0.5) * 0.035,
-      rx: 0.105 + hash(i, 23, seed) * 0.055,
-      ry: 0.1 + hash(i, 24, seed) * 0.055,
-      peakX: (hash(i, 25, seed) - 0.5) * 0.045,
-      peakY: (hash(i, 26, seed) - 0.5) * 0.045,
-      // Both snowy and volcanic islands include lower summits and towering peaks.
-      peak: (kind === 2 ? 0.23 : 0.48 + Math.floor(i / 3) * 0.25) + hash(i, 27, seed) * 0.09,
-      volcanic: kind === 1,
-    };
-  });
+  const land = createLandforms(seed);
   for (let y = 0; y < n; y++)
     for (let x = 0; x < n; x++) {
-      const u = x / n,
-        v = y / n;
-      const coast = (noise(x / 13, y / 13, seed + 30) - 0.5) * 0.15;
-      let h = 0.045,
-        cone = 0;
-      for (const island of islands) {
-        const radius = Math.hypot((u - island.x) / island.rx, (v - island.y) / island.ry);
-        const shelf = Math.max(0, 1 - (radius + coast) ** 2);
-        if (!shelf) continue;
-        const distance = Math.hypot(
-          (u - island.x - island.peakX) / (island.rx * 0.6),
-          (v - island.y - island.peakY) / (island.ry * 0.6),
-        );
-        const summit = Math.max(0, 1 - distance);
-        const ridge = island.volcanic ? summit : summit ** 1.35;
-        const elevation =
-          0.045 +
-          shelf * 0.36 +
-          ridge * island.peak +
-          (noise(x / 8, y / 8, seed + 13) - 0.5) * 0.035 * shelf;
-        if (elevation > h) {
-          h = elevation;
-          cone = island.volcanic ? summit : 0;
-        }
+      // Warp the entire geological frame so bays, ranges and islands remain aligned.
+      const u = x / n + (noise(x / 47, y / 47, seed + 301) - 0.5) * 0.065,
+        v = y / n + (noise(x / 47, y / 47, seed + 302) - 0.5) * 0.065;
+      const coast =
+        (noise(x / 19, y / 19, seed + 303) - 0.5) * 0.044 +
+        (noise(x / 7, y / 7, seed + 304) - 0.5) * 0.02 +
+        (noise(x / 2.8, y / 2.8, seed + 305) - 0.5) * 0.007;
+      let shore = -1;
+      for (const branch of land.shelves) shore = Math.max(shore, spineField(u, v, branch));
+      shore += coast;
+      // Keep a navigable ocean margin. Mountain height cannot create land offshore.
+      shore = Math.min(shore, Math.min(x, y, n - 1 - x, n - 1 - y) / n - 0.022);
+      const inland = Math.max(0, Math.min(1, shore / 0.045));
+      let h = SEA + (shore < 0 ? Math.max(-0.16, shore * 2.4) : 0.18 * (1 - Math.exp(-shore * 18)));
+      let belt = 0;
+      for (const range of land.ranges)
+        belt = Math.max(belt, Math.max(0, spineField(u, v, range) / 0.05));
+      const ridges = 1 - Math.abs(noise(x / 11, y / 11, seed + 310) * 2 - 1);
+      h +=
+        inland *
+        (belt ** 1.25 * (0.32 + ridges * 0.42) +
+          (noise(x / 23, y / 23, seed + 311) - 0.35) * 0.075);
+      let cone = 0;
+      for (const vent of land.vents) {
+        const summit = Math.max(0, 1 - Math.hypot(u - vent.x, v - vent.y) / vent.radius);
+        cone = Math.max(cone, summit * inland);
+        h += summit ** 1.6 * vent.height * inland;
       }
-      volcanic[y * n + x] = cone > 0.16 ? 1 : 0;
+      volcanic[y * n + x] = cone > 0.18 ? 1 : 0;
       tiles.push({
         x,
         y,
@@ -211,6 +366,10 @@ export function createWorld(inputSeed: number): World {
       [-1, 0],
       [1, 0],
       [0, 1],
+      [-1, -1],
+      [1, -1],
+      [-1, 1],
+      [1, 1],
     ]) {
       const x = t.x + dx,
         y = t.y + dy;
@@ -244,8 +403,11 @@ export function createWorld(inputSeed: number): World {
                 : wet > 0.47
                   ? 'forest'
                   : 'meadow';
-    // Smaller island catchments need less accumulation to form rivers.
-    if (t.flow > 32 && t.height > SEA && !volcanic[id]) t.biome = 'river';
+    // Tributaries join into long continental rivers; small islands retain short streams.
+    if (t.flow > 32 && t.height > SEA) {
+      t.biome = 'river';
+      t.lava = false;
+    }
     t.water = t.biome === 'ocean' || t.biome === 'river';
     t.level = t.biome === 'ocean' ? 0 : Math.max(1, Math.round((t.height - SEA) * 29));
     const r = t.variant;

@@ -5,7 +5,7 @@ Vào **Chơi Ngay → Thế giới mở**. Đây là chế độ khám phá chơ
 - **WASD / phím mũi tên**: di chuyển theo hướng màn hình; **Shift**: chạy.
 - **Space**: nhảy; **giữ E + hướng di chuyển**: leo lên/xuống vách. Điện thoại dùng nút **Nhảy** và giữ **Leo** đồng thời với cần điều khiển.
 - Chạm hoặc bấm mặt đất để tìm đường đi bộ ở gần, có xét độ cao. Điện thoại có cần điều khiển và nút chạy.
-- **M**: bản đồ quần đảo; **J**: nhật ký; **Esc**: tạm dừng.
+- **M**: bản đồ lục địa và quần đảo; **J**: nhật ký; **Esc**: tạm dừng.
 - Bản đồ lớn có các điểm dịch chuyển tới từng môi trường, kèm khoảng cách bằng km. Bản đồ nhỏ hiển thị khu vực 192 × 192 m quanh người chơi và thước 50 m.
 - Nhân vật tự dùng thuyền khi xuống nước; **Về trại** đưa về điểm xuất phát.
 - Đến gần Pokémon để ghi vào nhật ký. Pokémon có nhóm và cá thể đơn lẻ, di chuyển trong môi trường phù hợp.
@@ -42,9 +42,15 @@ Tiến trình trận đang đánh chưa được khôi phục sau khi tải lạ
 
 Bản đồ có **8.192 × 8.192 ô**, mỗi ô tương ứng **2 × 2 m**: kích thước **16,384 × 16,384 km**, diện tích **268,435456 km²**, bao gồm đất liền và biển. Đây là quy ước khoảng cách của game. Người chơi có thể đi liên tục trong toàn bộ giới hạn bản đồ; các điểm dịch chuyển giúp khám phá những vùng cách nhau nhiều km.
 
-Thế giới gồm chín đảo chính lớn nhỏ, ngăn cách bởi các eo biển. Núi tuyết và núi lửa phân bố trên nhiều đảo, xen kẽ vùng đồi thấp; các đỉnh có độ cao khác nhau, từ núi thấp đến đỉnh cao vượt trội. Vị trí, đường bờ và độ cao thay đổi theo mã thế giới. Thuyền tự động giúp di chuyển giữa các đảo.
+Thế giới có **hai khối lục địa lớn**, các đảo lớn độc lập và chuỗi đảo nhỏ uốn cong giữa biển. Những nhánh đất có độ rộng thay đổi tạo bán đảo, mũi đất, vịnh sâu và eo biển; đường bờ bị biến dạng ở nhiều tỉ lệ, không xếp đảo theo lưới hay dùng đường tròn làm bờ biển. Dãy núi kéo dài và phân nhánh qua nội địa, xen đồng bằng, thung lũng, đỉnh tuyết và các vùng núi lửa riêng. Mã thế giới quyết định hướng lục địa, đường bờ, hình dạng đảo và cao độ; thuyền tự động giúp đi qua các eo biển.
 
-Lớp địa lý tổng quát 256 × 256 xác định cao độ, độ ẩm, lưu vực, núi, tuyết và núi lửa. Thuật toán priority flood xử lý vùng trũng, nối dòng chảy xuống biển và tích lũy lưu lượng để suối hợp thành sông. Lớp chi tiết nội suy địa hình, nối các nhánh sông qua biên vùng, thay đổi bề rộng theo lưu lượng và thêm bờ sông, cây, hoa, đá bằng tọa độ tuyệt đối. Vì vậy vùng đã rời khỏi bộ nhớ sẽ xuất hiện giống nhau khi quay lại với cùng mã thế giới. Tuyết ở cao độ lớn; dung nham trong vùng núi lửa.
+![So sánh địa hình cũ và mới với cùng seed 42](world-art/continental-geography.png)
+
+Bản đồ tổng thể dùng bóng địa hình và màu biển theo độ sâu để nhìn rõ dãy núi và thềm ven bờ. Chạy `npx tsx scripts/preview-geography.ts` để xuất ảnh sáu mã thế giới vào `test-results/geography.png`; có thể truyền đường dẫn ảnh và danh sách seed. Đây là ảnh dựng từ chính dữ liệu địa hình và màu bản đồ trong game.
+
+Bộ sinh địa lý hiện tại là phiên bản 2. Vé chiến đấu mới lưu `worldTerrain.geographyVersion`; vé cũ không có trường này vẫn dùng bộ sinh chín đảo trước đây để phát lại đúng địa hình. Hành trình khám phá giữ seed và nhật ký, nhưng địa hình của seed cũ thay đổi khi cập nhật; tọa độ không hợp lệ được đưa về trại, còn tọa độ nằm trên biển sẽ dùng thuyền như bình thường.
+
+Lớp địa lý tổng quát 256 × 256 xác định cao độ, độ ẩm, lưu vực, núi, tuyết và núi lửa. Thuật toán priority flood xét tám hướng, xử lý vùng trũng, nối dòng chảy xuống biển và tích lũy lưu lượng để suối hợp thành sông. Lớp chi tiết nội suy địa hình, nối các nhánh sông qua biên vùng, thay đổi bề rộng theo lưu lượng và thêm bờ sông, cây, hoa, đá bằng tọa độ tuyệt đối. Vì vậy vùng đã rời khỏi bộ nhớ sẽ xuất hiện giống nhau khi quay lại với cùng mã thế giới. Tuyết ở cao độ lớn; dung nham trong vùng núi lửa.
 
 ## Đồi núi, thung lũng và di chuyển theo độ cao
 
@@ -89,7 +95,7 @@ Nếu chỉ có dữ liệu v1, game giữ mã thế giới và nhật ký, đ�
 
 `tests/world-ai.test.ts` kiểm tra phản ứng với đạn, tia và vùng sát thương, giới hạn thể lực/biên đấu, mô phỏng Auto dùng kỹ năng/nhảy/lướt qua nhiều seed, tính xác định của replay và độ cao sprite. Bài kiểm tra Auto trong `tests/e2e/world-combat.spec.ts` quan sát lệnh vẽ canvas để xác nhận sprite nhảy/lướt và các tài nguyên tụ lực, Electro Ball, nổ trúng đòn từ đấu trường thực sự được vẽ và ghép lên bản đồ mà không có lệnh điều khiển thủ công.
 
-`tests/open-world.test.ts` kiểm tra nhiều mã thế giới, đủ các môi trường, dòng chảy xuống biển, vị trí an toàn, tái tạo vùng sau khi loại khỏi cache, biên vùng, giới hạn đường đi/mô phỏng và chuyển đổi dữ liệu lưu.
+`tests/open-world.test.ts` kiểm tra nhiều mã thế giới, quy mô và đường bờ lục địa, đảo nhiều kích thước, đủ các môi trường, dòng chảy xuống biển, vị trí an toàn, tái tạo vùng sau khi loại khỏi cache, biên vùng, giới hạn đường đi/mô phỏng và chuyển đổi dữ liệu lưu.
 
 `tests/open-world-motion.test.ts` kiểm tra nhảy lên bậc, giới hạn leo, chặn vách cao/cây/dung nham, rơi và tiếp đất, không nhảy trên nước và độ nổi của địa hình. `tests/e2e/open-world-climbing.spec.ts` kiểm tra phím Space/E trên vách được sinh thật, tạm dừng giữa cú nhảy, nút cảm ứng và hai ngón tay đồng thời.
 

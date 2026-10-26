@@ -9,6 +9,8 @@ import {
   biomeColors,
   BIOMES,
   SEA,
+  GEOGRAPHY_VERSION,
+  type GeographyVersion,
   type World as Geography,
   type Tile as CoarseTile,
   type Point,
@@ -53,6 +55,7 @@ export type TerrainChunk = { x: number; y: number; tiles: Tile[] };
 export type Landmark = Point & { biome: Biome };
 export type World = {
   seed: number;
+  geographyVersion: GeographyVersion;
   geography: Geography;
   spawn: Point;
   chunks: Map<number, TerrainChunk>;
@@ -333,10 +336,14 @@ export function findSafePosition(world: World, point: Point, wanted?: Biome): Po
       }
   return null;
 }
-export function createWorld(seed: number): World {
-  const geography = createGeography(seed >>> 0);
+export function createWorld(
+  seed: number,
+  geographyVersion: GeographyVersion = GEOGRAPHY_VERSION,
+): World {
+  const geography = createGeography(seed >>> 0, geographyVersion);
   const world: World = {
     seed: seed >>> 0,
+    geographyVersion,
     geography,
     spawn: { x: -100, y: -100 },
     chunks: new Map(),
@@ -347,7 +354,7 @@ export function createWorld(seed: number): World {
     campLevel: -1,
   };
   const candidates = geography.tiles
-    .filter((t) => t.biome === 'meadow')
+    .filter((t) => t.biome === 'meadow' && (geographyVersion === 1 || t.height > SEA + 0.065))
     .sort(
       (a, b) =>
         Math.hypot(a.x - GEO_SIZE * 0.48, a.y - GEO_SIZE * 0.58) -

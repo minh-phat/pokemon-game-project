@@ -57,21 +57,48 @@ describe('continental geography and streaming', () => {
     },
   );
   it.each([0, 1, 42, 90210, 4294967295])(
-    'seed %s separates substantial islands by sea and spreads varied mountains across them',
+    'seed %s has broad irregular continents, varied islands and open sea',
     (seed) => {
       const world = createWorld(seed);
       const tiles = world.geography.tiles;
       const seen = new Set<number>();
-      const islands: { size: number; snow: number; volcano: number; peak: number }[] = [];
+      const islands: {
+        size: number;
+        snow: number;
+        volcano: number;
+        peak: number;
+        perimeter: number;
+        bounds: number[];
+      }[] = [];
       for (let start = 0; start < tiles.length; start++) {
         if (seen.has(start) || tiles[start].height <= SEA) continue;
         const stack = [start];
         seen.add(start);
-        const island = { size: 0, snow: 0, volcano: 0, peak: 0 };
+        const island = {
+          size: 0,
+          snow: 0,
+          volcano: 0,
+          peak: 0,
+          perimeter: 0,
+          bounds: [256, 256, 0, 0],
+        };
         while (stack.length) {
           const id = stack.pop()!;
           const tile = tiles[id];
           island.size++;
+          island.bounds[0] = Math.min(island.bounds[0], tile.x);
+          island.bounds[1] = Math.min(island.bounds[1], tile.y);
+          island.bounds[2] = Math.max(island.bounds[2], tile.x);
+          island.bounds[3] = Math.max(island.bounds[3], tile.y);
+          for (const [dx, dy] of [
+            [-1, 0],
+            [1, 0],
+            [0, -1],
+            [0, 1],
+          ]) {
+            const neighbor = tiles[(tile.y + dy) * 256 + tile.x + dx];
+            if (!neighbor || neighbor.height <= SEA) island.perimeter++;
+          }
           island.snow += Number(tile.biome === 'snow');
           island.volcano += Number(tile.biome === 'volcano');
           island.peak = Math.max(island.peak, tile.height);
@@ -87,15 +114,31 @@ describe('continental geography and streaming', () => {
               stack.push(next);
             }
         }
-        if (island.size > 100) islands.push(island);
+        islands.push(island);
       }
-      expect(islands.length).toBeGreaterThanOrEqual(9);
-      expect(islands.filter((island) => island.snow > 10).length).toBeGreaterThanOrEqual(3);
-      expect(islands.filter((island) => island.volcano > 10).length).toBeGreaterThanOrEqual(3);
-      const peaks = islands.map((island) => island.peak);
-      expect(Math.max(...peaks) - Math.min(...peaks)).toBeGreaterThan(0.5);
-      expect(Math.max(...islands.map((island) => island.size)) / seen.size).toBeLessThan(0.25);
-      expect(tiles.filter((tile) => tile.height <= SEA).length / tiles.length).toBeGreaterThan(0.4);
+      islands.sort((a, b) => b.size - a.size);
+      const continents = islands.filter((island) => island.size > 6000);
+      expect(continents).toHaveLength(2);
+      expect(
+        islands.filter((island) => island.size >= 200 && island.size < 2000).length,
+      ).toBeGreaterThanOrEqual(2);
+      expect(
+        islands.filter((island) => island.size >= 10 && island.size < 200).length,
+      ).toBeGreaterThanOrEqual(2);
+      for (const continent of continents) {
+        expect(continent.snow).toBeGreaterThan(100);
+        expect(continent.volcano).toBeGreaterThan(50);
+        // A circle has compactness 1: long coastlines and deep bays lower it.
+        expect((4 * Math.PI * continent.size) / continent.perimeter ** 2).toBeLessThan(0.35);
+        const [left, top, right, bottom] = continent.bounds;
+        expect(continent.size / ((right - left + 1) * (bottom - top + 1))).toBeLessThan(0.7);
+      }
+      expect(islands[0].size / seen.size).toBeGreaterThan(0.4);
+      expect(islands[0].size / islands[2].size).toBeGreaterThan(6);
+      expect(seen.size / tiles.length).toBeGreaterThan(0.3);
+      expect(seen.size / tiles.length).toBeLessThan(0.5);
+      for (const tile of tiles.filter((t) => t.x === 0 || t.y === 0 || t.x === 255 || t.y === 255))
+        expect(tile.biome).toBe('ocean');
       for (const tile of tiles.filter((tile) => tile.lava)) {
         expect(tile.biome).toBe('volcano');
         expect(tile.water).toBe(false);

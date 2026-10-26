@@ -264,12 +264,12 @@ export default function OpenWorld() {
       </div>
       <aside
         className={`world-map ${mapOpen ? 'expanded' : ''}`}
-        aria-label={t('Bản đồ quần đảo', 'Archipelago map')}
+        aria-label={t('Bản đồ thế giới', 'World map')}
       >
         <div className="world-map-heading">
           <span>
             <Map size={13} />
-            {mapOpen ? t('QUẦN ĐẢO', 'ARCHIPELAGO') : t('XUNG QUANH', 'NEARBY')}
+            {mapOpen ? t('LỤC ĐỊA & QUẦN ĐẢO', 'CONTINENTS & ISLANDS') : t('XUNG QUANH', 'NEARBY')}
           </span>
           <button
             aria-label={
@@ -281,7 +281,7 @@ export default function OpenWorld() {
           </button>
         </div>
         <div className="world-map-art">
-          <canvas ref={minimap} width={192} height={192} />
+          <canvas ref={minimap} width={256} height={256} />
           <span className="world-map-north">N</span>
         </div>
         <div className="world-map-caption">

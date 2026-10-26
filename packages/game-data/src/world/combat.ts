@@ -9,7 +9,7 @@ export function sampleWorldBattleTerrain(arena: ArenaDefinition, x: number, dept
   if (!terrain) return null;
   let world = terrainWorlds.get(arena);
   if (!world) {
-    world = createWorld(terrain.seed);
+    world = createWorld(terrain.seed, terrain.geographyVersion ?? 1);
     terrainWorlds.set(arena, world);
   }
   const point = worldBattlePoint(terrain.origin, x, depth);
@@ -22,6 +22,7 @@ export function createRoamingWorldBattleArena(world: World, origin: Point): Aren
   const arena = createWorldBattleArena(world, origin);
   arena.worldTerrain = {
     seed: world.seed,
+    geographyVersion: world.geographyVersion,
     origin: { x: origin.x, y: origin.y },
     baseLevel: tileAt(world, origin.x, origin.y)!.level,
   };

@@ -1,3 +1,4 @@
+import { geographyColor } from './open-world-geography';
 import { automaticCameraFrame } from './arena-camera';
 import type { WorldArenaLayer } from './world-arena-layer';
 import { ASSETS, fighterDefinition } from '@arena/game-data';
@@ -649,7 +650,7 @@ export class OpenWorldEngine {
     const result = canvas(256, 256),
       ctx = result.getContext('2d')!;
     for (const t of this.world.geography.tiles) {
-      ctx.fillStyle = t.lava ? '#ff914e' : biomeColors[t.biome];
+      ctx.fillStyle = geographyColor(this.world.geography, t);
       ctx.fillRect(t.x, t.y, 1, 1);
     }
     return result;

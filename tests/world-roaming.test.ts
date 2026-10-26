@@ -4,6 +4,7 @@ import {
   createRoamingWorldBattleArena,
   createWorldBattleArena,
   worldBattlePoint,
+  sampleWorldBattleTerrain,
 } from '@arena/game-data/world-combat';
 import {
   terrainContact,
@@ -66,6 +67,24 @@ describe('roaming world encounters', () => {
     expect(world.chunks.size).toBeLessThanOrEqual(64);
   });
 
+  it('keeps archived tickets on their original geography and versions new tickets', () => {
+    const legacy = createWorld(42, 1);
+    const archived = createRoamingWorldBattleArena(legacy, legacy.spawn);
+    delete archived.worldTerrain!.geographyVersion;
+    const restored = JSON.parse(JSON.stringify(archived));
+    for (const point of [legacy.spawn, ...legacy.landmarks]) {
+      const x = 650 + (point.x - legacy.spawn.x - (point.y - legacy.spawn.y)) * 64;
+      const depth = -100 + (point.x - legacy.spawn.x + point.y - legacy.spawn.y) * 32;
+      expect(sampleWorldBattleTerrain(restored, x, depth)!.tile).toEqual(
+        tileAt(legacy, point.x, point.y),
+      );
+    }
+    expect(arena.worldTerrain!.geographyVersion).toBe(2);
+    expect(legacy.geography.tiles.map((t) => t.height)).not.toEqual(
+      world.geography.tiles.map((t) => t.height),
+    );
+  });
+
   it.each(['left', 'right', 'up', 'down'] as const)('walks through the old %s boundary', (side) => {
     const engine = createWorldEncounter(ticket);
     const [pet, enemy] = engine.state.fighters;
@@ -109,7 +128,17 @@ describe('roaming world encounters', () => {
     const [owner, enemy] = engine.state.fighters;
     engine.setManualMode('trainer', true);
     engine.setManualMode('wild', true);
-    Object.assign(owner, { x, depth: 0, y: terrainHeight(arena, { x, depth: 0 }) + 2000 });
+    // Select a clear flight corridor: changed geography can place a trunk at depth 0.
+    const depth = Array.from({ length: 32 }, (_, i) => i * 16).find((depth) => {
+      const y = terrainHeight(arena, { x, depth }) + 1992;
+      return terrainContact(arena, { x, depth, y }, { x: x + 1, depth, y }, 10) === 1;
+    });
+    expect(depth).toBeDefined();
+    Object.assign(owner, {
+      x,
+      depth: depth!,
+      y: terrainHeight(arena, { x, depth: depth! }) + 2000,
+    });
     Object.assign(enemy, { x: x + 2000, depth: 2000 });
     engine.state.projectiles.push({
       id: 'distant-shot',
@@ -118,7 +147,7 @@ describe('roaming world encounters', () => {
       skillId: 'thunderbolt',
       x,
       previousX: x,
-      depth: 0,
+      depth: depth!,
       y: owner.y,
       vx: 20,
       vDepth: 0,

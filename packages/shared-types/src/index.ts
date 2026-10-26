@@ -202,7 +202,13 @@ export interface ArenaObstacle {
 export interface ArenaDefinition {
   surface?: ArenaSurface;
   /** Procedural world terrain, sampled on demand outside the initial encounter patch. */
-  worldTerrain?: { seed: number; origin: { x: number; y: number }; baseLevel: number };
+  worldTerrain?: {
+    seed: number;
+    /** Missing on archived tickets, which use the original archipelago. */
+    geographyVersion?: 1 | 2;
+    origin: { x: number; y: number };
+    baseLevel: number;
+  };
   height?: number;
   background?: string;
   thumbnail?: string;
