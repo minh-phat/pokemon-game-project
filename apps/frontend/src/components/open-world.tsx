@@ -105,6 +105,10 @@ export default function OpenWorld() {
     setStick({ x: 0, y: 0 });
     setClimbHeld(false);
   }, [panel, mapOpen, petPanelOpen, reducedMotion, running, expedition]);
+  const inCombat = Boolean(status?.target || status?.combat);
+  useEffect(() => {
+    if (inCombat) setMapOpen(false);
+  }, [inCombat]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (
@@ -117,18 +121,18 @@ export default function OpenWorld() {
         if (mapOpen) setMapOpen(false);
         else setPanel((p) => (p === 'pause' ? null : 'pause'));
       }
-      if (e.key.toLowerCase() === 'm') {
+      if (!inCombat && e.key.toLowerCase() === 'm') {
         e.preventDefault();
         setMapOpen((v) => !v);
       }
-      if (e.key.toLowerCase() === 'j') {
+      if (!inCombat && e.key.toLowerCase() === 'j') {
         e.preventDefault();
         setPanel((p) => (p === 'journal' ? null : 'journal'));
       }
     };
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
-  }, [mapOpen]);
+  }, [mapOpen, inCombat]);
   function joystick(e: PointerEvent<HTMLDivElement>) {
     if (e.type === 'pointermove' && !e.currentTarget.hasPointerCapture(e.pointerId)) return;
     if (e.type === 'pointerdown') e.currentTarget.setPointerCapture(e.pointerId);
@@ -167,7 +171,7 @@ export default function OpenWorld() {
   const label = (biome: keyof typeof biomeNames) => biomeNames[biome][language === 'vi' ? 0 : 1];
   return (
     <section
-      className={`open-world ${status?.target ? 'world-in-combat' : ''}`}
+      className={`open-world ${inCombat ? 'world-in-combat' : ''}`}
       aria-label={t('Khám phá thế giới mở', 'Open world exploration')}
     >
       <canvas
@@ -332,7 +336,12 @@ export default function OpenWorld() {
           </>
         )}
       </aside>
-      <WorldCompanions engine={engine.current} status={status} onPanelChange={setPetPanelOpen} />
+      <WorldCompanions
+        engine={engine.current}
+        status={status}
+        onPanelChange={setPetPanelOpen}
+        paused={panel !== null || mapOpen || petPanelOpen}
+      />
       {!status?.target && (
         <aside className="world-discovery" aria-live="polite">
           {status?.nearby ? (

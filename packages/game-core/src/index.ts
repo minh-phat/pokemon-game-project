@@ -1524,6 +1524,8 @@ export class BattleEngine {
       }
   }
   private projectileTick(dt: number) {
+    const left = this.arena.worldTerrain ? this.arena.bounds[0] - 50 : -50;
+    const right = this.arena.worldTerrain ? this.arena.bounds[1] + 50 : this.arena.width + 50;
     for (const p of this.state.projectiles) {
       const skill = SKILL_BY_ID[p.skillId];
       if (!(p.age ?? 0)) {
@@ -1619,12 +1621,7 @@ export class BattleEngine {
             break;
           } else this.grantAdaptiveDodge(f);
         }
-      if (
-        !blocked &&
-        !landed &&
-        skill.groundHazard &&
-        (p.life <= 0 || p.x <= -50 || p.x >= this.arena.width + 50)
-      )
+      if (!blocked && !landed && skill.groundHazard && (p.life <= 0 || p.x <= left || p.x >= right))
         this.createGroundHazard(p, p.x, p.depth ?? owner.depth);
       if (p.life > 0 && skill.electricAura) {
         const { reach, damageScale } = skill.electricAura;
@@ -1644,7 +1641,7 @@ export class BattleEngine {
       }
     }
     this.state.projectiles = this.state.projectiles.filter(
-      (p) => p.life > 0 && p.x > -50 && p.x < this.arena.width + 50,
+      (p) => p.life > 0 && p.x > left && p.x < right,
     );
   }
   private createGroundHazard(p: BattleSnapshot['projectiles'][number], x: number, depth: number) {

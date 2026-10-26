@@ -10,18 +10,15 @@ import { BattleEngine } from './index';
 export function createWorldEncounter(ticket: WorldEncounterTicket) {
   const pets = ticket.pets ?? [ticket.pet];
   const wilds = ticket.wilds ?? [ticket.wild];
-  if (
-    (ticket.combatVersion === 3 || ticket.combatVersion === 4) &&
-    !ticket.arenaDefinition?.surface
-  )
-    throw new Error('Missing world battle terrain');
+  const squads = ticket.combatVersion === 4 || ticket.combatVersion === 5;
+  const terrain = ticket.combatVersion === 3 || squads;
+  if (terrain && !ticket.arenaDefinition?.surface) throw new Error('Missing world battle terrain');
+  if (ticket.combatVersion === 5 && !ticket.arenaDefinition?.worldTerrain)
+    throw new Error('Missing roaming world terrain');
   const engine = new BattleEngine(
     {
-      worldEncounter: ticket.combatVersion === 4,
-      arenaDefinition:
-        ticket.combatVersion === 3 || ticket.combatVersion === 4
-          ? ticket.arenaDefinition
-          : { ...ARENAS[0], obstacles: undefined },
+      worldEncounter: squads,
+      arenaDefinition: terrain ? ticket.arenaDefinition : { ...ARENAS[0], obstacles: undefined },
       rules: {
         ...DEFAULT_RULES,
         teamSize: 1,
@@ -41,15 +38,14 @@ export function createWorldEncounter(ticket: WorldEncounterTicket) {
   engine.startBattle();
   for (const f of engine.state.fighters) {
     f.x = f.team === 0 ? 450 : 650;
-    if (ticket.combatVersion === 4) f.depth = ((f.slot % 7) - 3) * 24;
+    if (squads) f.depth = ((f.slot % 7) - 3) * 24;
   }
   const arena = engine.config.arenaDefinition;
   if (arena) {
     const wild = engine.state.fighters.find((f) => f.team === 1)!;
-    const ordered =
-      ticket.combatVersion === 4
-        ? [wild, ...engine.state.fighters.filter((f) => f !== wild)]
-        : [...engine.state.fighters].reverse();
+    const ordered = squads
+      ? [wild, ...engine.state.fighters.filter((f) => f !== wild)]
+      : [...engine.state.fighters].reverse();
     for (const f of ordered) {
       // Find a legal spawn on the actual map without clearing props or flattening it.
       const preferred = { x: f.x, depth: f.depth };

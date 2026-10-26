@@ -1,5 +1,37 @@
 import type { ArenaDefinition } from '@arena/shared-types';
-import { tileAt, type World, type Point } from './world';
+import { createWorld, tileAt, WORLD_SIZE, type World, type Point } from './world';
+
+const terrainWorlds = new WeakMap<ArenaDefinition, World>();
+
+/** Uses the same bounded terrain chunk cache as exploration, never a full-world height array. */
+export function sampleWorldBattleTerrain(arena: ArenaDefinition, x: number, depth: number) {
+  const terrain = arena.worldTerrain;
+  if (!terrain) return null;
+  let world = terrainWorlds.get(arena);
+  if (!world) {
+    world = createWorld(terrain.seed);
+    terrainWorlds.set(arena, world);
+  }
+  const point = worldBattlePoint(terrain.origin, x, depth);
+  const tile = tileAt(world, point.x, point.y);
+  return { point, tile, baseLevel: terrain.baseLevel };
+}
+
+/** Version 5 encounters roam the world; older tickets retain their original arena for replay. */
+export function createRoamingWorldBattleArena(world: World, origin: Point): ArenaDefinition {
+  const arena = createWorldBattleArena(world, origin);
+  arena.worldTerrain = {
+    seed: world.seed,
+    origin: { x: origin.x, y: origin.y },
+    baseLevel: tileAt(world, origin.x, origin.y)!.level,
+  };
+  const xCenter = 650 + (origin.y - origin.x) * 64;
+  const depthStart = -100 - (origin.x + origin.y) * 32;
+  arena.bounds = [xCenter - WORLD_SIZE * 64, xCenter + WORLD_SIZE * 64];
+  arena.depthBounds = [depthStart, depthStart + WORLD_SIZE * 64];
+  terrainWorlds.set(arena, world);
+  return arena;
+}
 
 // The exploration renderer uses 16/8 isometric pixels and 8 pixels per elevation level.
 // Combat sprites and hitboxes are displayed at 1/4 scale.

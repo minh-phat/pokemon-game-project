@@ -1,6 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { createWorld, tileAt } from '@arena/game-data/world';
-import { createWorldBattleArena } from '@arena/game-data/world-combat';
+import {
+  createWorldBattleArena,
+  createRoamingWorldBattleArena,
+} from '@arena/game-data/world-combat';
 import { replayWorldEncounter } from '@arena/game-core';
 import { gainExperience, wildBattleExperience } from '@arena/game-data';
 import type { OwnedPet, WorldEncounterTicket, WorldBattleReward } from '@arena/shared-types';
@@ -45,8 +48,8 @@ for (const mobile of [false, true]) {
         const body = route.request().postDataJSON();
         const wild = world.wildlife.find((w) => w.id === body.wildIds[0])!;
         ticket = {
-          combatVersion: 3,
-          arenaDefinition: createWorldBattleArena(world, wild),
+          combatVersion: 5,
+          arenaDefinition: createRoamingWorldBattleArena(world, wild),
           id: '00000000-0000-4000-8000-000000000002',
           seed: 777,
           pet: { ...pet },
@@ -113,12 +116,34 @@ for (const mobile of [false, true]) {
     await page.getByRole('button', { name: 'Ra trận', exact: true }).click();
     const panel = page.getByRole('complementary', { name: 'Chiến đấu thế giới mở' });
     await panel.getByRole('button', { name: 'Tự điều khiển', exact: true }).click();
-    await expect(page.locator('.world-skill-grid')).toBeVisible();
-    await panel.getByRole('button', { name: 'Đỡ', exact: true }).click();
-    await expect(panel.getByRole('button', { name: 'Đỡ', exact: true })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    const controls = page.getByRole('region', { name: 'Manual battle controls' });
+    await expect(controls).toBeVisible();
+    await expect(page.locator('.world-map')).toBeHidden();
+    await expect(page.locator('.world-toolbar')).toBeHidden();
+    await expect(page.locator('.world-traversal')).toBeHidden();
+    await expect(controls.getByRole('group', { name: 'Defense controls' })).toBeVisible();
+    await controls.getByRole('button', { name: 'Guard · −20%', exact: true }).click();
+    await expect(
+      controls.getByRole('button', { name: 'Release guard', exact: true }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    const canvas = page.getByTestId('world-canvas');
+    if (mobile) {
+      const stick = await controls.locator('.manual-stick-area').boundingBox();
+      await page.mouse.move(stick!.x + stick!.width / 2, stick!.y + stick!.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(stick!.x + stick!.width / 2, stick!.y + 1);
+    } else await page.keyboard.down('w');
+    await expect
+      .poll(
+        async () => Number((await canvas.getAttribute('data-combat-position'))?.split(',')[1]),
+        { timeout: 15000 },
+      )
+      .toBeLessThan(-1300);
+    if (mobile) await page.mouse.up();
+    else await page.keyboard.up('w');
+    await page.screenshot({
+      path: `test-results/world-roaming-${mobile ? 'mobile' : 'desktop'}.png`,
+    });
     await panel.getByRole('button', { name: 'Auto', exact: true }).click();
     await expect(page.getByText('Đang tải hiệu ứng chiến đấu…')).toHaveCount(0);
     await page.screenshot({
@@ -139,6 +164,9 @@ for (const mobile of [false, true]) {
     await expect(panel).toContainText('Đã lập khế ước!');
     await panel.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
     await expect(panel).not.toBeVisible();
+    await expect(page.locator('.world-map')).toBeVisible();
+    await expect(page.locator('.world-toolbar')).toBeVisible();
+    await expect(controls).toHaveCount(0);
     await page.locator('.world-pets-toggle').click();
     await expect(page.locator('.world-pet-list button')).toHaveCount(2);
     await expect(page.locator('.world-pet-list')).toContainText('Lv.2 · SS · 40/130 EXP');

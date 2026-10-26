@@ -19,12 +19,12 @@ Thú hoang có nhãn **Lv. / phẩm chất C–SS**. Level và phẩm chất đ�
 
 Bấm từng thú hoang để chọn/bỏ chọn, hoặc kéo chuột tạo khung chữ nhật để chọn quái trong vùng. Giữ **Shift** khi kéo để thêm mục tiêu. Có thể **Bỏ chọn tất cả**; kéo chọn không làm nhân vật di chuyển. Bấm **Ra trận** để cả đội cùng chiến đấu với các quái đã chọn. Luật thế giới mở không giới hạn số lượng thú và mục tiêu. Trong trận, người chơi đứng quan sát và không dịch chuyển sang vùng khác. Có thể **Rút lui** nếu không muốn tiếp tục; rút lui không có EXP.
 
-- **Auto**: cả pet và thú hoang dùng AI mức khó, tự chọn kỹ năng theo tầm đánh, năng lượng và hồi chiêu; né ngang khi đối thủ chuẩn bị bắn, nhảy qua đạn thấp, lướt khỏi tia/vùng sát thương và tránh lướt vào biên đấu. Các phản ứng phụ thuộc tình huống và thể lực.
-- **Tự điều khiển**: bấm thú trong danh sách đội để điều khiển thú đó; các thú khác tiếp tục Auto. Pet tự tìm vị trí và đánh thường; người chơi chọn kỹ năng, Đỡ hoặc Né. Nút kỹ năng hiển thị năng lượng và hồi chiêu.
+- **Auto**: cả pet và thú hoang dùng AI mức khó, tự chọn kỹ năng theo tầm đánh, năng lượng và hồi chiêu; né ngang khi đối thủ chuẩn bị bắn, nhảy qua đạn thấp, lướt khỏi tia/vùng sát thương và tránh vật cản địa hình. Các phản ứng phụ thuộc tình huống và thể lực.
+- **Tự điều khiển**: bấm thú trong danh sách đội để điều khiển thú đó; các thú khác tiếp tục Auto. Dùng chung bộ điều khiển đấu máy/PvP: WASD/phím mũi tên hoặc cần điều khiển để di chuyển, các nút kỹ năng, nhảy, lướt, cúi, đỡ và đổi mục tiêu. Camera bám Pokémon đang điều khiển. Nút kỹ năng hiển thị năng lượng và hồi chiêu.
 - Trận dùng cùng `BattleEngine` và AI với đấu máy/PvP, áp dụng level/phẩm chất riêng cho từng cá thể, kể cả hai thú cùng loài. Sprite, đòn đánh, tia năng lượng, vùng sát thương và số sát thương được vẽ trên bản đồ.
 - Trận được vẽ bằng chính `ArenaScene` của đấu máy/PvP trên lớp Canvas trong suốt: dùng chung `SkillVfx`, `DashWind`, hoạt ảnh từng loài, tụ lực, đạn và vệt đạn, tia, nổ khi trúng, trạng thái, chiêu trói và âm thanh. Không còn dùng chấm đạn/đường tia thay cho hiệu ứng thật. Nhãn level/phẩm chất và thẻ hành động vẫn hiển thị trong thế giới mở.
 - Lớp chiến đấu giữ nguyên trục di chuyển và tỉ lệ của đấu trường, đặt trên mặt phẳng ở cao độ mục tiêu; bản đồ vẫn hiện phía dưới. Thế giới mở giữ quyền cập nhật mô phỏng 60 Hz; lớp vẽ chỉ đọc snapshot riêng, không cập nhật thêm một lần và không dùng chung trận đang lưu trong `battleFeed`. Tải tài nguyên xong mới bắt đầu mô phỏng; lỗi tải có thông báo và người chơi có thể rút lui để thử lại. Tạm dừng dừng hoạt ảnh/âm thanh; rút lui hoặc rời bản đồ giải phóng lớp vẽ.
-- Mã trận mới dùng `combatVersion: 4`; trận cũ vẫn phát lại với AI cũ để giữ nguyên kết quả khi thử lưu thưởng.
+- Mã trận mới dùng `combatVersion: 5`; trận cũ vẫn phát lại với AI cũ để giữ nguyên kết quả khi thử lưu thưởng.
 - Khi thú hoang còn **dưới 10% HP**, nó ngừng tham chiến. Khi tất cả quái chịu thua, trận dừng và cho chọn **Lập khế ước** với các quái đủ điều kiện hoặc **Thả đi**. Đòn vượt quá lượng máu còn lại chừa 1 HP. Đúng 10% chưa đủ điều kiện. Khế ước thành công chắc chắn, giữ nguyên loài, cấp và phẩm chất; mỗi cá thể trong cùng mã thế giới chỉ lập khế ước một lần với mỗi tài khoản.
 - Trận tối đa 120 giây. Kết thúc do hết giờ vẫn tính EXP theo kết quả, nhưng chỉ được lập khế ước nếu thực sự thắng và thú hoang dưới 10% HP. Pet được hồi phục khi bắt đầu trận tiếp theo.
 
@@ -101,10 +101,12 @@ Nếu chỉ có dữ liệu v1, game giữ mã thế giới và nhật ký, đ�
 
 ## AI chiến đấu theo địa hình
 
-Trận mới dùng `combatVersion: 4`, hỗ trợ hai đội khác số lượng. Máy chủ lấy vùng 33 × 33 ô quanh mục tiêu đầu tiên từ chính dữ liệu thế giới và lưu độ cao, nước, dung nham, gốc cây/đá trong vé trận đấu. Client và replay máy chủ dùng cùng vùng này; không làm phẳng nền khi bước vào giao chiến. Phép chiếu giữ 32 đơn vị chiến đấu cho mỗi cấp độ cao của thế giới.
+Trận mới dùng `combatVersion: 5`, hỗ trợ hai đội khác số lượng và không có biên chiến đấu cục bộ. Pokémon có thể di chuyển ra xa vị trí bắt đầu; cây, đá, vách, dung nham và biên ngoài của bản đồ vẫn có va chạm. Vé trận lưu mã thế giới, tọa độ gốc và cao độ gốc; client và máy chủ lấy các ô địa hình theo tọa độ qua cùng bộ nhớ đệm giới hạn, không cấp phát toàn bộ bản đồ. Lớp vẽ sprite/chiêu thức đi theo camera bằng một Canvas có kích thước cố định. Trận phiên bản cũ giữ nguyên vùng 33 × 33 ô để phát lại đúng kết quả khi thử nhận thưởng. Phép chiếu giữ 32 đơn vị chiến đấu cho mỗi cấp độ cao của thế giới.
 
 AI và nhân vật chiến đấu dùng chung va chạm theo độ cao: đi lên/xuống bậc một cấp, nhảy lên bậc trong tầm sức bật của loài, leo bậc cao tối đa tám cấp khi còn thể lực, rơi và tiếp đất ở nền thực tế. Leo có thời gian, tiêu hao thể lực và bị ngắt khi trúng đòn/choáng. Nước làm chậm di chuyển; không tự leo từ nước. Dung nham, gốc cây và những vách không thể vượt buộc AI tìm đường khác. Việc giao chiến vẫn giới hạn trong vùng trận đấu quanh mục tiêu.
 
 Tìm đường A\* giới hạn 2.400 nút và lưu lộ trình ngắn hạn. AI cân nhắc chỗ khuất đạn, đường bắn thông thoáng và vị trí cao, rồi quay lại giao chiến sau khi tránh né. Các sàn rừng, núi lửa và hồ có bục thấp/cao hiển thị được; thành cổ dùng chiều cao của đá, cột và tường có sẵn, giữ các tường biên không thể leo. Đạn, tia, bóng và vùng sát thương sử dụng cao độ chiến đấu.
 
 `tests/terrain-traversal.test.ts` kiểm tra nhảy, leo tự động, xuống bậc, ngắt leo, vách vượt tầm, che chắn, va chạm ở bước di chuyển ngắn, cao độ âm, đối chiếu phép chiếu với thế giới và replay sau khi tuần tự hóa dữ liệu địa hình.
+
+`tests/world-roaming.test.ts` kiểm tra đi qua cả bốn biên đấu cũ, lấy địa hình ngoài vùng ban đầu, đạn ở tọa độ xa, bộ nhớ đệm, phép ghép lớp vẽ theo camera và tính xác định của replay phiên bản 5. Kiểm thử trình duyệt kiểm tra đi bằng bàn phím/cần điều khiển ra ngoài vùng địa hình cũ rồi hoàn thành trận và nhận thưởng.

@@ -9,7 +9,7 @@ import {
 } from '@arena/shared-types';
 import { gainExperience, fighterDefinition, wildBattleExperience } from '@arena/game-data';
 import { createWorld, syncWildlife, type World } from '@arena/game-data/world';
-import { createWorldBattleArena } from '@arena/game-data/world-combat';
+import { createRoamingWorldBattleArena } from '@arena/game-data/world-combat';
 import { replayWorldEncounter } from '@arena/game-core';
 import { publicPet, type PetDocument } from './pets';
 
@@ -106,10 +106,10 @@ export async function startWorldBattle(db: Db, ownerId: ObjectId, body: unknown)
   // A new deployment abandons the previous fight without rewards.
   await encounters.updateMany({ ownerId, status: 'active' }, { $set: { status: 'aborted' } });
   const ticket: WorldEncounterTicket = {
-    combatVersion: 4,
+    combatVersion: 5,
     pets: pets.map(publicPet),
     wilds,
-    arenaDefinition: createWorldBattleArena(world, wild),
+    arenaDefinition: createRoamingWorldBattleArena(world, wild),
     id: randomUUID(),
     seed: randomInt(0x7fffffff),
     pet: publicPet(pet),

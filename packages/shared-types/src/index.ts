@@ -201,6 +201,8 @@ export interface ArenaObstacle {
 }
 export interface ArenaDefinition {
   surface?: ArenaSurface;
+  /** Procedural world terrain, sampled on demand outside the initial encounter patch. */
+  worldTerrain?: { seed: number; origin: { x: number; y: number }; baseLevel: number };
   height?: number;
   background?: string;
   thumbnail?: string;
@@ -527,7 +529,7 @@ export interface WorldWildPet extends PetProgression {
 }
 export interface WorldEncounterTicket {
   /** Missing on older tickets, whose deterministic replay keeps the original AI. */
-  combatVersion?: 2 | 3 | 4;
+  combatVersion?: 2 | 3 | 4 | 5;
   arenaDefinition?: ArenaDefinition;
   id: string;
   seed: number;

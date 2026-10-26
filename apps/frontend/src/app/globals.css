@@ -3244,7 +3244,8 @@ select option {
 
 /* Touch controls sit in thumb reach; the space between them stays playable. */
 @media (any-pointer: coarse), (max-width: 1024px) {
-  .battle-page .manual-controls {
+  .battle-page .manual-controls,
+  .open-world .manual-controls {
     position: absolute;
     inset: auto max(12px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom))
       max(12px, env(safe-area-inset-left));
@@ -3458,7 +3459,8 @@ select option {
   }
 }
 @media (min-width: 768px) and (any-pointer: coarse) {
-  .battle-page .manual-controls {
+  .battle-page .manual-controls,
+  .open-world .manual-controls {
     left: max(28px, env(safe-area-inset-left));
     right: max(28px, env(safe-area-inset-right));
     bottom: max(24px, env(safe-area-inset-bottom));

@@ -1,4 +1,4 @@
-import { WORLD_ARENA_VIEW } from './world-combat-visuals';
+import { WORLD_ARENA_VIEW, worldArenaViewport, type WorldArenaView } from './world-combat-visuals';
 import { isConcealed } from '@arena/shared-types';
 import { slimePose, slimeOpacity } from './water-slime';
 import { drawRuins } from './ruins-arena';
@@ -37,13 +37,14 @@ export type WorldArenaSource = () => {
   snapshot: import('@arena/shared-types').BattleSnapshot | null;
   paused: boolean;
   reducedMotion: boolean;
+  viewport?: { x: number; y: number; width: number; height: number };
 };
 export function createArenaScene(
   arenaId: MatchRules['arena'],
   onReady: () => void,
   onError: (message: string) => void,
   worldSource?: WorldArenaSource,
-  worldView: { top: number } = WORLD_ARENA_VIEW,
+  worldView: WorldArenaView = { ...WORLD_ARENA_VIEW },
 ) {
   return class ArenaScene extends Phaser.Scene {
     private actors = new Map<string, Visual>();
@@ -277,6 +278,23 @@ export function createArenaScene(
       if (worldSource) {
         this.tweens.timeScale = settings.paused ? 0 : 1;
         this.ambience.setPaused(settings.paused);
+        if (external?.viewport) {
+          const camera = this.cameras.main;
+          Object.assign(
+            worldView,
+            worldArenaViewport(
+              external.viewport,
+              external.viewport.width,
+              external.viewport.height,
+              camera.width / camera.height,
+            ),
+          );
+          camera.setZoom(camera.width / worldView.width);
+          camera.centerOn(
+            (worldView.left ?? 0) + worldView.width / 2,
+            worldView.top + worldView.height / 2,
+          );
+        }
       }
       if (
         !worldSource &&

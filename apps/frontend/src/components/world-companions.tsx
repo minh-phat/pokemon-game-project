@@ -20,6 +20,7 @@ import type { OpenWorldEngine, WorldStatus } from '@/game/open-world-engine';
 import { useGame } from '@/lib/store';
 import { useLanguage } from '@/lib/i18n';
 import { Dialog } from './ui/dialog';
+import { ManualControls } from './manual-controls';
 
 async function request<T>(path: string, body?: unknown): Promise<T> {
   const response = await fetch(
@@ -49,10 +50,12 @@ export function WorldCompanions({
   engine,
   status,
   onPanelChange,
+  paused = false,
 }: {
   engine: OpenWorldEngine | null;
   status: WorldStatus | null;
   onPanelChange: (open: boolean) => void;
+  paused?: boolean;
 }) {
   const { t } = useLanguage();
   const user = useGame((s) => s.user);
@@ -383,74 +386,6 @@ export function WorldCompanions({
                   {t('Tự điều khiển', 'Manual')}
                 </button>
               </div>
-              {manual && fighter && (
-                <>
-                  <small>
-                    {t(
-                      'Pet tự di chuyển và đánh thường. Chọn kỹ năng để ra lệnh.',
-                      'Your pet moves and uses basic attacks. Choose a skill to command it.',
-                    )}
-                  </small>
-                  <div className="world-skill-grid">
-                    {POKEMON[fighter.species].skills.map((skill) => (
-                      <button
-                        key={skill.id}
-                        disabled={
-                          Boolean(fighter.cast) ||
-                          (fighter.cooldowns[skill.id] ?? 0) > 0 ||
-                          fighter.energy < skill.energy
-                        }
-                        onClick={() =>
-                          engine?.battleAction({
-                            type: 'command',
-                            command: { type: 'skill', fighterId: fighter.id, skillId: skill.id },
-                          })
-                        }
-                      >
-                        {skill.name}
-                        <small>
-                          {(fighter.cooldowns[skill.id] ?? 0) > 0
-                            ? `${fighter.cooldowns[skill.id].toFixed(1)}s`
-                            : `${skill.energy} EN`}
-                        </small>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="world-combat-actions">
-                    <button
-                      aria-pressed={fighter.guarded}
-                      onClick={() =>
-                        engine?.battleAction({
-                          type: 'command',
-                          command: {
-                            type: 'guard',
-                            fighterId: fighter.id,
-                            active: !fighter.guarded,
-                          },
-                        })
-                      }
-                    >
-                      {t('Đỡ', 'Guard')}
-                    </button>
-                    <button
-                      disabled={fighter.dodgeCooldown > 0}
-                      onClick={() =>
-                        engine?.battleAction({
-                          type: 'command',
-                          command: {
-                            type: 'dodge',
-                            fighterId: fighter.id,
-                            mode: 'dash',
-                            direction: -fighter.facing,
-                          },
-                        })
-                      }
-                    >
-                      {t('Né', 'Dodge')}
-                    </button>
-                  </div>
-                </>
-              )}
             </>
           )}
           {pending && (
@@ -536,6 +471,19 @@ export function WorldCompanions({
             </button>
           )}
         </aside>
+      )}
+      {inBattle && manual && combat && (
+        <ManualControls
+          snapshot={combat}
+          team={0}
+          disabled={paused || !status?.combatVisualReady}
+          selectedId={controlledId}
+          onSelect={(fighterId) => {
+            setControlledId(fighterId);
+            engine?.battleAction({ type: 'control', fighterId });
+          }}
+          command={(command) => engine?.battleAction({ type: 'command', command })}
+        />
       )}
       <Dialog
         open={open}

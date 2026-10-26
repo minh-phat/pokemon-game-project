@@ -1,3 +1,4 @@
+import { automaticCameraFrame } from './arena-camera';
 import type { WorldArenaLayer } from './world-arena-layer';
 import { ASSETS, fighterDefinition } from '@arena/game-data';
 import {
@@ -224,6 +225,10 @@ export class OpenWorldEngine {
           snapshot: this.encounter?.state ?? null,
           paused: this.input.paused || document.hidden || this.encounter?.state.phase !== 'battle',
           reducedMotion: this.input.reducedMotion,
+          viewport:
+            this.encounter?.state.arenaDefinition?.worldTerrain && this.target
+              ? this.combatViewport()
+              : undefined,
         }));
       })
       .catch(() => {
@@ -259,6 +264,8 @@ export class OpenWorldEngine {
     this.selectedTargets = [];
     this.target = null;
     this.encounter = null;
+    this.resize();
+    this.clearInput();
     this.ticket = null;
     this.starting = false;
     this.resetFollowers();
@@ -269,6 +276,15 @@ export class OpenWorldEngine {
     const origin = project(this.target!.x, this.target!.y);
     const offset = worldCombatOffset(x, depth);
     return unproject(origin.x + offset.x, origin.y + offset.y);
+  }
+  private combatViewport() {
+    const origin = project(this.target!.x, this.target!.y, this.combatLevel);
+    return {
+      x: (this.camera.x - origin.x) / WORLD_COMBAT_HEIGHT_SCALE + 650,
+      y: (this.camera.y - origin.y) / WORLD_COMBAT_HEIGHT_SCALE + 420,
+      width: this.viewportWidth / WORLD_COMBAT_HEIGHT_SCALE,
+      height: this.viewportHeight / WORLD_COMBAT_HEIGHT_SCALE,
+    };
   }
   private updateCompanion(dt: number) {
     if (!this.companionMotion || !this.companion) return;
@@ -424,7 +440,7 @@ export class OpenWorldEngine {
     this.context.imageSmoothingEnabled = false;
   };
   private keyDown = (e: KeyboardEvent) => {
-    if (this.input.paused) return;
+    if (this.input.paused || this.target) return;
     if (
       e.target instanceof HTMLElement &&
       e.target.closest('input, select, textarea, [role="dialog"]')
@@ -1273,19 +1289,32 @@ export class OpenWorldEngine {
     if (this.drag) return;
     if (this.target) {
       this.moving = false;
-      const fighters = this.encounter?.state.fighters;
-      const focus = fighters
-        ? this.combatPoint(
-            fighters.reduce((sum, f) => sum + f.x, 0) / fighters.length,
-            fighters.reduce((sum, f) => sum + f.depth, 0) / fighters.length,
-          )
-        : this.target;
-      const point = project(
-        focus.x,
-        focus.y,
-        this.encounter ? this.combatLevel : (tileAt(this.world, focus.x, focus.y)?.level ?? 0),
-      );
-      const easing = this.input.reducedMotion ? 1 : 1 - Math.exp(-dt * 5);
+      const snapshot = this.encounter?.state;
+      const easing = this.input.reducedMotion ? 1 : 1 - Math.exp(-dt / 0.18);
+      let point = project(this.target.x, this.target.y, this.combatLevel);
+      if (snapshot) {
+        const width = this.surface.clientWidth;
+        const height = this.surface.clientHeight;
+        const frame = automaticCameraFrame(snapshot, 0, { width: 1200 }, width, height);
+        const origin = project(this.target.x, this.target.y, this.combatLevel);
+        point = {
+          x: origin.x + (frame.x - 650) * WORLD_COMBAT_HEIGHT_SCALE,
+          y: origin.y + (frame.y - 420) * WORLD_COMBAT_HEIGHT_SCALE,
+        };
+        const desiredZoom = frame.zoom / WORLD_COMBAT_HEIGHT_SCALE;
+        const currentZoom = width / this.viewportWidth;
+        const zoom = Math.min(desiredZoom, currentZoom + (desiredZoom - currentZoom) * easing);
+        this.viewportWidth = width / zoom;
+        this.viewportHeight = height / zoom;
+        this.context.setTransform(
+          this.surface.width / this.viewportWidth,
+          0,
+          0,
+          this.surface.height / this.viewportHeight,
+          0,
+          0,
+        );
+      }
       this.camera.x += (point.x - this.camera.x) * easing;
       this.camera.y += (point.y - this.camera.y) * easing;
       return;
@@ -1359,6 +1388,12 @@ export class OpenWorldEngine {
       : null;
     this.paintMinimap();
     this.surface.dataset.position = `${this.player.x.toFixed(2)},${this.player.y.toFixed(2)}`;
+    const controlled = this.encounter?.state.fighters.find(
+      (f) => f.id === this.encounter?.state.controlledFighterIds[0],
+    );
+    this.surface.dataset.combatPosition = controlled
+      ? `${controlled.x.toFixed(2)},${controlled.depth.toFixed(2)}`
+      : '';
     this.surface.dataset.seed = String(this.world.seed);
     this.surface.dataset.renderMs = this.renderMs.toFixed(1);
     this.surface.dataset.terrainChunks = String(this.world.chunks.size);

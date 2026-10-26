@@ -1185,3 +1185,46 @@ body:has(.fantasy-app) .dialog-content.play-mode-dialog {
 .world-rosters button[aria-pressed='true'] {
   outline: 2px solid #96ffe1;
 }
+
+/* Keep the exploration canvases mounted while combat owns the screen. */
+.world-in-combat .world-location,
+.world-in-combat .world-elevation,
+.world-in-combat .world-map,
+.world-in-combat .world-toolbar,
+.world-in-combat .world-traversal,
+.world-in-combat .world-touch-stick,
+.world-in-combat .world-pets-toggle,
+.world-in-combat .world-brand,
+.world-in-combat .world-expedition {
+  display: none;
+}
+.world-in-combat .world-combat {
+  top: 76px;
+  bottom: auto;
+  left: 16px;
+  width: 250px;
+  max-height: calc(100dvh - 360px);
+  padding: 10px;
+  background: #102f2bd9;
+}
+.world-in-combat .world-header {
+  pointer-events: none;
+}
+.world-in-combat .world-header button {
+  pointer-events: auto;
+}
+@media (max-width: 600px) {
+  .world-in-combat .world-combat {
+    top: 64px;
+    left: 12px;
+    width: 210px;
+  }
+}
+@media (max-height: 500px) {
+  .world-in-combat .world-combat {
+    top: 12px;
+    left: 72px;
+    width: 210px;
+    max-height: 110px;
+  }
+}

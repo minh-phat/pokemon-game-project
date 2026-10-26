@@ -1,4 +1,6 @@
 import type { ArenaDefinition } from '@arena/shared-types';
+import { sampleWorldBattleTerrain } from './world/combat';
+import { WORLD_SIZE } from './world/world';
 export type TerrainPoint = { x: number; depth: number; y?: number };
 type Point = TerrainPoint;
 /** Swept contact against obstacle volumes and the sampled heightfield. Omitted y means ground level. */
@@ -140,6 +142,8 @@ export function surfaceCell(arena: ArenaDefinition, p: Point) {
 }
 
 export function terrainHeight(arena: ArenaDefinition, p: Point, radius = 0): number {
+  const world = sampleWorldBattleTerrain(arena, p.x, p.depth);
+  if (world) return ((world.tile?.level ?? world.baseLevel) - world.baseLevel) * 32;
   const cell = surfaceCell(arena, p);
   let height = cell && cell.index >= 0 ? arena.surface!.heights[cell.index] : 0;
   for (const o of arena.obstacles ?? [])
@@ -159,6 +163,25 @@ export function terrainWalkable(arena: ArenaDefinition, p: Point, radius = 0): b
     p.depth > arena.depthBounds[1] - radius
   )
     return false;
+  const world = sampleWorldBattleTerrain(arena, p.x, p.depth);
+  if (world) {
+    const { point, tile } = world;
+    if (
+      !tile ||
+      tile.lava ||
+      point.x <= 1 ||
+      point.y <= 1 ||
+      point.x >= WORLD_SIZE - 2 ||
+      point.y >= WORLD_SIZE - 2
+    )
+      return false;
+    const solid = ['tree', 'pine', 'rock'].includes(tile.decoration ?? '');
+    return (
+      !solid ||
+      Math.hypot(point.x - Math.floor(point.x) - 0.5, point.y - Math.floor(point.y) - 0.5) >=
+        0.24 + radius / 160
+    );
+  }
   const cell = surfaceCell(arena, p);
   if (cell) {
     const s = arena.surface!;
@@ -179,6 +202,8 @@ export function terrainWalkable(arena: ArenaDefinition, p: Point, radius = 0): b
 }
 
 export function terrainWater(arena: ArenaDefinition, p: Point): boolean {
+  const world = sampleWorldBattleTerrain(arena, p.x, p.depth);
+  if (world) return Boolean(world.tile?.water);
   const cell = surfaceCell(arena, p);
   return Boolean(cell && cell.index >= 0 && arena.surface!.water?.[cell.index]);
 }
