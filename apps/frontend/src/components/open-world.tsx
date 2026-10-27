@@ -12,6 +12,7 @@ import {
   Play,
   Tent,
   Waves,
+  Sun,
   X,
 } from 'lucide-react';
 import { useGame } from '@/lib/store';
@@ -33,6 +34,8 @@ import {
 } from '@/game/open-world-world';
 import { Dialog } from './ui/dialog';
 import { WorldCompanions } from './world-companions';
+import { CityTour } from './city-tour';
+import { CITY_TOUR } from '@/game/binh-minh-tour';
 
 const names = {
   pikachu: 'Pikachu',
@@ -47,11 +50,14 @@ export default function OpenWorld() {
   const surface = useRef<HTMLCanvasElement>(null),
     minimap = useRef<HTMLCanvasElement>(null);
   const engine = useRef<OpenWorldEngine | null>(null);
+  const pendingCityWalk = useRef<{ x: number; y: number } | null>(null);
   const [expedition, setExpedition] = useState<{ seed: number; saved: WorldSave | null } | null>(
     null,
   );
   const [status, setStatus] = useState<WorldStatus | null>(null);
-  const [panel, setPanel] = useState<'pause' | 'journal' | null>(null);
+  const [panel, setPanel] = useState<'pause' | 'journal' | 'city' | null>(null);
+  const [cityVisits, setCityVisits] = useState<string[]>([]);
+  const [cityWalkError, setCityWalkError] = useState('');
   const [petPanelOpen, setPetPanelOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false),
     [error, setError] = useState('');
@@ -102,11 +108,27 @@ export default function OpenWorld() {
       engine.current.input.x = 0;
       engine.current.input.y = 0;
       engine.current.input.climb = false;
+      if (panel === null && pendingCityWalk.current) {
+        engine.current.walkTo(pendingCityWalk.current);
+        pendingCityWalk.current = null;
+      }
     }
     setStick({ x: 0, y: 0 });
     setClimbHeld(false);
   }, [panel, mapOpen, petPanelOpen, reducedMotion, running, expedition]);
   const inCombat = Boolean(status?.target || status?.combat);
+  useEffect(() => {
+    if (!status?.city || !engine.current || inCombat) return;
+    const { spawn } = engine.current.world;
+    const nearby = CITY_TOUR.filter(
+      (stop) => Math.hypot(status.x - spawn.x - stop.x, status.y - spawn.y - stop.y) < 3.5,
+    );
+    if (nearby.length)
+      setCityVisits((current) => {
+        const next = [...new Set([...current, ...nearby.map((stop) => stop.id)])];
+        return next.length === current.length ? current : next;
+      });
+  }, [status, inCombat]);
   useEffect(() => {
     if (inCombat) setMapOpen(false);
   }, [inCombat]);
@@ -158,7 +180,7 @@ export default function OpenWorld() {
   const label = (biome: keyof typeof biomeNames) => biomeNames[biome][language === 'vi' ? 0 : 1];
   return (
     <section
-      className={`open-world ${inCombat ? 'world-in-combat' : ''}`}
+      className={`open-world ${status?.city ? 'world-in-city' : ''} ${inCombat ? 'world-in-combat' : ''}`}
       aria-label={t('Khám phá thế giới mở', 'Open world exploration')}
     >
       <canvas
@@ -223,16 +245,39 @@ export default function OpenWorld() {
           <span className="world-dot" />
           {t('BẠN ĐANG Ở', 'YOU ARE HERE')}
         </span>
-        <h2>{status ? label(status.biome) : '…'}</h2>
+        <h2>
+          {status
+            ? status.city
+              ? t('Thành phố Bình Minh', 'Bình Minh City')
+              : label(status.biome)
+            : '…'}
+        </h2>
         <p>
           <Compass size={12} />{' '}
           {status
             ? `${((status.x * METERS_PER_TILE) / 1000).toFixed(2)} km E / ${((status.y * METERS_PER_TILE) / 1000).toFixed(2)} km S`
             : '—'}
           <span>·</span>
-          {status?.water ? t('Đang chèo thuyền', 'Sailing') : t('Tự do khám phá', 'Free to wander')}
+          {status?.water
+            ? t('Đang chèo thuyền', 'Sailing')
+            : status?.city
+              ? t('Vùng bảo hộ lực trường', 'Force-field sanctuary')
+              : t('Tự do khám phá', 'Free to wander')}
         </p>
       </aside>
+      {status?.city && !inCombat && (
+        <button
+          className="city-tour-toggle"
+          onClick={() => {
+            setCityWalkError('');
+            setPanel('city');
+          }}
+        >
+          <Sun size={17} />
+          <span>{t('Dạo phố Bình Minh', 'Bình Minh city walk')}</span>
+          <small>{cityVisits.length}/4</small>
+        </button>
+      )}
       <div className="world-elevation" data-testid="world-elevation">
         <Mountain size={15} />
         <strong>{status?.elevation ?? 0} m</strong>
@@ -275,7 +320,7 @@ export default function OpenWorld() {
           </span>
           <span>
             <i />
-            {t('Trại', 'Camp')}
+            {t('Bình Minh', 'Bình Minh')}
           </span>
           <small>
             {status?.visited.length ?? 0}/8 {t('vùng', 'regions')}
@@ -317,8 +362,8 @@ export default function OpenWorld() {
                 if (!engine.current?.travelTo({ x, y })) {
                   setTravelError(
                     t(
-                      'Không thể đến vị trí này. Hãy chọn tọa độ khác, tránh cây, đá và dung nham.',
-                      'Cannot travel here. Choose another position away from trees, rocks and lava.',
+                      'Không thể đến vị trí này. Hãy tránh công trình, tường lực trường, cây, đá và dung nham.',
+                      'Cannot travel here. Avoid buildings, force fields, trees, rocks and lava.',
                     ),
                   );
                   return;
@@ -397,6 +442,22 @@ export default function OpenWorld() {
                 {WORLD_KM.toFixed(3)} × {WORLD_KM.toFixed(3)} km
               </span>
             </div>
+            <details className="world-city-guide">
+              <summary>{t('Khám phá thành phố Bình Minh', 'Discover Bình Minh City')}</summary>
+              <img
+                src="/assets/binh-minh/concept.png"
+                alt={t(
+                  'Phối cảnh thành phố Bình Minh với bốn cổng và tường lực trường',
+                  'Bình Minh city concept with four gates and a protective force field',
+                )}
+              />
+              <p>
+                {t(
+                  'Cổng triệu hồi ở quảng trường trung tâm. Bốn đại lộ dẫn tới cổng Bắc, Đông, Nam, Tây. Bệnh viện, học viện, công viên, đấu trường, cửa tiệm và bảo tàng nằm trong vành đai bảo vệ.',
+                  'The summoning portal stands in the central plaza. Four avenues lead to the north, east, south and west gates. Hospitals, an academy, parks, an arena, shops and a museum sit within the protective perimeter.',
+                )}
+              </p>
+            </details>
           </>
         )}
       </aside>
@@ -489,22 +550,30 @@ export default function OpenWorld() {
           </span>
         </div>
         <nav aria-label={t('Công cụ thám hiểm', 'Exploration tools')}>
-          <button onClick={() => setPanel('journal')}>
+          <button aria-label={t('Nhật ký', 'Journal')} onClick={() => setPanel('journal')}>
             <BookOpen size={19} />
             <span>{t('Nhật ký', 'Journal')}</span>
             <b>{status?.seen.length ?? 0}/5</b>
           </button>
-          <button onClick={() => setMapOpen((v) => !v)} aria-pressed={mapOpen}>
+          <button
+            aria-label={t('Bản đồ', 'Map')}
+            onClick={() => setMapOpen((v) => !v)}
+            aria-pressed={mapOpen}
+          >
             <Map size={19} />
             <span>{t('Bản đồ', 'Map')}</span>
             <kbd>M</kbd>
           </button>
-          <button onClick={() => engine.current?.returnToCamp()}>
+          <button
+            aria-label={t('Về Bình Minh', 'Bình Minh')}
+            onClick={() => engine.current?.returnToCamp()}
+          >
             <Tent size={19} />
-            <span>{t('Về trại', 'Camp')}</span>
+            <span>{t('Về Bình Minh', 'Bình Minh')}</span>
           </button>
           <button
             className="world-run"
+            aria-label={t('Chạy', 'Run')}
             aria-pressed={running}
             onClick={() => setRunning((v) => !v)}
           >
@@ -594,16 +663,46 @@ export default function OpenWorld() {
         }}
         className="world-dialog"
         title={
-          panel === 'journal'
-            ? t('Nhật ký thám hiểm', 'Field journal')
-            : t('Nghỉ chân một chút', 'A moment to rest')
+          panel === 'city'
+            ? t('Sổ dạo phố Bình Minh', 'Bình Minh walking journal')
+            : panel === 'journal'
+              ? t('Nhật ký thám hiểm', 'Field journal')
+              : t('Nghỉ chân một chút', 'A moment to rest')
         }
         description={t(
           'Hành trình đã tạm dừng. Những miền đất mới vẫn đang chờ bạn.',
           'Your journey is paused. New horizons will be waiting.',
         )}
       >
-        {panel === 'journal' ? (
+        {panel === 'city' ? (
+          <CityTour
+            visited={cityVisits}
+            error={cityWalkError}
+            onWalk={(stop) => {
+              const instance = engine.current;
+              if (!instance) return;
+              const destination = {
+                x: instance.world.spawn.x + stop.x,
+                y: instance.world.spawn.y + stop.y,
+              };
+              if (
+                Math.hypot(instance.player.x - destination.x, instance.player.y - destination.y) <
+                  1.5 ||
+                instance.walkTo(destination)
+              ) {
+                setCityWalkError('');
+                pendingCityWalk.current = destination;
+                setPanel(null);
+              } else
+                setCityWalkError(
+                  t(
+                    'Chưa tìm được lối đi. Hãy ra đại lộ rồi thử lại.',
+                    'No route found. Step onto the avenue and try again.',
+                  ),
+                );
+            }}
+          />
+        ) : panel === 'journal' ? (
           <>
             <div className="world-journal-pokemon">
               {Object.entries(names).map(([id, name]) => {
@@ -649,7 +748,7 @@ export default function OpenWorld() {
                 }}
               >
                 <Tent size={17} />
-                {t('Trở về trại', 'Return to camp')}
+                {t('Trở về Bình Minh', 'Return to Bình Minh')}
               </button>
             </div>
             <div className="world-performance">

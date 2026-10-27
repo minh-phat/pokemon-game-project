@@ -9,7 +9,7 @@ export function sampleWorldBattleTerrain(arena: ArenaDefinition, x: number, dept
   if (!terrain) return null;
   let world = terrainWorlds.get(arena);
   if (!world) {
-    world = createWorld(terrain.seed, terrain.geographyVersion ?? 1);
+    world = createWorld(terrain.seed, terrain.geographyVersion ?? 1, terrain.cityVersion ?? 0);
     terrainWorlds.set(arena, world);
   }
   const point = worldBattlePoint(terrain.origin, x, depth);
@@ -23,6 +23,7 @@ export function createRoamingWorldBattleArena(world: World, origin: Point): Aren
   arena.worldTerrain = {
     seed: world.seed,
     geographyVersion: world.geographyVersion,
+    cityVersion: world.cityVersion,
     origin: { x: origin.x, y: origin.y },
     baseLevel: tileAt(world, origin.x, origin.y)!.level,
   };
@@ -66,7 +67,9 @@ export function createWorldBattleArena(world: World, origin: Point): ArenaDefini
     for (let x = 0; x < 33; x++) {
       const tile = tileAt(world, left + x, top + y);
       surface.heights.push(((tile?.level ?? base) - base) * 32);
-      surface.blocked.push(!tile || tile.lava || left + x <= 1 || top + y <= 1);
+      surface.blocked.push(
+        !tile || tile.lava || Boolean(tile.cityBlocked) || left + x <= 1 || top + y <= 1,
+      );
       surface.props!.push(
         Boolean(tile && ['tree', 'pine', 'rock'].includes(tile.decoration ?? '')),
       );

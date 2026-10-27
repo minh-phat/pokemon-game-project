@@ -1,4 +1,13 @@
 import {
+  cityDistance,
+  insideCity,
+  cityWall,
+  cityBuildingAt,
+  citySurface,
+  type CitySurface,
+} from './city';
+export * from './city';
+import {
   createWorld as createGeography,
   WORLD_SIZE as GEO_SIZE,
   FloodQueue,
@@ -49,6 +58,8 @@ export const WILDLIFE_CACHE_LIMIT = 25;
 export const PATH_NODE_LIMIT = 6000;
 const SCALE = WORLD_SIZE / GEO_SIZE;
 export type Tile = CoarseTile & {
+  citySurface?: CitySurface;
+  cityBlocked?: boolean;
   prop: number;
   moisture: number;
   landform: 'plain' | 'hill' | 'valley' | 'ridge';
@@ -66,6 +77,7 @@ export type World = {
   landmarks: Landmark[];
   wildlifeCenter: string;
   campLevel: number;
+  cityVersion: 0 | 1 | 2;
 };
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 const mix = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -111,6 +123,30 @@ function nearestRiver(world: World, x: number, y: number) {
 export function sampleTerrain(world: World, x: number, y: number): Tile {
   x = Math.floor(x);
   y = Math.floor(y);
+  const cityX = x + 0.5 - world.spawn.x,
+    cityY = y + 0.5 - world.spawn.y;
+  const cityD = cityDistance(cityX, cityY);
+  if (world.cityVersion && world.campLevel >= 0 && cityD <= 38) {
+    return {
+      x,
+      y,
+      height: SEA + 0.1,
+      level: world.campLevel,
+      landform: 'plain',
+      biome: 'meadow',
+      flow: 0,
+      downstream: -1,
+      water: false,
+      lava: false,
+      decoration: null,
+      prop: -1,
+      moisture: 0.4,
+      variant: hash(x, y, world.seed + 41),
+      citySurface: cityD <= 32.8 ? citySurface(cityX, cityY, world.cityVersion) : undefined,
+      cityBlocked:
+        cityWall(cityX, cityY) || Boolean(cityBuildingAt(cityX, cityY, world.cityVersion)),
+    };
+  }
   const gx = (x + 0.5) / SCALE - 0.5,
     gy = (y + 0.5) / SCALE - 0.5;
   const ix = Math.floor(gx),
@@ -182,6 +218,8 @@ export function sampleTerrain(world: World, x: number, y: number): Tile {
   const campDistance = Math.hypot(x + 0.5 - world.spawn.x, y + 0.5 - world.spawn.y);
   if (!water && world.campLevel >= 0 && campDistance < 7)
     level = Math.round(mix(world.campLevel, level, clamp((campDistance - 3) / 4, 0, 1)));
+  if (world.cityVersion && world.campLevel >= 0 && cityD < 62 && !water)
+    level = Math.round(mix(world.campLevel, level, clamp((cityD - 38) / 24, 0, 1)));
   level = clamp(level, 0, MAX_TERRAIN_LEVEL);
   const landform: Tile['landform'] =
     biome === 'river'
@@ -313,6 +351,7 @@ export function traversable(world: World, x: number, y: number) {
   return Boolean(
     tile &&
       !tile.lava &&
+      !tile.cityBlocked &&
       !(solid && Math.hypot(x - Math.floor(x) - 0.5, y - Math.floor(y) - 0.5) < 0.24),
   );
 }
@@ -334,13 +373,15 @@ export function findSafePosition(world: World, point: Point, wanted?: Biome): Po
         const tile = sampleTerrain(world, x, y);
         const solid =
           tile.decoration === 'tree' || tile.decoration === 'pine' || tile.decoration === 'rock';
-        if ((!wanted || tile.biome === wanted) && !tile.lava && !solid) return { x, y };
+        if ((!wanted || tile.biome === wanted) && !tile.lava && !tile.cityBlocked && !solid)
+          return { x, y };
       }
   return null;
 }
 export function createWorld(
   seed: number,
   geographyVersion: GeographyVersion = GEOGRAPHY_VERSION,
+  cityVersion: 0 | 1 | 2 = geographyVersion === 2 ? 2 : 0,
 ): World {
   const geography = createGeography(seed >>> 0, geographyVersion);
   const world: World = {
@@ -354,6 +395,7 @@ export function createWorld(
     landmarks: [],
     wildlifeCenter: '',
     campLevel: -1,
+    cityVersion,
   };
   const candidates = geography.tiles
     .filter((t) => t.biome === 'meadow' && (geographyVersion === 1 || t.height > SEA + 0.065))
@@ -416,7 +458,12 @@ function spawnWildlife(world: World, cx: number, cy: number) {
     const x = originX + 3 + Math.floor(hash(cx * 6 + slot, cy, world.seed + 200) * 25) + 0.5;
     const y = originY + 3 + Math.floor(hash(cx, cy * 6 + slot, world.seed + 201) * 25) + 0.5;
     const tile = tileAt(world, x, y);
-    if (!tile || tile.lava) continue;
+    if (
+      !tile ||
+      tile.lava ||
+      (world.cityVersion && insideCity(x - world.spawn.x, y - world.spawn.y))
+    )
+      continue;
     const species: Species =
       tile.water || tile.biome === 'beach'
         ? 'squirtle'
@@ -438,7 +485,13 @@ function spawnWildlife(world: World, cx: number, cy: number) {
       const px = x + (j % 3) * 0.65,
         py = y + Math.floor(j / 3) * 0.65;
       const ground = tileAt(world, px, py);
-      if (!ground || !habitat(species, ground)) continue;
+      if (
+        !ground ||
+        ground.cityBlocked ||
+        (world.cityVersion && insideCity(px - world.spawn.x, py - world.spawn.y)) ||
+        !habitat(species, ground)
+      )
+        continue;
       animals.push({
         id: leader + j,
         ...wildProgression(world, leader + j, { x: cx * 32 + 16, y: cy * 32 + 16 }),
@@ -529,7 +582,16 @@ export function updateWildlife(world: World, player: Point, dt: number, time: nu
     const x = actor.x + (dx / length) * step,
       y = actor.y + (dy / length) * step,
       tile = tileAt(world, x, y);
-    if (tile && habitat(actor.species, tile) && canWalkBetween(world, actor, { x, y })) {
+    const enteringCity =
+      world.cityVersion &&
+      insideCity(x - world.spawn.x, y - world.spawn.y) &&
+      !insideCity(actor.home.x - world.spawn.x, actor.home.y - world.spawn.y);
+    if (
+      tile &&
+      !enteringCity &&
+      habitat(actor.species, tile) &&
+      canWalkBetween(world, actor, { x, y })
+    ) {
       actor.x = x;
       actor.y = y;
       actor.facing = dx - dy >= 0 ? 1 : -1;

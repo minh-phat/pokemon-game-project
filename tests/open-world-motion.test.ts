@@ -123,11 +123,12 @@ describe('vertical exploration', () => {
 
 describe('local hills and valleys', () => {
   it('has visible relief, climbable terraces, and valley floors beside the drainage network', () => {
+    const valley = base.landmarks.find((l) => l.biome === 'river')!;
     const levels: number[] = [];
     let cliffs = 0,
       valleys = 0;
-    for (let y = Math.floor(base.spawn.y) - 36; y < base.spawn.y + 36; y++)
-      for (let x = Math.floor(base.spawn.x) - 36; x < base.spawn.x + 36; x++) {
+    for (let y = Math.floor(valley.y) - 36; y < valley.y + 36; y++)
+      for (let x = Math.floor(valley.x) - 36; x < valley.x + 36; x++) {
         const a = sampleTerrain(base, x, y),
           b = sampleTerrain(base, x + 1, y);
         levels.push(a.level);

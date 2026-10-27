@@ -4,8 +4,8 @@ import { createWorld, tileAt, traversable } from '@arena/game-data/world';
 test.use({ launchOptions: { args: [] } });
 const world = createWorld(42);
 function ledge() {
-  for (let y = Math.floor(world.spawn.y) - 32; y < world.spawn.y + 32; y++)
-    for (let x = Math.floor(world.spawn.x) - 32; x < world.spawn.x + 32; x++) {
+  for (let y = Math.floor(world.spawn.y) - 86; y < world.spawn.y - 38; y++)
+    for (let x = Math.floor(world.spawn.x) - 86; x < world.spawn.x - 38; x++) {
       const a = tileAt(world, x, y)!,
         b = tileAt(world, x + 1, y)!;
       if (
@@ -101,7 +101,7 @@ test('Space jumps, pause freezes flight, and E climbs an actual generated cliff'
   expect(Math.floor(Number((await canvas.getAttribute('data-position'))!.split(',')[0]))).toBe(
     Math.floor(edge.x) + 1,
   );
-  await page.getByRole('button', { name: 'Về trại', exact: true }).click();
+  await page.getByRole('button', { name: 'Về Bình Minh', exact: true }).click();
   await expect(canvas).toHaveAttribute('data-ground-level', String(world.campLevel));
   expect(errors).toEqual([]);
 });

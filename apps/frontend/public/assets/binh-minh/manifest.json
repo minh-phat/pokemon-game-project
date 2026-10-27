@@ -1,0 +1,19 @@
+{
+  "columns": 3,
+  "cell": 256,
+  "anchor": [
+    128,
+    220
+  ],
+  "sprites": [
+    "hospital",
+    "academy",
+    "creature-hospital",
+    "arena",
+    "market",
+    "museum",
+    "towers",
+    "park",
+    "portal"
+  ]
+}

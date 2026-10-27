@@ -206,6 +206,8 @@ export interface ArenaDefinition {
     seed: number;
     /** Missing on archived tickets, which use the original archipelago. */
     geographyVersion?: 1 | 2;
+    /** Missing on archived tickets: preserve the original camp terrain. */
+    cityVersion?: 0 | 1 | 2;
     origin: { x: number; y: number };
     baseLevel: number;
   };

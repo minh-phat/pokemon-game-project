@@ -169,6 +169,7 @@ export function terrainWalkable(arena: ArenaDefinition, p: Point, radius = 0): b
     if (
       !tile ||
       tile.lava ||
+      tile.cityBlocked ||
       point.x <= 1 ||
       point.y <= 1 ||
       point.x >= WORLD_SIZE - 2 ||

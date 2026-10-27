@@ -2,12 +2,32 @@
 
 Vào **Chơi Ngay → Thế giới mở**. Đây là chế độ khám phá chơi đơn, chạy trong trình duyệt và hỗ trợ khách.
 
+## Thành phố khởi đầu Bình Minh
+
+Người chơi mới xuất hiện tại **cổng triệu hồi ở quảng trường trung tâm Bình Minh**. Thành phố tương lai có dạng bát giác, bốn đại lộ Bắc–Đông–Nam–Tây, đường vành đai và bốn cổng đi ra thế giới mở. Tường lực trường xanh có chuyển động nhẹ, ngăn đi xuyên kể cả khi nhảy hoặc leo; thú hoang ngoài thành không xuất hiện hoặc đi lang thang vào bên trong. Ba Pikachu cấp 1/C ở quảng trường được giữ lại làm nhóm làm quen chiến đấu của game.
+
+Trong thành có bệnh viện, học viện triệu hồi, bệnh viện thú triệu hồi, đấu trường thú, phố thương mại, bảo tàng, công viên và các cụm cao ốc. Công trình dùng ảnh tạo bằng skill **imagegen**, công cụ tích hợp, với nền alpha, sắp xếp chiều sâu và làm mờ khi che người chơi. Đây là ngoại cảnh có va chạm; chưa có nội thất hoặc các dịch vụ khám bệnh, mua bán, học kỹ năng.
+
+Nút **Về Bình Minh** đưa về cổng triệu hồi. Bản đồ nhỏ hiển thị đường phố và vành đai; mở bản đồ rồi chọn **Khám phá thành phố Bình Minh** để xem phối cảnh tổng thể. Hành trình đã lưu vẫn giữ vị trí, trừ khi vị trí đó nằm trong công trình hoặc tường mới thì người chơi được đưa về quảng trường.
+
+![Phối cảnh thành phố Bình Minh](../apps/frontend/public/assets/binh-minh/concept.png)
+
+Ảnh nguồn, atlas dùng trong game và manifest nằm tại `apps/frontend/public/assets/binh-minh/`. Dựng lại atlas bằng `node scripts/build-city-assets.mjs`. Hai prompt đầy đủ và chế độ tạo ảnh được lưu ở [binh-minh-prompts.md](world-art/binh-minh-prompts.md). Thành phố hiện dùng `cityVersion: 2`: bố trí lại lô nhà để chân công trình không lấn đường vành đai. Vé phiên bản 1 giữ nguyên bố trí cũ; vé không có phiên bản vẫn phát lại trên nền trại để giữ kết quả. Đường liên tục có bó vỉa, vạch phân làn và vạch qua đường; đất quanh nhà được lát đá, các mảng xanh được giới hạn thành công viên và bồn cây/hoa có viền, ghế nghỉ. Ảnh công trình dùng atlas `buildings-v2.png`, cùng điểm neo chân nhà với va chạm.
+
+`tests/binh-minh.test.ts` kiểm tra bốn lối ra trên nhiều seed, va chạm công trình/tường, thú hoang ở ngoài thành và tương thích replay. `tests/e2e/binh-minh.spec.ts` kiểm tra ảnh được vẽ thật, dịch chuyển tới bốn cổng, trở về quảng trường, bản đồ và màn hình điện thoại.
+
+Đợt thiết kế ban mai bổ sung đá lát màu ấm, bóng công trình cùng hướng, hoa văn mặt trời, cờ quảng trường, quầy quả mọng, bàn nghỉ có dù và 12 người dân đi trên vỉa hè. Nền đá và bóng được vẽ vào ảnh đệm một lần; các chuyển động trang trí dừng khi tạm dừng hoặc bật giảm chuyển động. Người dân và quầy hàng là cảnh trang trí, chưa có mua bán hay hội thoại. Camera khám phá được mở rộng, đặc biệt trên điện thoại; nhãn Pokémon chồng nhau được lược bớt và nhân vật có dấu chỉ vị trí ở trong thành.
+
+Nút **Dạo phố Bình Minh** mở sổ gồm bốn điểm: quảng trường, phiên chợ, học viện và vườn ánh sáng. Chọn **Đi bộ đến đây** để nhân vật tìm đường đến điểm ngắm cảnh; dùng phím hướng hoặc cần điều khiển để tự đi tiếp. Đến gần một điểm sẽ ghi dấu trong lần dạo hiện tại (chưa lưu khi tải lại trang). Sổ hỗ trợ tiếng Việt/Anh, tạm dừng game khi đọc, và có kiểm thử trình duyệt đi bộ thực sự qua đủ bốn điểm trên giao diện máy tính/điện thoại.
+
+Ảnh gameplay bản ban mai: [quảng trường](world-art/binh-minh-dawn/binh-minh-desktop.png), [phiên chợ](world-art/binh-minh-dawn/binh-minh-market.png), [điện thoại](world-art/binh-minh-dawn/binh-minh-mobile.png), [sổ dạo phố](world-art/binh-minh-dawn/binh-minh-journal-mobile.png). Đo tại quảng trường ngày 27/10/2026 trên Chrome của máy phát triển: trung vị/p95 **17/17 ms**, lần lấy mẫu phần vẽ Canvas **1,4 ms**; chưa đo trên điện thoại vật lý.
+
 - **WASD / phím mũi tên**: di chuyển theo hướng màn hình; **Shift**: chạy.
 - **Space**: nhảy; **giữ E + hướng di chuyển**: leo lên/xuống vách. Điện thoại dùng nút **Nhảy** và giữ **Leo** đồng thời với cần điều khiển.
 - Chạm hoặc bấm mặt đất để tìm đường đi bộ ở gần, có xét độ cao. Điện thoại có cần điều khiển và nút chạy.
 - **M**: bản đồ lục địa và quần đảo; **J**: nhật ký; **Esc**: tạm dừng.
 - Bản đồ lớn có các điểm dịch chuyển tới từng môi trường, kèm khoảng cách bằng km. Bản đồ nhỏ hiển thị khu vực 192 × 192 m quanh người chơi và thước 50 m.
-- Nhân vật tự dùng thuyền khi xuống nước; **Về trại** đưa về điểm xuất phát.
+- Nhân vật tự dùng thuyền khi xuống nước; **Về Bình Minh** đưa về điểm xuất phát.
 - Đến gần Pokémon để ghi vào nhật ký. Pokémon có nhóm và cá thể đơn lẻ, di chuyển trong môi trường phù hợp.
 - Màn hình tạm dừng cho phép tạo thế giới mới bằng mã số, hoặc để trống để chọn mã ngẫu nhiên. Tạo mới thay thế hành trình hiện tại.
 

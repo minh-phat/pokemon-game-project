@@ -1,3 +1,5 @@
+import { createCityGround, CITY_GROUND } from './binh-minh-ground';
+import { addCityObjects, paintCityTile, cityColors } from './binh-minh-renderer';
 import { geographyColor } from './open-world-geography';
 import { automaticCameraFrame } from './arena-camera';
 import type { WorldArenaLayer } from './world-arena-layer';
@@ -18,6 +20,7 @@ import {
 import { createWorldEncounter, applyWorldAction, type BattleEngine } from '@arena/game-core';
 import { createMotion, stepMotion, type Motion, type MotionAction } from './open-world-motion';
 import {
+  insideCity,
   BIOMES,
   WORLD_SIZE,
   METERS_PER_TILE,
@@ -49,6 +52,7 @@ const HALF_W = 16,
   CACHE_LIMIT = 48;
 const speciesList: Species[] = ['pikachu', 'bulbasaur', 'squirtle', 'charmander', 'eevee'];
 export type WorldStatus = {
+  city: boolean;
   biome: Biome;
   x: number;
   y: number;
@@ -350,6 +354,8 @@ export class OpenWorldEngine {
     }
   }
 
+  private cityGround: HTMLCanvasElement | null = null;
+  private cityAtlas: HTMLImageElement | null = null;
   private propAtlas: HTMLImageElement | null = null;
   private terrainAtlas: HTMLImageElement | null = null;
   private cliffAtlas: HTMLImageElement | null = null;
@@ -378,6 +384,7 @@ export class OpenWorldEngine {
   private observer: ResizeObserver;
   private minimap: HTMLCanvasElement;
   private nearby: WorldStatus['nearby'] = null;
+  private pokemonLabels: { x: number; y: number; text: string; color: string }[] = [];
   private lastMini = '';
   private onStatus: (status: WorldStatus) => void;
   constructor(
@@ -424,7 +431,8 @@ export class OpenWorldEngine {
     const r = this.surface.getBoundingClientRect();
     // Keep the same world zoom, but rasterize sprites at display resolution.
     // Limit Retina density to 2x to bound the full-screen framebuffer cost.
-    const zoom = Math.max(2, r.width / 960, r.height / 600);
+    const zoom =
+      r.width < 600 ? Math.max(1.1, r.width / 340) : Math.max(1.65, r.width / 960, r.height / 680);
     const density = Math.min(2, window.devicePixelRatio || 1);
     this.viewportWidth = Math.max(1, r.width / zoom);
     this.viewportHeight = Math.max(1, r.height / zoom);
@@ -586,6 +594,11 @@ export class OpenWorldEngine {
     }
   }
   private loadEnvironment() {
+    const city = new Image();
+    city.onload = () => {
+      if (!this.disposed) this.cityAtlas = city;
+    };
+    city.src = '/assets/binh-minh/buildings-v2.png';
     const props = new Image(),
       terrain = new Image(),
       cliffs = new Image();
@@ -694,6 +707,8 @@ export class OpenWorldEngine {
               Math.max(-38, Math.min(24, (west - east) * 7)),
             );
           }
+          if (tile?.citySurface)
+            ctx.fillStyle = tile.cityBlocked ? '#68e2ef' : cityColors[tile.citySurface];
           ctx.fillRect((ix * size) / 48, (iy * size) / 48, size / 48 + 1, size / 48 + 1);
         }
       const cx = ((this.world.spawn.x - this.player.x + 48) / 96) * size,
@@ -775,6 +790,10 @@ export class OpenWorldEngine {
     const ld = Math.max(0, (t.level - (left?.level ?? 0)) * LIFT);
     if (ld) ctx.drawImage(this.cliffFace(t, ld, false), x - 16, y + 8);
     if (rd) ctx.drawImage(this.cliffFace(t, rd, true), x, y + 8);
+    if (t.citySurface) {
+      paintCityTile(ctx, t, x, y);
+      return;
+    }
     polygon(ctx, shade(base, variation), [x, y, x + 16, y + 8, x, y + 16, x - 16, y + 8]);
     if (t.biome === 'ocean') {
       if (t.height < 0.07) polygon(ctx, '#286b8b', [x, y, x + 16, y + 8, x, y + 16, x - 16, y + 8]);
@@ -978,54 +997,16 @@ export class OpenWorldEngine {
     c.scale(actor.facing, 1);
     c.drawImage(sprite, frame * 160, actor.moving ? 160 : 0, 160, 160, -16, -28, 32, 32);
     c.restore();
-    c.textAlign = 'center';
-    c.font = 'bold 7px sans-serif';
-    c.fillStyle = '#102e2be6';
-    c.fillRect(x - 24, y - 43, 48, 10);
-    c.fillStyle =
-      actor.quality === 'SS' ? '#ffbe63' : actor.quality === 'S' ? '#e7a4ff' : '#f4edcc';
-    c.fillText(`Lv.${actor.level} · ${actor.quality}`, x, y - 35);
+    this.pokemonLabels.push({
+      x,
+      y,
+      text: `Lv.${actor.level} · ${actor.quality}`,
+      color: actor.quality === 'SS' ? '#ffbe63' : actor.quality === 'S' ? '#e7a4ff' : '#f4edcc',
+    });
   }
 
-  private drawCamp(x: number, y: number) {
-    const c = this.context;
-    polygon(c, '#25493e38', [x - 15, y + 4, x + 30, y, x + 40, y + 10, x, y + 14]);
-    polygon(c, '#c7815b', [
-      x - 17,
-      y + 2,
-      x - 3,
-      y - 24,
-      x + 19,
-      y - 20,
-      x + 31,
-      y + 6,
-      x + 3,
-      y + 10,
-    ]);
-    polygon(c, '#f3d59b', [x - 17, y + 2, x - 3, y - 24, x + 8, y + 8]);
-    polygon(c, '#665444', [x - 10, y + 3, x - 3, y - 14, x + 3, y + 7]);
-    c.fillStyle = '#f3d59b';
-    c.fillRect(x + 32, y - 23, 2, 31);
-    polygon(c, '#759e8a', [x + 34, y - 23, x + 48, y - 21, x + 44, y - 15, x + 34, y - 16]);
-    c.fillStyle = '#75674e';
-    c.fillRect(x - 28, y + 11, 12, 3);
-    const flicker = this.input.reducedMotion ? 0 : Math.floor(Math.sin(this.time * 11) * 2);
-    polygon(c, '#eeb761', [
-      x - 28,
-      y + 11,
-      x - 26,
-      y + 3 + flicker,
-      x - 23,
-      y + 7,
-      x - 20,
-      y + 1 - flicker,
-      x - 16,
-      y + 11,
-    ]);
-    c.fillStyle = '#ffebaa';
-    c.fillRect(x - 24, y + 7, 4, 4);
-  }
   private render() {
+    this.pokemonLabels = [];
     const c = this.context,
       w = this.viewportWidth,
       h = this.viewportHeight;
@@ -1049,6 +1030,14 @@ export class OpenWorldEngine {
     for (let cy = Math.floor(top / CHUNK); cy <= Math.floor((top + h) / CHUNK); cy++)
       for (let cx = Math.floor(left / CHUNK); cx <= Math.floor((left + w) / CHUNK); cx++)
         c.drawImage(this.getChunk(cx, cy), cx * CHUNK - left, cy * CHUNK - top);
+    if (
+      this.world.cityVersion &&
+      Math.hypot(this.player.x - this.world.spawn.x, this.player.y - this.world.spawn.y) < 100
+    ) {
+      this.cityGround ??= createCityGround();
+      const center = project(this.world.spawn.x, this.world.spawn.y, this.world.campLevel);
+      c.drawImage(this.cityGround, center.x - left - CITY_GROUND.x, center.y - top - CITY_GROUND.y);
+    }
     const bounds = this.tileBounds(left, top, w, h);
     const objects: { depth: number; draw: () => void }[] = [];
     const occludable = [
@@ -1078,7 +1067,7 @@ export class OpenWorldEngine {
           (a) =>
             x + y + 0.5 > a.depth && Math.abs(sx - a.x) < 30 && sy < a.y + 6 && sy + 64 > a.y - 32,
         );
-        if (foreground)
+        if (foreground && !t.citySurface)
           objects.push({
             depth: x + y + 0.5,
             draw: () => {
@@ -1212,17 +1201,19 @@ export class OpenWorldEngine {
         },
       });
     }
-    if (Math.hypot(this.world.spawn.x - this.player.x, this.world.spawn.y - this.player.y) < 60) {
-      const camp = project(
-        this.world.spawn.x - 1.7,
-        this.world.spawn.y - 1.7,
-        tileAt(this.world, this.world.spawn.x - 1.7, this.world.spawn.y - 1.7)!.level,
-      );
-      objects.push({
-        depth: this.world.spawn.x + this.world.spawn.y - 3.4,
-        draw: () => this.drawCamp(camp.x - left, camp.y - top),
-      });
-    }
+    addCityObjects(
+      c,
+      this.world,
+      this.cityAtlas,
+      this.propAtlas,
+      this.player,
+      left,
+      top,
+      w,
+      h,
+      animation,
+      objects,
+    );
     const player = project(this.player.x, this.player.y, this.motion.z);
     objects.push({
       depth: this.motion.climbing
@@ -1232,6 +1223,46 @@ export class OpenWorldEngine {
     });
     objects.sort((a, b) => a.depth - b.depth);
     objects.forEach((o) => o.draw());
+    // Labels are a final overlay; suppress overlapping tags instead of stacking them.
+    const drawnLabels: { x: number; y: number }[] = [];
+    c.save();
+    c.textAlign = 'center';
+    c.font = 'bold 7px sans-serif';
+    const inCity =
+      this.world.cityVersion &&
+      insideCity(this.player.x - this.world.spawn.x, this.player.y - this.world.spawn.y);
+    for (const tag of this.pokemonLabels) {
+      if (
+        inCity &&
+        Math.abs(tag.x - (player.x - left)) < 32 &&
+        Math.abs(tag.y - 38 - (player.y - top - 18)) < 32
+      )
+        continue;
+      if (
+        drawnLabels.some(
+          (other) => Math.abs(other.x - tag.x) < 51 && Math.abs(other.y - tag.y) < 13,
+        )
+      )
+        continue;
+      drawnLabels.push(tag);
+      c.fillStyle = '#173c36df';
+      c.beginPath();
+      c.roundRect(tag.x - 24, tag.y - 43, 48, 11, 3);
+      c.fill();
+      c.fillStyle = tag.color;
+      c.fillText(tag.text, tag.x, tag.y - 35);
+    }
+    if (inCity && !this.target) {
+      const x = player.x - left,
+        y = player.y - top;
+      c.strokeStyle = '#fff4cd';
+      c.lineWidth = 1.5;
+      c.beginPath();
+      c.ellipse(x, y + 2, 10, 4, 0, 0, Math.PI * 2);
+      c.stroke();
+      polygon(c, '#fff1bd', [x - 4, y - 36, x, y - 32, x + 4, y - 36, x, y - 40]);
+    }
+    c.restore();
     if (this.target && this.encounter && this.arenaLayer?.ready) {
       const origin = project(this.target.x, this.target.y, this.combatLevel);
       const placement = worldArenaPlacement(origin.x - left, origin.y - top, this.arenaLayer.view);
@@ -1399,7 +1430,7 @@ export class OpenWorldEngine {
     this.surface.dataset.renderMs = this.renderMs.toFixed(1);
     this.surface.dataset.terrainChunks = String(this.world.chunks.size);
     this.surface.dataset.artReady = String(
-      Boolean(this.propAtlas && this.terrainAtlas && this.cliffAtlas),
+      Boolean(this.propAtlas && this.terrainAtlas && this.cliffAtlas && this.cityAtlas),
     );
     this.surface.dataset.worldSize = String(WORLD_SIZE);
     this.surface.dataset.elevation = this.motion.z.toFixed(2);
@@ -1438,7 +1469,8 @@ export class OpenWorldEngine {
       water: tile.water,
       terrainChunks: this.world.chunks.size,
       landmarks: this.world.landmarks,
-      artReady: Boolean(this.propAtlas && this.terrainAtlas && this.cliffAtlas),
+      city: insideCity(this.player.x - this.world.spawn.x, this.player.y - this.world.spawn.y),
+      artReady: Boolean(this.propAtlas && this.terrainAtlas && this.cliffAtlas && this.cityAtlas),
     });
   }
   private tick = (now: number) => {
@@ -1492,6 +1524,20 @@ export class OpenWorldEngine {
   }
   returnToCamp() {
     this.travelTo(this.world.spawn);
+  }
+  walkTo(destination: Point) {
+    if (
+      this.target ||
+      this.encounter ||
+      !Number.isFinite(destination.x) ||
+      !Number.isFinite(destination.y)
+    )
+      return false;
+    const path = findPath(this.world, this.player, destination);
+    if (!path.length) return false;
+    this.clearInput();
+    this.path = path;
+    return true;
   }
   travelTo(destination: Point) {
     if (this.target || this.encounter) return false;

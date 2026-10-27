@@ -17,6 +17,189 @@
   touch-action: none;
   outline-offset: -3px;
 }
+.world-in-city .world-vignette {
+  background: linear-gradient(125deg, #ffe3af20, transparent 48%, #3758560d);
+  box-shadow: inset 0 0 100px #273b3514;
+}
+.open-world .city-tour-toggle {
+  position: absolute;
+  left: 32px;
+  top: 274px;
+  padding: 11px 13px;
+  font-size: 12px;
+  color: #f9dfaf;
+  border-color: #d4b57b70;
+  background: #24473ef2;
+}
+.city-tour-toggle small {
+  padding-left: 9px;
+  border-left: 1px solid #d4b57b55;
+  font-variant-numeric: tabular-nums;
+}
+.city-tour-intro {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 22px 0;
+  color: #e6c38b;
+}
+.city-tour-intro > svg {
+  flex-shrink: 0;
+}
+.city-tour-intro span {
+  font-size: 9px;
+  letter-spacing: 2.5px;
+}
+.city-tour-intro h3 {
+  font:
+    normal 26px Georgia,
+    serif;
+  margin: 8px 0;
+  color: #fff0d0;
+}
+.city-tour-intro p,
+.city-tour-stops p {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #c2d0bd;
+  margin: 8px 0;
+}
+.city-tour-progress {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #ead5a9;
+}
+.city-tour > progress {
+  appearance: none;
+  border: 0;
+  width: 100%;
+  height: 4px;
+  accent-color: #dcba7e;
+  margin: 8px 0 16px;
+}
+.city-tour > progress::-webkit-progress-bar {
+  background: #e0ca9a20;
+  border-radius: 4px;
+}
+.city-tour > progress::-webkit-progress-value {
+  background: #dcba7e;
+  border-radius: 4px;
+}
+.city-tour > progress::-moz-progress-bar {
+  background: #dcba7e;
+  border-radius: 4px;
+}
+.city-tour-stops {
+  display: grid;
+  gap: 10px;
+}
+.city-tour-stops article {
+  display: flex;
+  gap: 16px;
+  padding: 17px;
+  border: 1px solid #d8c18b25;
+  border-radius: 10px;
+  background: #f4e3bf05;
+}
+.city-tour-number {
+  flex: 0 0 28px;
+  font:
+    normal 24px Georgia,
+    serif;
+  padding-top: 3px;
+}
+.city-tour-stops small {
+  color: #b7c8b0;
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+.city-tour-stops h4 {
+  font:
+    normal 20px Georgia,
+    serif;
+  color: #f4e5bf;
+  margin: 5px 0;
+}
+.city-tour-stops button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #f8dc9e;
+  background: #d9bd8510;
+  border: 1px solid #d9bd8545;
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.city-tour-stops button:hover {
+  background: #d9bd8525;
+}
+.city-tour-stops button:focus-visible {
+  outline: 2px solid #f8dc9e;
+  outline-offset: 3px;
+}
+.city-tour-note {
+  font-size: 11px;
+  color: #afc2b0;
+  margin-top: 16px;
+}
+@media (max-width: 600px) {
+  .open-world .city-tour-toggle {
+    top: 246px;
+    left: 18px;
+    padding: 8px 10px;
+    font-size: 10px;
+    gap: 6px;
+  }
+  .world-in-city .world-location p {
+    display: none;
+  }
+  .world-in-city .world-map:not(.expanded) {
+    width: 92px;
+  }
+  .world-in-city .world-map:not(.expanded) .world-map-caption {
+    display: none;
+  }
+  .world-in-city .world-discovery {
+    bottom: 172px;
+    padding: 7px 10px;
+    max-width: 190px;
+  }
+  .world-in-city .world-discovery strong {
+    font-size: 12px;
+  }
+  .world-in-city .world-discovery p,
+  .world-in-city .world-discovery .world-eyebrow {
+    display: none;
+  }
+  .world-in-city .world-discovery img {
+    width: 28px;
+    height: 28px;
+  }
+  .world-in-city .world-traversal p {
+    display: none;
+  }
+  .city-tour-intro {
+    gap: 12px;
+  }
+  .city-tour-intro h3 {
+    font-size: 23px;
+  }
+  .city-tour-stops article {
+    gap: 10px;
+    padding: 13px;
+  }
+}
+@media (max-height: 500px) {
+  .open-world .city-tour-toggle {
+    top: auto;
+    bottom: 76px;
+    left: 18px;
+    padding: 7px 10px;
+  }
+}
 .world-vignette {
   position: absolute;
   inset: 0;
@@ -1283,4 +1466,28 @@ body:has(.fantasy-app) .dialog-content.play-mode-dialog {
 }
 .world-coordinate-travel #world-coordinate-error:empty {
   display: none;
+}
+.world-city-guide {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #80dcd640;
+  border-radius: 12px;
+  background: #102e34;
+  color: #d7eee7;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.world-city-guide summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.world-city-guide img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 10px;
+  border-radius: 8px;
+}
+.world-city-guide p {
+  margin: 10px 0 0;
 }

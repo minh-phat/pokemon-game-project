@@ -50,7 +50,9 @@ describe('roaming world encounters', () => {
         expect(terrainHeight(geometry, p)).toBe((tile.level - arena.worldTerrain!.baseLevel) * 32);
         expect(terrainWater(geometry, p)).toBe(Boolean(tile.water));
         expect(terrainWalkable(geometry, p, 4)).toBe(
-          !tile.lava && !['tree', 'pine', 'rock'].includes(tile.decoration ?? ''),
+          !tile.lava &&
+            !tile.cityBlocked &&
+            !['tree', 'pine', 'rock'].includes(tile.decoration ?? ''),
         );
         const roundtrip = worldBattlePoint(origin, p.x, p.depth);
         expect(roundtrip.x).toBeCloseTo(pos.x);
