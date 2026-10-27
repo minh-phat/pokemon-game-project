@@ -1,4 +1,5 @@
 'use client';
+import { formatSkillRange } from '@/lib/skill-range';
 import { useState } from 'react';
 import { useCopy } from '@/lib/i18n';
 import { ArrowRight, Check, Heart, Plus, Search, Shield, Swords, Zap } from 'lucide-react';
@@ -420,7 +421,7 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
                   <p>{s.description}</p>
                   <small>
                     {s.damagePercent}% {c('Attack')} · {s.energy} {c('energy')} · {s.cooldown}s{' '}
-                    {c('cooldown')}
+                    {c('cooldown')} · {formatSkillRange(s, state.language)}
                   </small>
                 </div>
               </div>

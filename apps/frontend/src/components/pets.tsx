@@ -1,4 +1,5 @@
 'use client';
+import { formatSkillRange } from '@/lib/skill-range';
 import { useEffect, useRef, useState } from 'react';
 import { Sparkles, PawPrint, ArrowLeft } from 'lucide-react';
 import { POKEMON, calculatePetStats, experienceToNextLevel, combatPower } from '@arena/game-data';
@@ -386,6 +387,8 @@ function OwnedPetDetails({ pet, onBack }: { pet: OwnedPet; onBack: () => void })
             <small>
               {skill.damagePercent}% {t('tấn công', 'attack')} · {skill.energy}{' '}
               {t('năng lượng', 'energy')} · {skill.cooldown}s {t('hồi chiêu', 'cooldown')}
+              {' · '}
+              {formatSkillRange(skill, language)}
             </small>
           </article>
         ))}

@@ -1,4 +1,6 @@
 'use client';
+import { formatSkillRange } from '@/lib/skill-range';
+import { useLanguage } from '@/lib/i18n';
 import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
@@ -23,6 +25,7 @@ import { Portrait } from './common';
 import { BattleCanvas } from './battle-canvas';
 import { BattleResultOverlay } from './battle-result';
 function FighterStatus({ fighter }: { fighter: Fighter }) {
+  const { language } = useLanguage();
   const def = POKEMON[fighter.species];
   return (
     <div className={`fighter-status ${fighter.hp <= 0 ? 'fainted' : ''}`}>
@@ -89,7 +92,7 @@ function FighterStatus({ fighter }: { fighter: Fighter }) {
               <span
                 key={s.id}
                 className={fighter.cooldowns[s.id] > 0 ? 'on-cooldown' : ''}
-                title={`${s.name}: ${fighter.cooldowns[s.id] > 0 ? `${fighter.cooldowns[s.id].toFixed(1)}s remaining` : 'ready'} · ${s.energy} energy`}
+                title={`${s.name}: ${fighter.cooldowns[s.id] > 0 ? `${fighter.cooldowns[s.id].toFixed(1)}s remaining` : 'ready'} · ${s.energy} energy · ${formatSkillRange(s, language)}`}
               >
                 <i
                   style={{

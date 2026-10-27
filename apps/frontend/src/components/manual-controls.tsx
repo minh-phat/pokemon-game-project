@@ -1,4 +1,6 @@
 'use client';
+import { formatSkillRange } from '@/lib/skill-range';
+import { useLanguage } from '@/lib/i18n';
 import { isConcealed } from '@arena/shared-types';
 import {
   useEffect,
@@ -130,6 +132,7 @@ export function ManualControls({
   selectedId: string;
   onSelect: (fighterId: string) => void;
 }) {
+  const { language } = useLanguage();
   const heldDirections = useRef(new Set<string>());
   const shiftUsed = useRef(false);
   const controlHeld = useRef(false);
@@ -480,9 +483,9 @@ export function ManualControls({
                 variant="outline"
                 size="sm"
                 type="button"
-                aria-label={`${skill.name} ${remaining > 0 ? `${remaining.toFixed(1)}s` : `${skill.energy} EN`}`}
+                aria-label={`${skill.name} ${remaining > 0 ? `${remaining.toFixed(1)}s` : `${skill.energy} EN`} · ${formatSkillRange(skill, language)}`}
                 disabled={!canAct || selected.energy < skill.energy || remaining > 0}
-                title={`${skill.name}: ${skill.energy} energy · ${skill.cooldown}s cooldown · ${index + 1}`}
+                title={`${skill.name}: ${skill.energy} energy · ${skill.cooldown}s cooldown · ${formatSkillRange(skill, language)} · ${index + 1}`}
                 onClick={() => send({ type: 'skill', skillId: skill.id })}
               >
                 <Icon className="manual-touch-icon" aria-hidden="true" />
