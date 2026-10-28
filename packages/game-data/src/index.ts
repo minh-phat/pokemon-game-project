@@ -360,6 +360,10 @@ const runedrakeAnimations: PokemonDefinition['animations'] = {
   ...animations,
   run: { ...animations.run, frameRate: 10 },
 };
+const charmanderAnimations: PokemonDefinition['animations'] = {
+  ...animations,
+  run: { ...animations.run, frameRate: 9 },
+};
 export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
   'water-slime': {
     id: 'water-slime',
@@ -450,7 +454,7 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
       SKILLS.flameBurst,
       SKILLS.infernoStream,
     ],
-    animations,
+    animations: charmanderAnimations,
     ai: { aggression: 0.98, dodge: 0.65, guard: 0.12, preferredDistance: 90, retreat: 0.2 },
   },
   squirtle: {

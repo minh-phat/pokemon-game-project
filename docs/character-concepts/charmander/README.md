@@ -7,7 +7,7 @@ Nhân vật Charmander được thiết kế lại hoàn toàn dựa trên hình
 - Ảnh gốc người dùng: `reference.png`
 - Ảnh đã tách nền giữ nguyên răng nanh trắng và móng vuốt: `charmander-isolated.png`
 - Bảng nguồn chuyển động (`movement-source.jpg`): 5 hàng các tư thế đứng thở/chớp mắt/lửa bập bùng, chu kỳ nhảy/tiếp đất, thế phòng thủ giơ vuốt thủ trước ngực, và chuỗi ngã gục kiệt sức nằm sấp với mắt nhắm.
-- Bảng nguồn chạy mượt mà (`run-source-v2.jpg`): Chu kỳ chạy 2 chân 6 khung hình hoàn chỉnh với bước luân phiên chân trái - chân phải, nhún chân chịu lực (squash) và phóng người trên không (airborne stride) lặp vòng hoàn hảo.
+- Bảng nguồn bước đi mượt mà (`walk-source-v4.jpg`): Chu kỳ đi/chạy 2 chân 6 khung hình hoàn chỉnh, tiếp đất vững vàng (grounded), luân phiên chân trái - chân phải nhịp nhàng, độ cao đầu và mắt ổn định tuyệt đối, không bị nảy giật hay bay nhảy đột ngột.
 - Bảng nguồn chiến đấu (`combat-source.jpg`): 5 hàng các tư thế đòn cào cắn vật lý (Scratch / Slash) với vệt chém móng vuốt, tụ khí và phun luồng lửa / quả cầu lửa (Ember / Flamethrower), lướt nhanh Flame Charge bao bọc luồng lửa rực cháy, bước lùi né đòn và cúi thấp, trúng đòn choáng váng, và nhảy tưng bừng reo hò chiến thắng với hai tay giơ cao.
 - Các khung hình đã tách nền sạch sẽ với antialiasing khử viền trắng: `extracted/`.
 
@@ -27,7 +27,13 @@ Lệnh sinh ra 2 asset runtime vào `apps/frontend/public/assets/`:
 ## Cấu trúc 15 hàng Animation
 
 1. `idle`: Đứng thở nhịp nhàng, chớp mắt tự nhiên, ngọn lửa đuôi bập bùng sống động.
-2. `run`: Chu kỳ chạy 2 chân nhịp nhàng 6 khung hình linh hoạt luân phiên chân (Frame 0: chân phải chạm đất $\rightarrow$ Frame 1: gập gối nhún người chịu lực $\rightarrow$ Frame 2: bật người bay trên không $\rightarrow$ Frame 3: chân trái vươn tới chạm đất $\rightarrow$ Frame 4: gập gối trái nhún người chịu lực $\rightarrow$ Frame 5: bật người bay trên không khép vòng lặp mượt mà).
+2. `run`: Chu kỳ di chuyển 2 chân tiếp đất trơn tru 6 khung hình (`frameRate: 9` trong `packages/game-data` mang lại nhịp bước tự nhiên ~0.67s/vòng lặp, khi sprint tăng tốc mượt mà):
+   - Frame 0: Chân trái bước vươn tới trước, chân phải chống sau.
+   - Frame 1: Chuyển trọng tâm qua chân phải, thân thẳng nhịp nhàng.
+   - Frame 2: Chân phải bước gót chạm đất, chân trái đẩy lùi sau.
+   - Frame 3: Chân phải chạm đất trọn vẹn, chân trái thu về sau.
+   - Frame 4: Chuyển trọng tâm qua chân trái, thân thẳng nhịp nhàng.
+   - Frame 5: Chân trái bước gót vươn tới trước khép vòng lặp hoàn hảo.
 3. `jump`: Nhún người lấy đà → phóng người vút lên không trung → lơ lửng đỉnh điểm.
 4. `fall`: Thả rơi tự do trong không trung, quán tính chúc xuống.
 5. `land`: Tiếp đất nhún chân giảm chấn và đứng thẳng dậy.

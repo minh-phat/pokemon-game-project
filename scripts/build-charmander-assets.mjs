@@ -35,14 +35,14 @@ const rowFrames = [
     'movement_r0_c4.png',
     'movement_r0_c5.png',
   ],
-  // 1: run (dynamic alternating 6-frame biped run cycle with natural squash, stretch & airborne stride)
+  // 1: run (smooth, grounded 6-frame biped walk/run cycle with alternating footsteps and gentle gait)
   [
-    'run_v2_c0.png',
-    'run_v2_c1.png',
-    'run_v2_c2.png',
-    'run_v2_c3.png',
-    'run_v2_c4.png',
-    'run_v2_c5.png',
+    'walk_v4_c0.png',
+    'walk_v4_c1.png',
+    'walk_v4_c2.png',
+    'walk_v4_c3.png',
+    'walk_v4_c4.png',
+    'walk_v4_c5.png',
   ],
   // 2: jump (squat windup -> launch -> rising -> apex)
   [
@@ -164,8 +164,8 @@ const rowFrames = [
 ];
 
 const defaultScale = 0.74;
-// run_v2 frames have height ~289 vs idle height 151; scale factor preserves matching character size:
-const runScale = (151 * defaultScale) / 289;
+// walk_v4 frames have height ~242 vs idle height 151; scale factor preserves matching character size:
+const walkScale = (151 * defaultScale) / 242;
 const overlays = [];
 
 for (let r = 0; r < rowFrames.length; r++) {
@@ -174,16 +174,13 @@ for (let r = 0; r < rowFrames.length; r++) {
     const img = sharp(extracted + file);
     const meta = await img.metadata();
 
-    const currentScale = r === 1 ? runScale : defaultScale;
+    const currentScale = r === 1 ? walkScale : defaultScale;
     const w = Math.round(meta.width * currentScale);
     const h = Math.round(meta.height * currentScale);
 
-    // Dynamic vertical displacement for runs, jumps, falls and celebration bounces
+    // Dynamic vertical displacement for jumps, falls and celebration bounces
     let yOffset = 0;
-    if (r === 1) {
-      // In airborne stride frames 2 & 5, foot is lifted naturally off the ground
-      yOffset = c === 2 || c === 5 ? -5 : 0;
-    } else if (r === 2) {
+    if (r === 2) {
       yOffset = [0, -8, -18, -26, -20, -12][c]; // jump trajectory
     } else if (r === 3) {
       yOffset = [-22, -18, -14, -10, -5, 0][c]; // fall descending
