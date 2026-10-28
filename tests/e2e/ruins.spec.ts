@@ -14,10 +14,10 @@ test('citadel loads eight fighters and renders a responsive arena on desktop and
   await expect(picker.locator('img')).toHaveAttribute('src', '/assets/ruins-map.png');
   await picker.click();
   await page.getByRole('button', { name: 'Choose your Pokémon', exact: true }).click();
-  for (const name of ['Pikachu', 'Charmander', 'Squirtle', 'Bulbasaur'])
+  for (const name of ['Pikachu', 'Charmander', 'Lam Quy', 'Bulbasaur'])
     await page.getByRole('button', { name: `Add ${name}`, exact: true }).click();
   await page.getByRole('button', { name: 'Choose AI Pokémon', exact: true }).click();
-  for (const name of ['Pikachu', 'Charmander', 'Squirtle', 'Bulbasaur'])
+  for (const name of ['Pikachu', 'Charmander', 'Lam Quy', 'Bulbasaur'])
     await page.getByRole('button', { name: `Add ${name}`, exact: true }).click();
   const mapLoaded = page.waitForResponse(
     (response) => response.url().endsWith('/assets/ruins-map.png') && response.ok(),

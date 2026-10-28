@@ -20,7 +20,7 @@ test('VS AI: selection, pause, animated combat, results, and play again', async 
   await page.getByRole('button', { name: 'Play Now' }).click();
   await page.getByRole('button', { name: /YOUR PACE/ }).click();
   await rules(page);
-  for (const name of ['Pikachu', 'Charmander', 'Squirtle', 'Bulbasaur'])
+  for (const name of ['Pikachu', 'Charmander', 'Lam Quy', 'Bulbasaur'])
     await expect(page.getByRole('button', { name: `Inspect ${name}`, exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Add Pikachu', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Enter the arena', exact: true })).toBeEnabled();
@@ -111,7 +111,7 @@ test('online: two trainers complete an authoritative match and vote for rematch'
   await expect(guest.getByTestId('room-code')).toHaveText(code);
   await expect(guest.getByRole('button', { name: 'Edit match rules' })).toHaveCount(0);
   await guest.getByRole('button', { name: 'Choose your Pokémon', exact: true }).click();
-  await guest.getByRole('button', { name: 'Add Squirtle', exact: true }).click();
+  await guest.getByRole('button', { name: 'Add Lam Quy', exact: true }).click();
   await guest.getByRole('button', { name: 'Confirm team', exact: true }).click();
   await expect(host.getByRole('heading', { name: 'Bob' })).toBeVisible();
   await host.reload();

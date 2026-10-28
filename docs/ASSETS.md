@@ -1,5 +1,11 @@
 # Art and sound inventory
 
+Lam Quy replaces Squirtle's active portrait and animation sheet. Its generated
+source artwork, animation mapping and prompts are documented in
+[`character-concepts/lam-quy/README.md`](character-concepts/lam-quy/README.md).
+Run `node scripts/build-lam-quy-assets.mjs` to rebuild the transparent PNG assets.
+The persisted species ID remains `squirtle` for compatibility with existing saves.
+
 All game assets are local in `apps/frontend/public/assets/`. Nothing depends on a third-party image CDN or remote font. The initial assets total approximately 1.2 MB on disk.
 
 | Asset                   | Count | Source                                          |

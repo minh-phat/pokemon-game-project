@@ -455,13 +455,13 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
   },
   squirtle: {
     id: 'squirtle',
-    name: 'Squirtle',
+    name: 'Lam Quy',
     number: '007',
     element: 'water',
     role: 'Shell defender',
     description:
       'Cool under pressure. Uses its sturdy shell, well-timed counters, and rolling dodges to outlast the opposition.',
-    color: '#79c8e8',
+    color: '#58afc1',
     hp: 215,
     energy: 100,
     maxStamina: 100,

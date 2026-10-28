@@ -251,6 +251,9 @@ test('play opens a responsive mode popup, locks story mode and preserves both pl
 });
 
 test('AI battle uses the Pokémon chosen for both teams', async ({ page }) => {
+  const sheet = page.waitForResponse(
+    (response) => response.url().endsWith('/assets/lam-quy-sheet.png') && response.ok(),
+  );
   await mockAccount(page);
   await page.goto('/');
   await page.getByRole('button', { name: 'EN', exact: true }).click();
@@ -258,7 +261,7 @@ test('AI battle uses the Pokémon chosen for both teams', async ({ page }) => {
   await page.getByRole('button', { name: /YOUR PACE/ }).click();
   await page.getByLabel('Pokémon per team').selectOption('1');
   await page.getByRole('button', { name: 'Choose your Pokémon' }).click();
-  await page.getByRole('button', { name: 'Add Pikachu', exact: true }).click();
+  await page.getByRole('button', { name: 'Add Lam Quy', exact: true }).click();
   await page.getByRole('button', { name: 'Choose AI Pokémon', exact: true }).click();
   await expect(page.getByRole('button', { name: /^AI team ·/ })).toHaveAttribute(
     'aria-pressed',
@@ -267,13 +270,18 @@ test('AI battle uses the Pokémon chosen for both teams', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Choose AI Pokémon', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Add Charmander', exact: true }).click();
   await page.getByRole('button', { name: 'Remove Charmander from slot 1' }).click();
-  await page.getByRole('button', { name: 'Add Squirtle', exact: true }).click();
+  await page.getByRole('button', { name: 'Add Pikachu', exact: true }).click();
   await page.getByRole('button', { name: /^Your team ·/ }).click();
-  await expect(page.getByRole('button', { name: 'Remove Pikachu from slot 1' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Remove Lam Quy from slot 1' })).toBeVisible();
   await page.getByRole('button', { name: 'Enter the arena', exact: true }).click();
-  await expect(page.locator('.team-status').first()).toContainText('Pikachu');
-  await expect(page.locator('.enemy-status')).toContainText('Squirtle');
+  await expect(page.locator('.team-status').first()).toContainText('Lam Quy');
+  await expect(page.locator('.enemy-status')).toContainText('Pikachu');
   await expect(page.locator('.enemy-status')).not.toContainText('Charmander');
+  await sheet;
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled({
+    timeout: 60000,
+  });
+  await page.screenshot({ path: 'test-results/lam-quy-battle.png' });
 });
 
 test('every summon grants a quality pet, milestones are visible and collection survives reload', async ({

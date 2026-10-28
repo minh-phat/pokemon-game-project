@@ -1,6 +1,6 @@
 # Pokémon Arena
 
-A runnable, account-free 2D Pokémon arena game. Build a team of Pikachu, Charmander, Squirtle, Bulbasaur, and Eevee, then watch their AI fight or switch to manual controls during the match. Play locally against AI or invite a second browser into a private online room.
+A runnable, account-free 2D Pokémon arena game. Build a team of Pikachu, Charmander, Lam Quy, Bulbasaur, and Eevee, then watch their AI fight or switch to manual controls during the match. Play locally against AI or invite a second browser into a private online room.
 
 This is an unofficial fan project with custom, bundled vector and raster artwork and synthesized audio. The graphics are a consistent prototype art set, not licensed official Pokémon artwork or finished commercial animation.
 
@@ -47,7 +47,7 @@ An unexpected online disconnection pauses simulation for up to **30 seconds**. T
 - Home, mode selection, rule configuration, illustrated Pokédex/team builder, lobby, loading/countdown, live battle, results, and settings.
 - Five configured species, 24 working abilities, distinct combat preferences, 15 animation states per species, and 450 generated sprite frames.
 - Eevee's dodge-powered next hit, five separate Swift stars with limited steering, invulnerable Shadow Step dash, timed Counter Pounce, and five-hit Starfall Rush use PNG character and effect sprite sheets.
-- Acceleration, gravity, jumping, body collision, dash/backstep, crouch/slide, Squirtle shell rolling, attack lunges, swept projectile collision, melee windows, knockback, stun, slows, shield, burn, Leech Seed recovery, and Bulbasaur's five-second Sludge Bomb poison pool.
+- Acceleration, gravity, jumping, body collision, dash/backstep, crouch/slide, Lam Quy shell rolling, attack lunges, swept projectile collision, melee windows, knockback, stun, slows, shield, burn, Leech Seed recovery, and Bulbasaur's five-second Sludge Bomb poison pool.
 - Utility decisions and finite states with reaction delays, imperfect projectile prediction, boundary checks, target selection, defensive actions, and seeded randomness.
 - Health, energy, cooldowns, reserve status, timer, floating damage, skill labels, an event feed, elemental VFX, ambient particles, optional audio, and reduced-motion settings.
 - Server-validated rules/teams/readiness, host authority, private invitation rooms, countdown, authoritative damage and results, 20 Hz snapshots, interpolation, reconnection, forfeit, expiry, and rematch.
