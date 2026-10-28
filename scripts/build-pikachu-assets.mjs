@@ -201,34 +201,12 @@ await blank(960, 2400)
   .png()
   .toFile(output + 'pikachu-sheet.png');
 
-// Build 160 x 160 portrait from user reference figurine
-const refImage = sharp(source + 'pikachu-isolated.png');
-const { data, info } = await refImage.raw().toBuffer({ resolveWithObject: true });
-let minX = info.width,
-  maxX = 0,
-  minY = info.height,
-  maxY = 0;
-for (let y = 0; y < info.height; y++) {
-  for (let x = 0; x < info.width; x++) {
-    if (data[(y * info.width + x) * 4 + 3] > 30) {
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-    }
-  }
-}
-
-const portraitCropped = await refImage
-  .extract({ left: minX, top: minY, width: maxX - minX + 1, height: maxY - minY + 1 })
-  .png()
-  .toBuffer();
-
-const pMeta = await sharp(portraitCropped).metadata();
-const pScale = 126 / pMeta.height;
-const pW = Math.round(pMeta.width * pScale);
-const pH = Math.round(pMeta.height * pScale);
-const pResized = await sharp(portraitCropped).resize(pW, pH).png().toBuffer();
+// Build 160 x 160 portrait from in-game sprite (matching Lam Quy, Water Slime, and Eevee)
+const portraitSprite = sharp(extracted + 'movement_r0_c0.png');
+const pMeta = await portraitSprite.metadata();
+const pW = Math.round(pMeta.width * scale);
+const pH = Math.round(pMeta.height * scale);
+const pResized = await portraitSprite.resize(pW, pH).png().toBuffer();
 
 await blank(160, 160)
   .composite([
