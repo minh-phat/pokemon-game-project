@@ -13,6 +13,8 @@ const expected = [
   'favicon.svg',
   'pikachu.png',
   'pikachu-sheet.png',
+  'charmander.png',
+  'charmander-sheet.png',
   'water-slime.png',
   'water-slime-sheet.png',
   'water-slime-wrap.png',
@@ -86,3 +88,9 @@ if (lamQuy.width !== 960 || lamQuy.height !== 2400 || !lamQuy.hasAlpha)
 const pikachu = await sharp(resolve('apps/frontend/public/assets/pikachu-sheet.png')).metadata();
 if (pikachu.width !== 960 || pikachu.height !== 2400 || !pikachu.hasAlpha)
   throw new Error('Invalid Pikachu sprite sheet');
+
+const charmander = await sharp(
+  resolve('apps/frontend/public/assets/charmander-sheet.png'),
+).metadata();
+if (charmander.width !== 960 || charmander.height !== 2400 || !charmander.hasAlpha)
+  throw new Error('Invalid Charmander sprite sheet');

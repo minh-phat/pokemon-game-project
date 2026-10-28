@@ -100,3 +100,27 @@ it('citadel uses the original uploaded image at its native aspect ratio', async 
   expect(arena.width / arena.height!).toBeCloseTo(metadata.width! / metadata.height!, 10);
   expect(arena.thumbnail).toBe(arena.background);
 });
+
+it('Charmander has high-definition raster portrait and 15 animated action states', async () => {
+  const portrait = await sharp('apps/frontend/public/assets/charmander.png').metadata();
+  expect([portrait.width, portrait.height, portrait.hasAlpha]).toEqual([160, 160, true]);
+
+  const sheet = await sharp('apps/frontend/public/assets/charmander-sheet.png').metadata();
+  expect([sheet.width, sheet.height, sheet.hasAlpha]).toEqual([960, 2400, true]);
+
+  const { data, info } = await sharp('apps/frontend/public/assets/charmander-sheet.png')
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  for (let r = 0; r < 15; r++) {
+    for (let c = 0; c < 6; c++) {
+      let opaque = 0;
+      for (let y = r * 160; y < (r + 1) * 160; y++) {
+        for (let x = c * 160; x < (c + 1) * 160; x++) {
+          if (data[(y * info.width + x) * info.channels + 3] > 60) opaque++;
+        }
+      }
+      expect(opaque, `Row ${r} Col ${c} has visible pixels`).toBeGreaterThan(1000);
+    }
+  }
+});

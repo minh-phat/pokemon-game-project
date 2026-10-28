@@ -4,7 +4,7 @@ export const ASSETS = {
   portraits: {
     'water-slime': '/assets/water-slime.png',
     pikachu: '/assets/pikachu.png',
-    charmander: '/assets/charmander.svg',
+    charmander: '/assets/charmander.png',
     squirtle: '/assets/lam-quy.png',
     bulbasaur: '/assets/bulbasaur.svg',
     eevee: '/assets/eevee.png',
@@ -13,7 +13,7 @@ export const ASSETS = {
   sprites: {
     'water-slime': '/assets/water-slime-sheet.png',
     pikachu: '/assets/pikachu-sheet.png',
-    charmander: '/assets/charmander-sheet.svg',
+    charmander: '/assets/charmander-sheet.png',
     squirtle: '/assets/lam-quy-sheet.png',
     bulbasaur: '/assets/bulbasaur-sheet.svg',
     eevee: '/assets/eevee-sheet.png',

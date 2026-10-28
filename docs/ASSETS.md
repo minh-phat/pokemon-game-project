@@ -10,6 +10,10 @@ Pikachu has also been redesigned using authored animation sheets derived from th
 3D figure reference. Documentation is in [`character-concepts/pikachu/README.md`](character-concepts/pikachu/README.md).
 Run `node scripts/build-pikachu-assets.mjs` to rebuild the transparent PNG assets (`pikachu.png` and `pikachu-sheet.png`).
 
+Charmander has also been redesigned using authored animation sheets derived from the user's
+reference image. Documentation is in [`character-concepts/charmander/README.md`](character-concepts/charmander/README.md).
+Run `node scripts/build-charmander-assets.mjs` to rebuild the transparent PNG assets (`charmander.png` and `charmander-sheet.png`).
+
 All game assets are local in `apps/frontend/public/assets/`. Nothing depends on a third-party image CDN or remote font. The initial assets total approximately 1.2 MB on disk.
 
 | Asset                   | Count | Source                                          |
