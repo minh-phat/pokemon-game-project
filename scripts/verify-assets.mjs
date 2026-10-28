@@ -11,6 +11,8 @@ const expected = [
   ]),
   ...['normal', 'electric', 'fire', 'water', 'grass'].map((id) => `${id}.wav`),
   'favicon.svg',
+  'pikachu.png',
+  'pikachu-sheet.png',
   'water-slime.png',
   'water-slime-sheet.png',
   'water-slime-wrap.png',
@@ -70,7 +72,7 @@ for (const id of [
     throw new Error(`Invalid Eevee VFX sheet ${id}`);
 }
 console.log(
-  `Verified ${expected.length} assets, four legacy vector sprite sheets, and Eevee, Runedrake, Water Slime and Lam Quy raster sprite sheets.`,
+  `Verified ${expected.length} assets, four legacy vector sprite sheets, and Eevee, Runedrake, Water Slime, Lam Quy and Pikachu raster sprite sheets.`,
 );
 
 const slime = await sharp(resolve('apps/frontend/public/assets/water-slime-sheet.png')).metadata();
@@ -80,3 +82,7 @@ if (slime.width !== 960 || slime.height !== 2400 || !slime.hasAlpha)
 const lamQuy = await sharp(resolve('apps/frontend/public/assets/lam-quy-sheet.png')).metadata();
 if (lamQuy.width !== 960 || lamQuy.height !== 2400 || !lamQuy.hasAlpha)
   throw new Error('Invalid Lam Quy sprite sheet');
+
+const pikachu = await sharp(resolve('apps/frontend/public/assets/pikachu-sheet.png')).metadata();
+if (pikachu.width !== 960 || pikachu.height !== 2400 || !pikachu.hasAlpha)
+  throw new Error('Invalid Pikachu sprite sheet');

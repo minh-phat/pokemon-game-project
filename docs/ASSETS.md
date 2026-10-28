@@ -6,6 +6,10 @@ source artwork, animation mapping and prompts are documented in
 Run `node scripts/build-lam-quy-assets.mjs` to rebuild the transparent PNG assets.
 The persisted species ID remains `squirtle` for compatibility with existing saves.
 
+Pikachu has also been redesigned using authored animation sheets derived from the user's
+3D figure reference. Documentation is in [`character-concepts/pikachu/README.md`](character-concepts/pikachu/README.md).
+Run `node scripts/build-pikachu-assets.mjs` to rebuild the transparent PNG assets (`pikachu.png` and `pikachu-sheet.png`).
+
 All game assets are local in `apps/frontend/public/assets/`. Nothing depends on a third-party image CDN or remote font. The initial assets total approximately 1.2 MB on disk.
 
 | Asset                   | Count | Source                                          |

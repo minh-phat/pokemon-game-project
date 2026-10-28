@@ -3,7 +3,7 @@ export const ASSETS = {
   previews: ['forest', 'volcano', 'lake'].map((id) => `/assets/${id}.svg`),
   portraits: {
     'water-slime': '/assets/water-slime.png',
-    pikachu: '/assets/pikachu.svg',
+    pikachu: '/assets/pikachu.png',
     charmander: '/assets/charmander.svg',
     squirtle: '/assets/lam-quy.png',
     bulbasaur: '/assets/bulbasaur.svg',
@@ -12,7 +12,7 @@ export const ASSETS = {
   },
   sprites: {
     'water-slime': '/assets/water-slime-sheet.png',
-    pikachu: '/assets/pikachu-sheet.svg',
+    pikachu: '/assets/pikachu-sheet.png',
     charmander: '/assets/charmander-sheet.svg',
     squirtle: '/assets/lam-quy-sheet.png',
     bulbasaur: '/assets/bulbasaur-sheet.svg',
