@@ -3,7 +3,7 @@ import { addCityObjects, paintCityTile, cityColors } from './binh-minh-renderer'
 import { geographyColor } from './open-world-geography';
 import { automaticCameraFrame } from './arena-camera';
 import type { WorldArenaLayer } from './world-arena-layer';
-import { ASSETS, fighterDefinition } from '@arena/game-data';
+import { ASSETS, POKEMON, fighterDefinition } from '@arena/game-data';
 import {
   WORLD_COMBAT_HEIGHT_SCALE,
   worldCombatOffset,
@@ -986,9 +986,15 @@ export class OpenWorldEngine {
       c.fillRect(x - 4, y - 8, 8, 8);
       return;
     }
+    const frameRate =
+      actor.species === 'charmander'
+        ? POKEMON.charmander.animations[actor.moving ? 'run' : 'idle'].frameRate
+        : actor.moving
+          ? 9
+          : 3;
     const frame = this.input.reducedMotion
       ? 0
-      : Math.floor(this.time * (actor.moving ? 9 : 3) + actor.phase) % 6;
+      : Math.floor(this.time * frameRate + actor.phase) % 6;
     const bob = this.input.reducedMotion
       ? 0
       : Math.sin(this.time * (actor.moving ? 10 : 2) + actor.phase);

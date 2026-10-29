@@ -115,12 +115,22 @@ it('Charmander has high-definition raster portrait and 15 animated action states
   for (let r = 0; r < 15; r++) {
     for (let c = 0; c < 6; c++) {
       let opaque = 0;
+      let bottom = 0;
+      let border = 0;
       for (let y = r * 160; y < (r + 1) * 160; y++) {
         for (let x = c * 160; x < (c + 1) * 160; x++) {
-          if (data[(y * info.width + x) * info.channels + 3] > 60) opaque++;
+          if (data[(y * info.width + x) * info.channels + 3] > 60) {
+            opaque++;
+            bottom = Math.max(bottom, y - r * 160);
+            if (x % 160 === 0 || x % 160 === 159 || y % 160 === 0 || y % 160 === 159) border++;
+          }
         }
       }
       expect(opaque, `Row ${r} Col ${c} has visible pixels`).toBeGreaterThan(1000);
+      expect(border, `Row ${r} Col ${c} must not clip against another frame`).toBe(0);
+      // Allow two pixels of antialiasing at the registered y=149 baseline.
+      expect(bottom, `Row ${r} Col ${c} shares the ground baseline`).toBeGreaterThanOrEqual(147);
+      expect(bottom).toBeLessThanOrEqual(151);
     }
   }
 });

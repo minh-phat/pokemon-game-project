@@ -1,49 +1,29 @@
-# Charmander (Thiết kế lại từ hình ảnh gốc của người dùng)
+# Thú lửa sọc đỏ — thay thế hình ảnh Charmander
 
-Nhân vật Charmander được thiết kế lại hoàn toàn dựa trên hình ảnh nguyên bản do người dùng cung cấp: thân khủng long màu cam ấm áp, bụng và mặt dưới đuôi màu vàng kem nhạt dịu mắt, đôi mắt to tròn màu xanh ngọc lam (turquoise) sáng ngời, nụ cười tươi khoe các răng nanh nhỏ màu trắng, tay ngắn 4 ngón đáng yêu, hai chân vững chắc với 3 móng vuốt sắc nhọn màu trắng, và ngọn lửa sống động luôn bùng cháy rực rỡ ở chóp đuôi.
+Bộ đang dùng là `fire-stripe-v2/`, tạo bằng công cụ **image_gen tích hợp** theo thú triệu hồi người dùng gửi: thân cam, hai sừng nhọn, mắt xanh ngọc, bụng kem, sọc đỏ như lửa trên chân/tay/đuôi, lửa nhỏ ở má, móng trắng và đuôi lửa lớn. Giữ ID `charmander` để nhân vật và dữ liệu đã lưu tiếp tục dùng được.
 
-## Tài nguyên & Kiến trúc Pipeline
+## Nguồn và xem trước
 
-- Ảnh gốc người dùng: `reference.png`
-- Ảnh đã tách nền giữ nguyên răng nanh trắng và móng vuốt: `charmander-isolated.png`
-- Bảng nguồn chuyển động (`movement-source.jpg`): 5 hàng các tư thế đứng thở/chớp mắt/lửa bập bùng, chu kỳ nhảy/tiếp đất, thế phòng thủ giơ vuốt thủ trước ngực, và chuỗi ngã gục kiệt sức nằm sấp với mắt nhắm.
-- Bảng nguồn bước đi mượt mà (`walk-source-v4.jpg`): Chu kỳ đi/chạy 2 chân 6 khung hình hoàn chỉnh, tiếp đất vững vàng (grounded), luân phiên chân trái - chân phải nhịp nhàng, độ cao đầu và mắt ổn định tuyệt đối, không bị nảy giật hay bay nhảy đột ngột.
-- Bảng nguồn chiến đấu (`combat-source.jpg`): 5 hàng các tư thế đòn cào cắn vật lý (Scratch / Slash) với vệt chém móng vuốt, tụ khí và phun luồng lửa / quả cầu lửa (Ember / Flamethrower), lướt nhanh Flame Charge bao bọc luồng lửa rực cháy, bước lùi né đòn và cúi thấp, trúng đòn choáng váng, và nhảy tưng bừng reo hò chiến thắng với hai tay giơ cao.
-- Các khung hình đã tách nền sạch sẽ với antialiasing khử viền trắng: `extracted/`.
+- `fire-stripe-v2/movement.png`: nguồn đứng thở, chạy và tiếp đất. Hai hàng nhảy/rơi cũ có tư thế lỗi và không được dùng nữa.
+- `fire-stripe-v2/jump-corrected.png`: chuỗi nhảy riêng, 3 cột × 2 hàng, chọn từ các tư thế một đuôi đã kiểm tra. Dùng thứ tự ngược cho chuỗi rơi.
+- `fire-stripe-v2/combat.png`: cào, phun lửa, lướt, né lùi, cúi thấp.
+- `fire-stripe-v2/reactions.png`: thủ, trúng đòn, hất lùi, kiệt sức, chiến thắng.
+- `fire-stripe-v2/prompts.json`: nguyên văn bộ prompt và công cụ đã dùng.
+- `fire-stripe-v2/preview.html`: mở trực tiếp để xem cả 15 động tác, tạm dừng, đổi hướng, đổi tốc độ.
+- `fire-stripe-v2/preview.png`: ảnh xem trước toàn bộ.
+- `fire-stripe-v2/registration.json`: vị trí và tỷ lệ đóng gói từng khung.
 
-## Lệnh tạo Sprite
+Ảnh AI không có lưới hoàn toàn đều. Script tìm khoảng trong suốt giữa các tư thế trước khi cắt, dùng vùng bụng làm mốc ngang và giữ một tỷ lệ cố định cho mỗi bảng nguồn. Chân đặt ở y≈149; game tự tính độ cao nhảy. Ảnh nguồn ban đầu có tư thế nhảy cuối bị nhân đôi đuôi. Hai lượt sửa bằng imagegen bị bộ lọc công cụ từ chối. Bản sửa hiện tại đóng gói lại các tư thế nguyên vẹn từ sprite đã có, bỏ tư thế tay vươn dài dễ lẫn với đuôi, giữ một đuôi gắn liền với thân và giữ khung ở đỉnh nhảy. Script bỏ hẳn hai hàng nhảy/rơi của nguồn cũ trước khi build; không lấy lại tư thế hai đuôi. Đây là ghép lại khung đã có, không phải ảnh mới do imagegen tạo thành công.
 
-Chạy lệnh sau để build tự động (hoặc thông qua `npm run assets`):
+## Runtime
 
 ```bash
 node scripts/build-charmander-assets.mjs
+node scripts/preview-charmander.mjs
 ```
 
-Lệnh sinh ra 2 asset runtime vào `apps/frontend/public/assets/`:
+Script build xuất `apps/frontend/public/assets/charmander-sheet.png` (960×2400, 15 hàng × 6 khung, mỗi khung 160×160) và `charmander.png` (chân dung 160×160), đều có alpha thật. `npm run assets` cũng gọi script này. Các ảnh cũ ngoài `fire-stripe-v2/` được giữ làm lịch sử thiết kế, không dùng để build nhân vật hiện tại.
 
-1. `charmander.png`: Chân dung 2D sắc nét 160 × 160 px, nền trong suốt (alpha), đúng tỷ lệ và căn chỉnh trọng tâm sàn.
-2. `charmander-sheet.png`: Bảng sprite 960 × 2400 px, gồm chuẩn 15 hàng × 6 cột khung hình 160 × 160 px.
+Thứ tự hàng: idle, run, jump, fall, land, attack, cast, dash, backstep, crouch, guard, hit, knockback, faint, victory.
 
-## Cấu trúc 15 hàng Animation
-
-1. `idle`: Đứng thở nhịp nhàng, chớp mắt tự nhiên, ngọn lửa đuôi bập bùng sống động.
-2. `run`: Chu kỳ di chuyển 2 chân tiếp đất trơn tru 6 khung hình (`frameRate: 9` trong `packages/game-data` mang lại nhịp bước tự nhiên ~0.67s/vòng lặp, khi sprint tăng tốc mượt mà):
-   - Frame 0: Chân trái bước vươn tới trước, chân phải chống sau.
-   - Frame 1: Chuyển trọng tâm qua chân phải, thân thẳng nhịp nhàng.
-   - Frame 2: Chân phải bước gót chạm đất, chân trái đẩy lùi sau.
-   - Frame 3: Chân phải chạm đất trọn vẹn, chân trái thu về sau.
-   - Frame 4: Chuyển trọng tâm qua chân trái, thân thẳng nhịp nhàng.
-   - Frame 5: Chân trái bước gót vươn tới trước khép vòng lặp hoàn hảo.
-3. `jump`: Nhún người lấy đà → phóng người vút lên không trung → lơ lửng đỉnh điểm.
-4. `fall`: Thả rơi tự do trong không trung, quán tính chúc xuống.
-5. `land`: Tiếp đất nhún chân giảm chấn và đứng thẳng dậy.
-6. `attack`: Đòn tấn công vật lý (Scratch / Slash): lấy đà, lao tới vung vuốt cào sắc bén với vệt chém vuốt cong, thu hồi thế đứng.
-7. `cast`: Phóng hỏa Ember / Flamethrower: hít sâu tích tụ năng lượng nhiệt, mở to miệng phun quả cầu lửa và luồng lửa rực cháy về phía trước.
-8. `dash`: Lướt nhanh Flame Charge: bứt tốc độ cao với luồng lửa cam bao quanh toàn thân rồi trượt phanh dừng lại.
-9. `backstep`: Nhảy lùi né đòn nhanh thoăn thoắt.
-10. `crouch`: Cúi thấp sát đất né tránh đòn tầm cao.
-11. `guard`: Đưa hai tay và móng vuốt thủ trước ngực che chắn bảo vệ cơ thể.
-12. `hit`: Giật mình nhăn mặt ngửa người ra sau khi trúng sát thương.
-13. `knockback`: Bị hất văng trượt lùi trên mặt đất rồi gượng dậy lấy lại thăng bằng.
-14. `faint`: Choáng váng loạng choạng ngã gục xuống sàn, nằm sấp bất tỉnh, mắt nhắm nghiền và ngọn lửa đuôi thu nhỏ lại.
-15. `victory`: Reo hò chiến thắng, nhảy tưng bừng với hai tay giơ cao, nụ cười rạng rỡ và ngọn lửa đuôi bốc cao rực rỡ!
+Nhịp: idle/guard/crouch 8 fps, run/jump 12 fps, land/hit 16 fps, dash 14 fps, faint 8 fps, các hàng còn lại 10 fps. Run được tăng tốc khi sprint theo renderer hiện có. Chiêu tấn công dùng `charmanderCastFrame` để đồng bộ lấy đà → ra đòn → hồi phục với startup/active/recovery; chiêu phun kéo dài giữ miệng mở suốt active. Tạm dừng giữ khung, reduced motion dùng một tư thế tĩnh.

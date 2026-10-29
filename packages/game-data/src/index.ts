@@ -362,7 +362,15 @@ const runedrakeAnimations: PokemonDefinition['animations'] = {
 };
 const charmanderAnimations: PokemonDefinition['animations'] = {
   ...animations,
-  run: { ...animations.run, frameRate: 9 },
+  idle: { ...animations.idle, frameRate: 8 },
+  run: { ...animations.run, frameRate: 12 },
+  jump: { ...animations.jump, frameRate: 12 },
+  land: { ...animations.land, frameRate: 16 },
+  dash: { ...animations.dash, frameRate: 14 },
+  guard: { ...animations.guard, frameRate: 8 },
+  crouch: { ...animations.crouch, frameRate: 8 },
+  hit: { ...animations.hit, frameRate: 16 },
+  faint: { ...animations.faint, frameRate: 8 },
 };
 export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
   'water-slime': {

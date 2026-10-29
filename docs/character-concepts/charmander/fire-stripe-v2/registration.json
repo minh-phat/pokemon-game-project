@@ -1,0 +1,722 @@
+[
+  {
+    "action": "idle",
+    "frame": 0,
+    "source": "movement",
+    "scale": 0.6517857142857143,
+    "left": 11,
+    "top": 29
+  },
+  {
+    "action": "idle",
+    "frame": 1,
+    "source": "movement",
+    "scale": 0.6517857142857143,
+    "left": 3,
+    "top": 28
+  },
+  {
+    "action": "idle",
+    "frame": 2,
+    "source": "movement",
+    "scale": 0.6517857142857143,
+    "left": 5,
+    "top": 29
+  },
+  {
+    "action": "idle",
+    "frame": 3,
+    "source": "movement",
+    "scale": 0.6517857142857143,
+    "left": 8,
+    "top": 28
+  },
+  {
+    "action": "idle",
+    "frame": 4,
+    "source": "movement",
+    "scale": 0.6517857142857143,
+    "left": 3,
+    "top": 28
+  },
+  {
+    "action": "idle",
+    "frame": 5,
+    "source": "movement",
+    "scale": 0.6517857142857143,
+    "left": 3,
+    "top": 29
+  },
+  {
+    "action": "run",
+    "frame": 0,
+    "source": "movement",
+    "scale": 0.6517857142857143,
+    "left": 3,
+    "top": 35
+  },
+  {
+    "action": "run",
+    "frame": 1,
+    "source": "movement",
+    "scale": 0.6517857142857143,
+    "left": 3,
+    "top": 47
+  },
+  {
+    "action": "run",
+    "frame": 2,
+    "source": "movement",
+    "scale": 0.6517857142857143,
+    "left": 3,
+    "top": 44
+  },
+  {
+    "action": "run",
+    "frame": 3,
+    "source": "movement",
+    "scale": 0.6517857142857143,
+    "left": 3,
+    "top": 36
+  },
+  {
+    "action": "run",
+    "frame": 4,
+    "source": "movement",
+    "scale": 0.6517857142857143,
+    "left": 3,
+    "top": 39
+  },
+  {
+    "action": "run",
+    "frame": 5,
+    "source": "movement",
+    "scale": 0.6517857142857143,
+    "left": 3,
+    "top": 45
+  },
+  {
+    "action": "land",
+    "frame": 0,
+    "source": "movement",
+    "scale": 0.6517857142857143,
+    "left": 6,
+    "top": 26
+  },
+  {
+    "action": "land",
+    "frame": 1,
+    "source": "movement",
+    "scale": 0.6517857142857143,
+    "left": 3,
+    "top": 26
+  },
+  {
+    "action": "land",
+    "frame": 2,
+    "source": "movement",
+    "scale": 0.6517857142857143,
+    "left": 4,
+    "top": 27
+  },
+  {
+    "action": "land",
+    "frame": 3,
+    "source": "movement",
+    "scale": 0.6517857142857143,
+    "left": 12,
+    "top": 26
+  },
+  {
+    "action": "land",
+    "frame": 4,
+    "source": "movement",
+    "scale": 0.6517857142857143,
+    "left": 7,
+    "top": 25
+  },
+  {
+    "action": "land",
+    "frame": 5,
+    "source": "movement",
+    "scale": 0.6517857142857143,
+    "left": 5,
+    "top": 28
+  },
+  {
+    "action": "attack",
+    "frame": 0,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 24,
+    "top": 41
+  },
+  {
+    "action": "attack",
+    "frame": 1,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 27,
+    "top": 42
+  },
+  {
+    "action": "attack",
+    "frame": 2,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 23,
+    "top": 42
+  },
+  {
+    "action": "attack",
+    "frame": 3,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 15,
+    "top": 42
+  },
+  {
+    "action": "attack",
+    "frame": 4,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 7,
+    "top": 40
+  },
+  {
+    "action": "attack",
+    "frame": 5,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 33,
+    "top": 40
+  },
+  {
+    "action": "cast",
+    "frame": 0,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 24,
+    "top": 42
+  },
+  {
+    "action": "cast",
+    "frame": 1,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 16,
+    "top": 42
+  },
+  {
+    "action": "cast",
+    "frame": 2,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 13,
+    "top": 40
+  },
+  {
+    "action": "cast",
+    "frame": 3,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 12,
+    "top": 40
+  },
+  {
+    "action": "cast",
+    "frame": 4,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 12,
+    "top": 41
+  },
+  {
+    "action": "cast",
+    "frame": 5,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 31,
+    "top": 41
+  },
+  {
+    "action": "dash",
+    "frame": 0,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 7,
+    "top": 55
+  },
+  {
+    "action": "dash",
+    "frame": 1,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 3,
+    "top": 55
+  },
+  {
+    "action": "dash",
+    "frame": 2,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 3,
+    "top": 55
+  },
+  {
+    "action": "dash",
+    "frame": 3,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 3,
+    "top": 56
+  },
+  {
+    "action": "dash",
+    "frame": 4,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 7,
+    "top": 55
+  },
+  {
+    "action": "dash",
+    "frame": 5,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 28,
+    "top": 46
+  },
+  {
+    "action": "backstep",
+    "frame": 0,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 24,
+    "top": 40
+  },
+  {
+    "action": "backstep",
+    "frame": 1,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 20,
+    "top": 39
+  },
+  {
+    "action": "backstep",
+    "frame": 2,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 23,
+    "top": 40
+  },
+  {
+    "action": "backstep",
+    "frame": 3,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 17,
+    "top": 44
+  },
+  {
+    "action": "backstep",
+    "frame": 4,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 29,
+    "top": 39
+  },
+  {
+    "action": "backstep",
+    "frame": 5,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 32,
+    "top": 40
+  },
+  {
+    "action": "crouch",
+    "frame": 0,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 28,
+    "top": 44
+  },
+  {
+    "action": "crouch",
+    "frame": 1,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 19,
+    "top": 43
+  },
+  {
+    "action": "crouch",
+    "frame": 2,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 24,
+    "top": 44
+  },
+  {
+    "action": "crouch",
+    "frame": 3,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 26,
+    "top": 42
+  },
+  {
+    "action": "crouch",
+    "frame": 4,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 27,
+    "top": 43
+  },
+  {
+    "action": "crouch",
+    "frame": 5,
+    "source": "combat",
+    "scale": 0.5680933852140078,
+    "left": 32,
+    "top": 46
+  },
+  {
+    "action": "guard",
+    "frame": 0,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 25,
+    "top": 33
+  },
+  {
+    "action": "guard",
+    "frame": 1,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 20,
+    "top": 33
+  },
+  {
+    "action": "guard",
+    "frame": 2,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 21,
+    "top": 33
+  },
+  {
+    "action": "guard",
+    "frame": 3,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 24,
+    "top": 33
+  },
+  {
+    "action": "guard",
+    "frame": 4,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 20,
+    "top": 33
+  },
+  {
+    "action": "guard",
+    "frame": 5,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 25,
+    "top": 33
+  },
+  {
+    "action": "hit",
+    "frame": 0,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 16,
+    "top": 34
+  },
+  {
+    "action": "hit",
+    "frame": 1,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 3,
+    "top": 33
+  },
+  {
+    "action": "hit",
+    "frame": 2,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 3,
+    "top": 32
+  },
+  {
+    "action": "hit",
+    "frame": 3,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 13,
+    "top": 33
+  },
+  {
+    "action": "hit",
+    "frame": 4,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 12,
+    "top": 33
+  },
+  {
+    "action": "hit",
+    "frame": 5,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 17,
+    "top": 33
+  },
+  {
+    "action": "knockback",
+    "frame": 0,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 17,
+    "top": 31
+  },
+  {
+    "action": "knockback",
+    "frame": 1,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 3,
+    "top": 31
+  },
+  {
+    "action": "knockback",
+    "frame": 2,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 3,
+    "top": 29
+  },
+  {
+    "action": "knockback",
+    "frame": 3,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 3,
+    "top": 56
+  },
+  {
+    "action": "knockback",
+    "frame": 4,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 5,
+    "top": 35
+  },
+  {
+    "action": "knockback",
+    "frame": 5,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 21,
+    "top": 32
+  },
+  {
+    "action": "faint",
+    "frame": 0,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 17,
+    "top": 41
+  },
+  {
+    "action": "faint",
+    "frame": 1,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 8,
+    "top": 41
+  },
+  {
+    "action": "faint",
+    "frame": 2,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 14,
+    "top": 50
+  },
+  {
+    "action": "faint",
+    "frame": 3,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 20,
+    "top": 58
+  },
+  {
+    "action": "faint",
+    "frame": 4,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 23,
+    "top": 81
+  },
+  {
+    "action": "faint",
+    "frame": 5,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 30,
+    "top": 79
+  },
+  {
+    "action": "victory",
+    "frame": 0,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 14,
+    "top": 30
+  },
+  {
+    "action": "victory",
+    "frame": 1,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 11,
+    "top": 28
+  },
+  {
+    "action": "victory",
+    "frame": 2,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 8,
+    "top": 41
+  },
+  {
+    "action": "victory",
+    "frame": 3,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 19,
+    "top": 35
+  },
+  {
+    "action": "victory",
+    "frame": 4,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 10,
+    "top": 28
+  },
+  {
+    "action": "victory",
+    "frame": 5,
+    "source": "reactions",
+    "scale": 0.6083333333333333,
+    "left": 13,
+    "top": 29
+  },
+  {
+    "action": "jump",
+    "frame": 0,
+    "source": "jump-corrected",
+    "scale": 1.0434782608695652,
+    "left": 3,
+    "top": 28
+  },
+  {
+    "action": "jump",
+    "frame": 1,
+    "source": "jump-corrected",
+    "scale": 1.0434782608695652,
+    "left": 3,
+    "top": 39
+  },
+  {
+    "action": "jump",
+    "frame": 2,
+    "source": "jump-corrected",
+    "scale": 1.0434782608695652,
+    "left": 19,
+    "top": 34
+  },
+  {
+    "action": "jump",
+    "frame": 3,
+    "source": "jump-corrected",
+    "scale": 1.0434782608695652,
+    "left": 13,
+    "top": 37
+  },
+  {
+    "action": "jump",
+    "frame": 4,
+    "source": "jump-corrected",
+    "scale": 1.0434782608695652,
+    "left": 3,
+    "top": 21
+  },
+  {
+    "action": "jump",
+    "frame": 5,
+    "source": "jump-corrected",
+    "scale": 1.0434782608695652,
+    "left": 3,
+    "top": 21
+  },
+  {
+    "action": "fall",
+    "frame": 0,
+    "source": "jump-corrected",
+    "scale": 1.0434782608695652,
+    "left": 3,
+    "top": 21
+  },
+  {
+    "action": "fall",
+    "frame": 1,
+    "source": "jump-corrected",
+    "scale": 1.0434782608695652,
+    "left": 3,
+    "top": 21
+  },
+  {
+    "action": "fall",
+    "frame": 2,
+    "source": "jump-corrected",
+    "scale": 1.0434782608695652,
+    "left": 13,
+    "top": 37
+  },
+  {
+    "action": "fall",
+    "frame": 3,
+    "source": "jump-corrected",
+    "scale": 1.0434782608695652,
+    "left": 19,
+    "top": 34
+  },
+  {
+    "action": "fall",
+    "frame": 4,
+    "source": "jump-corrected",
+    "scale": 1.0434782608695652,
+    "left": 3,
+    "top": 39
+  },
+  {
+    "action": "fall",
+    "frame": 5,
+    "source": "jump-corrected",
+    "scale": 1.0434782608695652,
+    "left": 3,
+    "top": 28
+  }
+]

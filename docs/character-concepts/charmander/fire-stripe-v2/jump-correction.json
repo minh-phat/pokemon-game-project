@@ -1,0 +1,24 @@
+{
+  "source": "jump-corrected.png",
+  "method": "Package existing authored sprite frames, without repainting",
+  "originalRuntimeFrameIndices": [
+    12,
+    13,
+    50,
+    51,
+    17,
+    17
+  ],
+  "fall": "Reverse the corrected jump poses",
+  "review": "Each pose reviewed for one continuous tail, one tail flame, complete limbs and alpha margins.",
+  "imagegenAttempts": [
+    {
+      "status": "rejected_by_tool_output_safety",
+      "prompt": "Use case: identity-preserve. Create a corrected jump animation sprite sheet for the orange striped lizard from the reference. Preserve its exact face, turquoise eyes, swept head horns, orange/red markings, cream belly, white claws and cartoon line art.\nThe reference includes an erroneous duplicated tail in a jumping pose. Correct anatomy is EXACTLY ONE continuous tail attached to the rear pelvis, ending in EXACTLY ONE flame. Never fork, duplicate, detach or draw a second tail. Each drawing has two arms, two legs, one head, one tail.\nOutput exactly THREE columns by TWO rows, six separate full-body poses in reading order: 1 crouch anticipation, 2 toe push-off, 3 rising with legs extending, 4 rising knees bending, 5 knees tucked near apex, 6 relaxed apex. Face RIGHT throughout. Keep tail compact in a single clearly readable backward curve and clear of legs, flame above tail tip. Match head and torso size across frames. Same fixed camera and scale, centered in equal cells with generous empty margins; no frame crosses another cell.\nActual transparent background, clean alpha, no text, no grid, no shadows. This is a six-frame sprite sheet for a friendly cartoon game character."
+    },
+    {
+      "status": "rejected_by_tool_output_safety",
+      "prompt": "Edit this sprite sheet. In the third row, the rightmost jumping orange creature has an extra tail and flame. Remove the extra lower tail and its flame, leaving just one tail attached naturally to the creature's pelvis with one flame at its tip. Preserve the character, all other poses, layout, colors, line work and transparency. Do not add any new objects. Return the corrected sheet with transparent background."
+    }
+  ]
+}

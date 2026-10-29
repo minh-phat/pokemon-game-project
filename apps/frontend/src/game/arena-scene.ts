@@ -1,6 +1,7 @@
 import { WORLD_ARENA_VIEW, worldArenaViewport, type WorldArenaView } from './world-combat-visuals';
 import { isConcealed } from '@arena/shared-types';
 import { slimePose, slimeOpacity } from './water-slime';
+import { charmanderCastFrame } from './charmander';
 import { drawRuins } from './ruins-arena';
 import * as Phaser from 'phaser';
 import { ANIMATIONS, type Fighter, type MatchRules } from '@arena/shared-types';
@@ -493,6 +494,16 @@ export function createArenaScene(
             : 1;
         if (settings.paused) v.sprite.anims.pause();
         else v.sprite.anims.resume();
+        if (f.species === 'charmander') {
+          const frame = charmanderCastFrame(f);
+          if (settings.reducedMotion) {
+            v.sprite.anims.pause();
+            v.sprite.setFrame(POKEMON.charmander.animations[f.animation].start);
+          } else if (frame !== null && !settings.paused) {
+            v.sprite.anims.pause();
+            v.sprite.setFrame(frame);
+          }
+        }
         v.sprite.setTint(
           f.effects.some((e) => e.kind === 'burn')
             ? 0xffbb99
