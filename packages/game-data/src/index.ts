@@ -477,7 +477,7 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
   },
   squirtle: {
     id: 'squirtle',
-    name: 'Lam Quy',
+    name: 'Squirtle',
     number: '007',
     element: 'water',
     role: 'Shell defender',

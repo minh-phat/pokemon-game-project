@@ -261,7 +261,7 @@ test('AI battle uses the Pokémon chosen for both teams', async ({ page }) => {
   await page.getByRole('button', { name: /YOUR PACE/ }).click();
   await page.getByLabel('Pokémon per team').selectOption('1');
   await page.getByRole('button', { name: 'Choose your Pokémon' }).click();
-  await page.getByRole('button', { name: 'Add Lam Quy', exact: true }).click();
+  await page.getByRole('button', { name: 'Add Squirtle', exact: true }).click();
   await page.getByRole('button', { name: 'Choose AI Pokémon', exact: true }).click();
   await expect(page.getByRole('button', { name: /^AI team ·/ })).toHaveAttribute(
     'aria-pressed',
@@ -272,9 +272,9 @@ test('AI battle uses the Pokémon chosen for both teams', async ({ page }) => {
   await page.getByRole('button', { name: 'Remove Charmander from slot 1' }).click();
   await page.getByRole('button', { name: 'Add Pikachu', exact: true }).click();
   await page.getByRole('button', { name: /^Your team ·/ }).click();
-  await expect(page.getByRole('button', { name: 'Remove Lam Quy from slot 1' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Remove Squirtle from slot 1' })).toBeVisible();
   await page.getByRole('button', { name: 'Enter the arena', exact: true }).click();
-  await expect(page.locator('.team-status').first()).toContainText('Lam Quy');
+  await expect(page.locator('.team-status').first()).toContainText('Squirtle');
   await expect(page.locator('.enemy-status')).toContainText('Pikachu');
   await expect(page.locator('.enemy-status')).not.toContainText('Charmander');
   await sheet;

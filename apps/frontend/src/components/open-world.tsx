@@ -40,7 +40,7 @@ import { CITY_TOUR } from '@/game/binh-minh-tour';
 const names = {
   pikachu: 'Pikachu',
   bulbasaur: 'Bulbasaur',
-  squirtle: 'Lam Quy',
+  squirtle: 'Squirtle',
   charmander: 'Charmander',
   eevee: 'Eevee',
 };
