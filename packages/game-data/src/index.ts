@@ -372,6 +372,16 @@ const charmanderAnimations: PokemonDefinition['animations'] = {
   hit: { ...animations.hit, frameRate: 16 },
   faint: { ...animations.faint, frameRate: 8 },
 };
+const bulbasaurAnimations: PokemonDefinition['animations'] = {
+  ...animations,
+  idle: { ...animations.idle, frameRate: 8 },
+  run: { ...animations.run, frameRate: 12 },
+  jump: { ...animations.jump, frameRate: 12 },
+  land: { ...animations.land, frameRate: 16 },
+  guard: { ...animations.guard, frameRate: 8 },
+  crouch: { ...animations.crouch, frameRate: 8 },
+  faint: { ...animations.faint, frameRate: 8 },
+};
 export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
   'water-slime': {
     id: 'water-slime',
@@ -518,7 +528,7 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
       SKILLS.solarBeam,
       SKILLS.sludgeBomb,
     ],
-    animations,
+    animations: bulbasaurAnimations,
     ai: { aggression: 0.55, dodge: 0.7, guard: 0.25, preferredDistance: 330, retreat: 0.9 },
   },
   eevee: {

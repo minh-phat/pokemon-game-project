@@ -1,6 +1,7 @@
 import { WORLD_ARENA_VIEW, worldArenaViewport, type WorldArenaView } from './world-combat-visuals';
 import { isConcealed } from '@arena/shared-types';
 import { slimePose, slimeOpacity } from './water-slime';
+import { bulbasaurCastFrame } from './bulbasaur';
 import { charmanderCastFrame } from './charmander';
 import { drawRuins } from './ruins-arena';
 import * as Phaser from 'phaser';
@@ -499,6 +500,16 @@ export function createArenaScene(
           if (settings.reducedMotion) {
             v.sprite.anims.pause();
             v.sprite.setFrame(POKEMON.charmander.animations[f.animation].start);
+          } else if (frame !== null && !settings.paused) {
+            v.sprite.anims.pause();
+            v.sprite.setFrame(frame);
+          }
+        }
+        if (f.species === 'bulbasaur') {
+          const frame = bulbasaurCastFrame(f);
+          if (settings.reducedMotion) {
+            v.sprite.anims.pause();
+            v.sprite.setFrame(POKEMON.bulbasaur.animations[f.animation].start);
           } else if (frame !== null && !settings.paused) {
             v.sprite.anims.pause();
             v.sprite.setFrame(frame);

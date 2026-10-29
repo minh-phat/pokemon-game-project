@@ -15,6 +15,8 @@ const expected = [
   'pikachu-sheet.png',
   'charmander.png',
   'charmander-sheet.png',
+  'bulbasaur.png',
+  'bulbasaur-sheet.png',
   'water-slime.png',
   'water-slime-sheet.png',
   'water-slime-wrap.png',
@@ -94,3 +96,9 @@ const charmander = await sharp(
 ).metadata();
 if (charmander.width !== 960 || charmander.height !== 2400 || !charmander.hasAlpha)
   throw new Error('Invalid Charmander sprite sheet');
+
+const bulbasaur = await sharp(
+  resolve('apps/frontend/public/assets/bulbasaur-sheet.png'),
+).metadata();
+if (bulbasaur.width !== 960 || bulbasaur.height !== 2400 || !bulbasaur.hasAlpha)
+  throw new Error('Invalid Bulbasaur sprite sheet');

@@ -987,8 +987,8 @@ export class OpenWorldEngine {
       return;
     }
     const frameRate =
-      actor.species === 'charmander'
-        ? POKEMON.charmander.animations[actor.moving ? 'run' : 'idle'].frameRate
+      actor.species === 'charmander' || actor.species === 'bulbasaur'
+        ? POKEMON[actor.species].animations[actor.moving ? 'run' : 'idle'].frameRate
         : actor.moving
           ? 9
           : 3;

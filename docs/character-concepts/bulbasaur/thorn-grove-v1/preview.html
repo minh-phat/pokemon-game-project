@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="vi">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bulbasaur — Thú rừng dây leo · Animation</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101e29;color:#f0e7d8;font:16px system-ui;padding:32px}main{max-width:1140px;margin:auto}h1{font-size:28px}p{color:#b6c5ca}button,select{font:inherit;background:#263c49;color:inherit;border:1px solid #65787c;border-radius:8px;padding:8px 14px;margin:0 8px 16px 0}section{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}article{background:#1c303e;border:1px solid #3b505b;border-radius:16px;overflow:hidden;text-align:center}canvas{display:block;width:100%;height:auto}h2{font-size:15px;margin:0;padding:12px;border-bottom:1px solid #3b505b}small{display:block;padding:0 0 12px;color:#b6c5ca}
+</style>
+<main><h1>Bulbasaur — Thú rừng dây leo</h1><p>15 động tác · xem chu kỳ chuyển động, đổi hướng và tốc độ. Các động tác một lượt được phát lại để dễ kiểm tra.</p>
+<button id="pause">Tạm dừng</button><button id="flip">Đổi hướng</button><label>Tốc độ <select id="speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option></select></label>
+<section id="actions"></section></main>
+<script>
+const names=['Đứng thở','Chạy','Nhảy','Rơi','Tiếp đất','Đánh thường','Dùng chiêu','Lướt','Né lùi','Cúi thấp','Phòng thủ','Trúng đòn','Hất lùi','Kiệt sức','Chiến thắng'];
+const rates=[8,12,12,10,16,10,10,10,10,8,8,10,10,8,10];
+const sheet=new Image();sheet.src='../../../../apps/frontend/public/assets/bulbasaur-sheet.png';
+const canvases=names.map((name,i)=>{const article=document.createElement('article');const title=document.createElement('h2');title.textContent=name;const canvas=document.createElement('canvas');canvas.width=canvas.height=240;const info=document.createElement('small');info.textContent=rates[i]+' fps';article.append(title,canvas,info);document.querySelector('#actions').append(article);return canvas});
+let paused=false,facing=1,speed=1,time=0,last;
+document.querySelector('#pause').onclick=e=>{paused=!paused;e.target.textContent=paused?'Tiếp tục':'Tạm dừng'};
+document.querySelector('#flip').onclick=()=>facing*=-1;
+document.querySelector('#speed').onchange=e=>speed=Number(e.target.value);
+function render(now){if(last!==undefined&&!paused)time+=(now-last)*speed/1000;last=now;if(sheet.complete&&sheet.naturalWidth)canvases.forEach((canvas,row)=>{const c=canvas.getContext('2d');c.clearRect(0,0,240,240);c.fillStyle='#415762';c.fillRect(20,224,200,1);c.save();c.translate(120,0);c.scale(facing,1);c.drawImage(sheet,Math.floor(time*rates[row])%6*160,row*160,160,160,-120,0,240,240);c.restore()});requestAnimationFrame(render)}requestAnimationFrame(render);
+</script>
+</html>
