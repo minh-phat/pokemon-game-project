@@ -1,6 +1,6 @@
 'use client';
 import { formatSkillRange } from '@/lib/skill-range';
-import { useLanguage } from '@/lib/i18n';
+import { useLanguage, useCopy } from '@/lib/i18n';
 import { isConcealed } from '@arena/shared-types';
 import {
   useEffect,
@@ -134,6 +134,7 @@ export function ManualControls({
   onSelect: (fighterId: string) => void;
 }) {
   const { language } = useLanguage();
+  const c = useCopy();
   const heldDirections = useRef(new Set<string>());
   const shiftUsed = useRef(false);
   const controlHeld = useRef(false);
@@ -469,7 +470,7 @@ export function ManualControls({
         <div className="manual-skills" role="group" aria-label="Skill controls">
           {POKEMON[selected.species].skills.map((skill, index) => {
             const remaining = selected.cooldowns[skill.id] ?? 0;
-            const control = skillControls[skill.id] ?? { icon: Sparkles, label: skill.name };
+            const control = skillControls[skill.id] ?? { icon: Sparkles, label: c(skill.name) };
             const Icon = control.icon;
             return (
               <ControlButton
@@ -484,13 +485,13 @@ export function ManualControls({
                 variant="outline"
                 size="sm"
                 type="button"
-                aria-label={`${skill.name} ${remaining > 0 ? `${remaining.toFixed(1)}s` : `${skill.energy} EN`} · ${formatSkillRange(skill, language)}`}
+                aria-label={`${c(skill.name)} ${remaining > 0 ? `${remaining.toFixed(1)}s` : `${skill.energy} EN`} · ${formatSkillRange(skill, language)}`}
                 disabled={!canAct || selected.energy < skill.energy || remaining > 0}
-                title={`${skill.name}: ${skill.energy} energy · ${skill.cooldown}s cooldown · ${formatSkillRange(skill, language)} · ${index + 1}`}
+                title={`${c(skill.name)}: ${skill.energy} energy · ${skill.cooldown}s cooldown · ${formatSkillRange(skill, language)} · ${index + 1}`}
                 onClick={() => send({ type: 'skill', skillId: skill.id })}
               >
                 <Icon className="manual-touch-icon" aria-hidden="true" />
-                <span className="manual-desktop-label">{skill.name}</span>
+                <span className="manual-desktop-label">{c(skill.name)}</span>
                 <span className="manual-touch-label" aria-hidden="true">
                   {control.label}
                 </span>

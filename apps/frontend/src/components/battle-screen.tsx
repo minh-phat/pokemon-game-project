@@ -1,6 +1,6 @@
 'use client';
 import { formatSkillRange } from '@/lib/skill-range';
-import { useLanguage } from '@/lib/i18n';
+import { useLanguage, useCopy } from '@/lib/i18n';
 import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
@@ -26,6 +26,7 @@ import { BattleCanvas } from './battle-canvas';
 import { BattleResultOverlay } from './battle-result';
 function FighterStatus({ fighter }: { fighter: Fighter }) {
   const { language } = useLanguage();
+  const c = useCopy();
   const def = POKEMON[fighter.species];
   return (
     <div className={`fighter-status ${fighter.hp <= 0 ? 'fainted' : ''}`}>
@@ -92,14 +93,14 @@ function FighterStatus({ fighter }: { fighter: Fighter }) {
               <span
                 key={s.id}
                 className={fighter.cooldowns[s.id] > 0 ? 'on-cooldown' : ''}
-                title={`${s.name}: ${fighter.cooldowns[s.id] > 0 ? `${fighter.cooldowns[s.id].toFixed(1)}s remaining` : 'ready'} · ${s.energy} energy · ${formatSkillRange(s, language)}`}
+                title={`${c(s.name)}: ${fighter.cooldowns[s.id] > 0 ? `${fighter.cooldowns[s.id].toFixed(1)}s remaining` : 'ready'} · ${s.energy} energy · ${formatSkillRange(s, language)}`}
               >
                 <i
                   style={{
                     width: `${Math.min(1, (fighter.cooldowns[s.id] ?? 0) / s.cooldown) * 100}%`,
                   }}
                 />
-                {s.name
+                {c(s.name)
                   .split(' ')
                   .map((w) => w[0])
                   .join('')}
@@ -115,6 +116,7 @@ function FighterStatus({ fighter }: { fighter: Fighter }) {
   );
 }
 export function BattleScreen() {
+  const c = useCopy();
   const state = useGame();
   const [ready, setReady] = useState(false);
   const [countdown, setCountdown] = useState(3);
@@ -396,8 +398,8 @@ export function BattleScreen() {
                     <time>{Math.floor(event.tick / 60)}s</time>
                     <span>
                       {event.kind === 'damage'
-                        ? `${POKEMON[snapshot.fighters.find((f) => f.id === event.fighterId)!.species].name} takes ${event.value} · ${event.text}`
-                        : event.text}
+                        ? `${POKEMON[snapshot.fighters.find((f) => f.id === event.fighterId)!.species].name} takes ${event.value} · ${c(event.text)}`
+                        : c(event.text)}
                     </span>
                   </li>
                 ))}

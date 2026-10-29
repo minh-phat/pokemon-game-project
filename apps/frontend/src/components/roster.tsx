@@ -417,7 +417,7 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
               <div className="skill-row" key={s.id}>
                 <span className={`skill-number element-${s.element}`}>0{i + 1}</span>
                 <div>
-                  <strong>{s.name}</strong>
+                  <strong>{c(s.name)}</strong>
                   <p>{s.description}</p>
                   <small>
                     {s.damagePercent}% {c('Attack')} · {s.energy} {c('energy')} · {s.cooldown}s{' '}

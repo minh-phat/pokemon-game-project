@@ -11,6 +11,7 @@ import {
   type AnimationName,
 } from '@arena/shared-types';
 export * from './manifest';
+export * from './hydro-crossfire';
 export { combatPower } from './combat-power';
 export * from './progression';
 
@@ -258,6 +259,18 @@ export const SKILLS = {
     hitbox: { width: 48, height: 19, altitude: 14 },
     effects: [{ kind: 'slow', duration: 2, strength: 0.4 }],
     usage: { minRange: 90, priority: 1.3 },
+  }),
+  hydroCrossfire: skill('hydro-crossfire', 'Hydro Crossfire', 'water', 'melee', 120, 24, 7, 240, {
+    description:
+      'Rút vào mai, xoay 180° mỗi giây trong 3 giây và bắn 4 tia nước cong tầm trung, đẩy dần kẻ địch trúng chiêu ra ngoài.',
+    damageType: 'special',
+    startup: 0.25,
+    active: 3,
+    recovery: 0.25,
+    animation: 'guard',
+    knockback: 0,
+    events: [],
+    usage: { minRange: 0, priority: 1.5 },
   }),
   rapidSpin: skill('rapid-spin', 'Rapid Spin', 'water', 'buff', 84, 24, 5, 115, {
     description: 'Guard in your shell, spin, and strike nearby foes.',
@@ -511,7 +524,7 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
     skills: [
       SKILLS.tackle,
       SKILLS.waterGun,
-      SKILLS.bubbleBeam,
+      SKILLS.hydroCrossfire,
       SKILLS.rapidSpin,
       SKILLS.aquaBarrage,
     ],

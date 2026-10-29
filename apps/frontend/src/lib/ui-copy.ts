@@ -1,4 +1,6 @@
 export const vietnameseCopy: Record<string, string> = {
+  'Hydro Crossfire': 'Thập Tự Thủy Kích',
+  'Hydro Crossfire · guarded': 'Thập Tự Thủy Kích · đỡ đòn',
   'THE SUMMONER’S ARCHIVE': 'BÁCH KHOA LINH THÚ',
   'Pet library': 'Thư Viện Pets',
   'Discover your companions, their powers and the stories behind every battle.':
@@ -198,3 +200,7 @@ export const vietnameseCopy: Record<string, string> = {
   'Remove {name} from slot {slot}': 'Bỏ {name} khỏi vị trí {slot}',
   'Empty team slot {slot}': 'Vị trí trống {slot}',
 };
+
+export function translateCopy(english: string, language: string) {
+  return language === 'vi' ? (vietnameseCopy[english] ?? english) : english;
+}

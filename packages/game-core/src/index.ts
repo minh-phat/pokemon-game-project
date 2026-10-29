@@ -28,8 +28,15 @@ import {
   type SpeciesId,
   type AnimationName,
 } from '@arena/shared-types';
-import { fighterDefinition, ARENAS, DIFFICULTY, SKILL_BY_ID } from '@arena/game-data';
-import { decideAction, decideManualAction } from '@arena/game-ai';
+import {
+  fighterDefinition,
+  ARENAS,
+  DIFFICULTY,
+  SKILL_BY_ID,
+  HYDRO_CROSSFIRE,
+  hydroCrossfireHits,
+} from '@arena/game-data';
+import { decideAction, decideManualAction, decideMovement } from '@arena/game-ai';
 import {
   calculateDamage,
   fighterBox,
@@ -711,7 +718,10 @@ export class BattleEngine {
       !f.active ||
       f.hp <= 0 ||
       Boolean(f.climbing) ||
-      (f.cast && (!this.isManuallyControlled(f) || !f.cast.autoBasic)) ||
+      (f.cast &&
+        (f.cast.skillId === 'hydro-crossfire' ||
+          !this.isManuallyControlled(f) ||
+          !f.cast.autoBasic)) ||
       f.actionTime > 0 ||
       f.effects.some((e) => e.kind === 'stun') ||
       (!this.isManuallyControlled(f) && f.dodgeCooldown > 0) ||
@@ -849,6 +859,70 @@ export class BattleEngine {
     if (f.species === 'eevee' && this.eeveeCastTick(f, cast, s)) return;
     if (s.id === 'cursed-scroll-bind' || s.id === 'liquid-wrap') {
       this.cursedScrollBindTick(f, cast, s, dt);
+      return;
+    }
+    if (s.id === 'hydro-crossfire') {
+      const age = cast.elapsed - s.startup;
+      if (this.isManuallyControlled(f)) {
+        const walking = this.manualMovement.get(f.id);
+        f.moveIntent = walking && walking.until > this.state.elapsed ? walking.direction : 0;
+        f.moveDepth = walking && walking.until > this.state.elapsed ? walking.depthDirection : 0;
+      } else {
+        // Keep choosing walking directions during the channel: approach distant foes,
+        // circle in water range, and use the existing terrain routing for obstacles.
+        this.act(f, {
+          ...decideMovement(f, this.state, s.range * 0.7, f.targetId),
+          sprint: false,
+        });
+      }
+      f.sprinting = false;
+      f.state = 'CastSkill';
+      if (age >= 0 && age < s.active) {
+        const pulse = Math.floor(age / HYDRO_CROSSFIRE.interval);
+        if (cast.channelTicks !== pulse) {
+          cast.channelTicks = pulse;
+          cast.hitIds = [];
+        }
+        for (const target of this.state.fighters) {
+          if (
+            !target.active ||
+            target.hp <= 0 ||
+            target.team === f.team ||
+            target.invulnerable > 0 ||
+            Math.abs(target.y - f.y) > 45 ||
+            !hydroCrossfireHits(
+              age,
+              target.x - f.x,
+              target.depth - f.depth,
+              fighterDefinition(target).collision.width / 2,
+            ) ||
+            terrainContact(this.arena, f, target) < 1
+          )
+            continue;
+          if (!cast.hitIds.includes(target.id)) {
+            cast.hitIds.push(target.id);
+            this.hit(f, target, s, (s.damagePercent * HYDRO_CROSSFIRE.interval) / s.active);
+          }
+          const distance = Math.hypot(target.x - f.x, target.depth - f.depth) || 1;
+          const push = HYDRO_CROSSFIRE.pushSpeed * dt;
+          const next = terrainMove(
+            this.arena,
+            target,
+            {
+              x: target.x + ((target.x - f.x) / distance) * push,
+              depth: target.depth + ((target.depth - f.depth) / distance) * push,
+            },
+            this.terrainRadius(target),
+          );
+          target.x = next.x;
+          target.depth = next.depth;
+        }
+      }
+      if (cast.elapsed >= s.startup + s.active + s.recovery) {
+        f.cast = null;
+        f.state = 'Recover';
+        f.thinkIn = 0.06;
+      }
       return;
     }
     s.events.forEach((event, index) => {
@@ -1396,9 +1470,10 @@ export class BattleEngine {
       const slow = f.effects
         .filter((e) => e.kind === 'slow')
         .reduce((v, e) => Math.min(v, 1 - e.strength), 1);
-      const desired = (f.cast || stunned ? 0 : f.moveIntent) * speed * slow;
+      const movementLocked = stunned || (f.cast && f.cast.skillId !== 'hydro-crossfire');
+      const desired = (movementLocked ? 0 : f.moveIntent) * speed * slow;
       const step = def.acceleration * dt;
-      const desiredDepth = (f.cast || stunned ? 0 : f.moveDepth) * speed * slow;
+      const desiredDepth = (movementLocked ? 0 : f.moveDepth) * speed * slow;
       const dx = desired - f.vx,
         dz = desiredDepth - f.vDepth;
       const factor = Math.min(1, step / (Math.hypot(dx, dz) || 1));

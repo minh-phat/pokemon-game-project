@@ -381,7 +381,7 @@ function OwnedPetDetails({ pet, onBack }: { pet: OwnedPet; onBack: () => void })
       <div className="pet-detail-skills">
         {definition.skills.map((skill) => (
           <article key={skill.id}>
-            <strong>{skill.name}</strong>
+            <strong>{c(skill.name)}</strong>
             <ElementBadge element={skill.element} />
             <p>{skill.description}</p>
             <small>

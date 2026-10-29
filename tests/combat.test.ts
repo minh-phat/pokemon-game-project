@@ -1305,3 +1305,120 @@ describe('Electro Ball', () => {
     expect(b.effects).toHaveLength(0);
   });
 });
+
+describe('Hydro Crossfire', () => {
+  it.each([0, 1] as const)('AI on team %s approaches and circles while channeling', (team) => {
+    const e = battle(team === 0 ? [['squirtle'], ['charmander']] : [['charmander'], ['squirtle']]);
+    const a = e.state.fighters[team];
+    const b = e.state.fighters[team === 0 ? 1 : 0];
+    a.x = 300;
+    b.x = 800;
+    a.depth = b.depth = 0;
+    a.thinkIn = b.thinkIn = 100;
+    a.invulnerable = b.invulnerable = 0;
+    expect(e.beginSkill(a, 'hydro-crossfire')).toBe(true);
+    step(e, 0.5);
+    expect(a.x).toBeGreaterThan(330);
+    expect(Math.hypot(b.x - a.x, b.depth - a.depth)).toBeLessThan(500);
+    expect(a.cast?.skillId).toBe('hydro-crossfire');
+    expect(a.sprinting).toBe(false);
+    expect(e.beginDodge(a, 'dash', 1)).toBe(false);
+    expect(e.beginDodge(a, 'jump', 1)).toBe(false);
+    const x = a.x,
+      depth = a.depth;
+    b.x = x + 140;
+    b.depth = depth;
+    step(e, 0.3);
+    expect(Math.abs(a.depth - depth)).toBeGreaterThan(15);
+    expect(a.cast?.skillId).toBe('hydro-crossfire');
+    expect(a.animation).toBe('guard');
+    expect(a.vy).toBe(0);
+  });
+
+  it('walks while channeling, stops on release or expired input, and blocks dash and jump', () => {
+    const e = battle([['squirtle'], ['charmander']]);
+    const [a, b] = e.state.fighters;
+    a.x = 300;
+    b.x = 1000;
+    a.depth = b.depth = 0;
+    a.thinkIn = b.thinkIn = 100;
+    e.setManualMode('a', true);
+    const move = (direction: number, depthDirection: number) =>
+      e.command('a', {
+        type: 'move',
+        fighterId: a.id,
+        direction,
+        depthDirection,
+      });
+    move(1, 0);
+    expect(e.command('a', { type: 'skill', fighterId: a.id, skillId: 'hydro-crossfire' })).toBe(
+      true,
+    );
+    step(e, 0.2);
+    expect(a.x).toBeGreaterThan(300);
+    const startX = a.x;
+    const stamina = a.stamina;
+    for (const mode of ['dash', 'jump']) {
+      expect(e.command('a', { type: 'dodge', fighterId: a.id, mode, direction: 1 })).toBe(false);
+    }
+    expect(a.stamina).toBe(stamina);
+    expect(a.vy).toBe(0);
+    for (let i = 0; i < 6; i++) {
+      move(0, 1);
+      step(e, 0.1);
+    }
+    expect(a.depth).toBeGreaterThan(30);
+    expect(a.x - startX).toBeLessThan(30);
+    expect(a.cast?.skillId).toBe('hydro-crossfire');
+    move(0, 0);
+    step(e, 0.3);
+    const stopped = { x: a.x, depth: a.depth };
+    step(e, 0.2);
+    expect(a.x).toBe(stopped.x);
+    expect(a.depth).toBe(stopped.depth);
+    move(-1, 0);
+    step(e, 0.6);
+    expect(a.vx).toBe(0);
+    expect(a.vDepth).toBe(0);
+    expect(a.cast?.skillId).toBe('hydro-crossfire');
+  });
+
+  it('replaces Squirtle slot 3 and channels for three seconds', () => {
+    const e = battle([['squirtle'], ['charmander']]);
+    const [a, b] = e.state.fighters;
+    e.setManualMode('a', true);
+    a.thinkIn = b.thinkIn = 100;
+    a.invulnerable = b.invulnerable = 0;
+    a.x = 400;
+    b.x = 500;
+    a.depth = b.depth = 0;
+    const skill = POKEMON.squirtle.skills[2];
+    expect(skill.id).toBe('hydro-crossfire');
+    expect(skill.active).toBe(3);
+    expect(e.beginSkill(a, skill.id)).toBe(true);
+    const hp = b.hp;
+    step(e, skill.startup - 0.05);
+    expect(b.hp).toBe(hp);
+    step(e, 1);
+    expect(b.hp).toBeLessThan(hp);
+    expect(b.x).toBeGreaterThan(500);
+    expect(a.cast?.skillId).toBe(skill.id);
+    step(e, 2.32);
+    expect(a.cast).toBeNull();
+  });
+  it('does not damage or push foes beyond medium range', () => {
+    const e = battle([['squirtle'], ['charmander']]);
+    const [a, b] = e.state.fighters;
+    e.setManualMode('a', true);
+    a.thinkIn = b.thinkIn = 100;
+    a.invulnerable = b.invulnerable = 0;
+    a.x = 300;
+    b.x = 800;
+    a.depth = b.depth = 0;
+    const hp = b.hp;
+    e.beginSkill(a, 'hydro-crossfire');
+    step(e, 3.6);
+    expect(b.hp).toBe(hp);
+    expect(b.x).toBe(800);
+  });
+});

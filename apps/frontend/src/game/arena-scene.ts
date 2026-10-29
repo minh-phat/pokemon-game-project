@@ -1,3 +1,4 @@
+import { translateCopy } from '@/lib/ui-copy';
 import { WORLD_ARENA_VIEW, worldArenaViewport, type WorldArenaView } from './world-combat-visuals';
 import { isConcealed } from '@arena/shared-types';
 import { slimePose, slimeOpacity } from './water-slime';
@@ -394,6 +395,22 @@ export function createArenaScene(
           f.species === 'water-slime'
             ? slimePose(f, settings.reducedMotion)
             : { x: 1, y: 1, lift: 0 };
+        const hydroCast = f.cast?.skillId === 'hydro-crossfire' ? f.cast : null;
+        const hydroFade = hydroCast
+          ? 1 -
+            Math.min(
+              1,
+              hydroCast.elapsed / SKILL_BY_ID['hydro-crossfire'].startup,
+              Math.max(
+                0,
+                (SKILL_BY_ID['hydro-crossfire'].startup +
+                  SKILL_BY_ID['hydro-crossfire'].active +
+                  SKILL_BY_ID['hydro-crossfire'].recovery -
+                  hydroCast.elapsed) /
+                  SKILL_BY_ID['hydro-crossfire'].recovery,
+              ),
+            )
+          : 1;
         const liquidBinding = f.cast?.skillId === 'liquid-wrap' && f.cast.bound;
         const liquidFade = liquidBinding
           ? Math.max(
@@ -478,7 +495,8 @@ export function createArenaScene(
             (f.invulnerable > 0 ? 0.55 + Math.sin(time / 35) * 0.2 : faintAlpha) *
               entryFade *
               opacity *
-              liquidFade,
+              liquidFade *
+              hydroFade,
           );
         const animation = `${f.species}-${f.animation}`;
         if (animation !== v.lastAnimation) {
@@ -651,13 +669,18 @@ export function createArenaScene(
         if (event.kind === 'skill') {
           this.ambience.play(event.element === 'poison' ? 'water' : (event.element ?? 'normal'));
           const label = this.add
-            .text(event.x, 407 + (event.depth ?? 0) - event.y - eventHover, event.text, {
-              fontFamily: 'system-ui',
-              fontSize: worldSource ? '24px' : '12px',
-              color: ELEMENTS[event.element ?? 'normal'].color,
-              backgroundColor: '#233a38cc',
-              padding: { x: 7, y: 4 },
-            })
+            .text(
+              event.x,
+              407 + (event.depth ?? 0) - event.y - eventHover,
+              translateCopy(event.text, useGame.getState().language),
+              {
+                fontFamily: 'system-ui',
+                fontSize: worldSource ? '24px' : '12px',
+                color: ELEMENTS[event.element ?? 'normal'].color,
+                backgroundColor: '#233a38cc',
+                padding: { x: 7, y: 4 },
+              },
+            )
             .setOrigin(0.5)
             .setDepth(24);
           this.tweens.add({

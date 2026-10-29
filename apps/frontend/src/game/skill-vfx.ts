@@ -1,6 +1,13 @@
 import { terrainContact, terrainHeight } from '@arena/game-core';
 import * as Phaser from 'phaser';
-import { ARENAS, ELEMENTS, POKEMON, SKILL_BY_ID } from '@arena/game-data';
+import {
+  ARENAS,
+  ELEMENTS,
+  POKEMON,
+  SKILL_BY_ID,
+  HYDRO_CROSSFIRE,
+  hydroCrossfirePoint,
+} from '@arena/game-data';
 import type { BattleEvent, BattleSnapshot, Element } from '@arena/shared-types';
 import { createSkillTextures } from './skill-textures';
 import { BindVfx } from './bind-vfx';
@@ -8,6 +15,7 @@ import { BindVfx } from './bind-vfx';
 type Effect = { sprite: Phaser.GameObjects.Sprite; key: string };
 
 export class SkillVfx {
+  private crossfires = new Map<string, Phaser.GameObjects.Graphics>();
   private attached = new Map<string, Effect>();
   private beamGraphics = new Map<string, Phaser.GameObjects.Graphics>();
   private binds = new Map<string, BindVfx>();
@@ -114,6 +122,7 @@ export class SkillVfx {
     if (emit) this.particleClock %= 35;
     const live = new Set<string>();
     const liveBinds = new Set<string>();
+    const liveCrossfires = new Set<string>();
     for (const hazard of snapshot.groundHazards ?? []) {
       const id = `hazard-${hazard.id}`;
       const age = SKILL_BY_ID[hazard.skillId].groundHazard!.duration - hazard.duration;
@@ -188,6 +197,62 @@ export class SkillVfx {
       }
       if (!f.cast) continue;
       const skill = SKILL_BY_ID[f.cast.skillId];
+      if (skill.id === 'hydro-crossfire') {
+        liveCrossfires.add(f.id);
+        let g = this.crossfires.get(f.id);
+        if (!g) {
+          g = this.scene.add.graphics();
+          this.crossfires.set(f.id, g);
+        }
+        const age = Math.max(0, f.cast.elapsed - skill.startup);
+        const fade = Math.min(
+          1,
+          f.cast.elapsed / skill.startup,
+          Math.max(
+            0,
+            (skill.startup + skill.active + skill.recovery - f.cast.elapsed) / skill.recovery,
+          ),
+        );
+        g.clear()
+          .setPosition(x, y)
+          .setDepth(12 + f.depth / 300)
+          .setAlpha(fade);
+        const extent = Math.min(skill.range, age * HYDRO_CROSSFIRE.speed);
+        if (age > 0 && age <= skill.active) {
+          for (let arm = 0; arm < 4; arm++) {
+            const points = Array.from({ length: 41 }, (_, i) => {
+              const p = hydroCrossfirePoint(age, arm, (extent * i) / 40);
+              return new Phaser.Math.Vector2(p.x, p.depth);
+            });
+            g.lineStyle(24, 0x167cb8, reduced ? 0.25 : 0.35).strokePoints(points);
+            g.lineStyle(16, 0x38c6ef, 0.8).strokePoints(points);
+            g.lineStyle(7, 0xa5edff, 0.95).strokePoints(points);
+            g.lineStyle(2, 0xf0ffff, 0.95).strokePoints(points);
+            if (emit) {
+              const tip = points[40];
+              this.emitters.get('water')!.emitParticleAt(x + tip.x, y + tip.y, 2);
+            }
+          }
+        }
+        // A closed shell replaces the body while the head and limbs are withdrawn.
+        const rotation = age * HYDRO_CROSSFIRE.angularSpeed;
+        const shellPoint = (angle: number, radius: number) =>
+          new Phaser.Math.Vector2(
+            Math.cos(angle + rotation) * radius,
+            Math.sin(angle + rotation) * radius * 0.8,
+          );
+        const rim = Array.from({ length: 33 }, (_, i) => shellPoint((i * Math.PI) / 16, 32));
+        g.fillStyle(0x122f46).fillPoints(rim, true);
+        g.lineStyle(5, 0xc7dfd5).strokePoints(rim, true);
+        const plates = Array.from({ length: 6 }, (_, i) => shellPoint((i * Math.PI) / 3, 17));
+        g.fillStyle(0x367f8d).fillPoints(plates, true);
+        g.lineStyle(3, 0x72bac1).strokePoints(plates, true);
+        for (let i = 0; i < 6; i++) {
+          const outer = shellPoint((i * Math.PI) / 3, 30);
+          g.lineBetween(plates[i].x, plates[i].y, outer.x, outer.y);
+        }
+        continue;
+      }
       if (skill.id === 'liquid-wrap') {
         const target = snapshot.fighters.find((v) => v.id === f.cast?.targetId);
         if (f.cast.bound && target) {
@@ -737,6 +802,12 @@ export class SkillVfx {
             skill.id === 'electro-ball' ? 6 : 2,
           );
     }
+    for (const [id, graphics] of this.crossfires) {
+      if (!liveCrossfires.has(id)) {
+        graphics.destroy();
+        this.crossfires.delete(id);
+      }
+    }
     for (const [id, effect] of this.attached)
       if (!live.has(id)) {
         effect.sprite.destroy();
@@ -822,6 +893,8 @@ export class SkillVfx {
   }
 
   destroy() {
+    for (const g of this.crossfires.values()) g.destroy();
+    this.crossfires.clear();
     for (const graphics of this.beamGraphics.values()) graphics.destroy();
     this.beamGraphics.clear();
     for (const bind of this.binds.values()) bind.destroy();
