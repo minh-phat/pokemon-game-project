@@ -49,6 +49,7 @@ const skillControls: Record<string, { icon: LucideIcon; label: string }> = {
   'flame-burst': { icon: Bomb, label: 'Burst' },
   'inferno-stream': { icon: Flame, label: 'Inferno' },
   'dragon-laser': { icon: Flame, label: 'Dragon Laser' },
+  'aqua-barrage': { icon: Waves, label: 'Aqua Barrage' },
   tackle: { icon: Swords, label: 'Tackle' },
   'water-gun': { icon: Droplets, label: 'Water' },
   'bubble-beam': { icon: Waves, label: 'Bubble' },

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { SKILL_BY_ID } from '@arena/game-data';
+import { ARENAS, SKILL_BY_ID } from '@arena/game-data';
 import { createSkillTextures } from '../../apps/frontend/src/game/skill-textures';
 import { SkillVfx } from '../../apps/frontend/src/game/skill-vfx';
 import { DEFAULT_RULES, type BattleSnapshot, type Fighter } from '@arena/shared-types';
@@ -14,6 +14,7 @@ new Phaser.Game({
       this.load.image('ember-glyph-art', (window as any).emberGlyphAsset);
       this.load.image('runedrake-bind-rig', (window as any).bindRigAsset);
       this.load.image('bind-victim', (window as any).bindVictimAsset);
+      this.load.image('aqua-squirtle', (window as any).aquaSquirtleAsset);
     },
     create() {
       createSkillTextures(this);
@@ -25,6 +26,13 @@ new Phaser.Game({
         elapsed: 0,
         phase: 'battle',
         rules: DEFAULT_RULES,
+        // Gallery coordinates extend beyond the playable arena; keep rotation previews unobstructed.
+        arenaDefinition: {
+          ...ARENAS[0],
+          obstacles: [],
+          bounds: [-1000, 2000],
+          depthBounds: [-1000, 1500],
+        },
         manualTeams: [false, false],
         controlledFighterIds: [null, null],
         fighters: [
@@ -149,10 +157,42 @@ new Phaser.Game({
         bindElapsed: 0.48,
         bindFacing: 1,
         showLaser: false,
+        showAqua: false,
+        showcase: false,
       };
       Object.assign(window, {
         vfxPreview: {
           controls,
+          focusAqua: () => {
+            Object.assign(controls, {
+              showcase: true,
+              showAqua: true,
+              showLaser: true,
+              reduced: false,
+              paused: false,
+            });
+            snapshot.projectiles = [];
+            snapshot.groundHazards = [];
+            snapshot.fighters[2].active = snapshot.fighters[3].active = false;
+            snapshot.fighters[0].x = 150;
+            snapshot.fighters[0].depth = snapshot.fighters[1].depth = 0;
+            snapshot.fighters[1].effects = [];
+            victim.setAlpha(0);
+            this.children.list.forEach((o) => {
+              if (o instanceof Phaser.GameObjects.Text) o.setVisible(false);
+            });
+            this.cameras.main.setBackgroundColor('#081b30');
+            this.add
+              .image(150, 520, 'aqua-squirtle')
+              .setOrigin(0.5, 0.84)
+              .setScale(0.82)
+              .setDepth(10);
+            this.add.text(60, 280, 'THỦY KÍCH LIÊN HOÀN', { fontSize: '30px', color: '#a8f2ff' });
+            this.add.text(60, 325, 'AQUA BARRAGE  ·  WATER / FIRE CLASH', {
+              fontSize: '18px',
+              color: '#73b3ce',
+            });
+          },
           focusBind: () => {
             snapshot.fighters[0].active = false;
             snapshot.fighters[1].active = false;
@@ -188,6 +228,25 @@ new Phaser.Game({
               .map((o) => (o as Phaser.GameObjects.Image).depth),
             bindHeadX: (this.children.getByName('bind-head') as Phaser.GameObjects.Sprite)?.x,
             bindHeadY: (this.children.getByName('bind-head') as Phaser.GameObjects.Sprite)?.y,
+            aquaCores: this.children.list.filter(
+              (o) =>
+                o instanceof Phaser.GameObjects.Sprite &&
+                o.texture.key === 'skill-vfx-aqua-barrage' &&
+                o.displayWidth > 150,
+            ).length,
+            steam: this.children.list.filter(
+              (o) =>
+                o instanceof Phaser.GameObjects.Sprite &&
+                o.texture.key === 'skill-vfx-aqua-barrage-steam',
+            ).length,
+            aquaMouthWidth: (
+              this.children.getByName('beam-mouth-stream-preview') as Phaser.GameObjects.Sprite
+            )?.displayWidth,
+            aquaMouths: this.children.list.filter(
+              (o) =>
+                o instanceof Phaser.GameObjects.Sprite &&
+                o.texture.key === 'skill-vfx-aqua-barrage-charge',
+            ).length,
             laserCores: this.children.list.filter(
               (o) =>
                 o instanceof Phaser.GameObjects.Sprite &&
@@ -230,7 +289,7 @@ new Phaser.Game({
                 (o) =>
                   o instanceof Phaser.GameObjects.Sprite &&
                   o.texture.key === 'skill-vfx-inferno-stream' &&
-                  o.displayWidth > 200,
+                  o.name === 'cast-stream-preview',
               ) as Phaser.GameObjects.Sprite | undefined
             )?.rotation,
           }),
@@ -244,18 +303,23 @@ new Phaser.Game({
         snapshot.fighters[2].cast!.elapsed = controls.bindElapsed;
         snapshot.fighters[2].facing = controls.bindFacing as 1 | -1;
         snapshot.fighters[0].cast = controls.showLaser
-          ? { skillId: 'dragon-laser', elapsed: 1.2, fired: 0, hitIds: [] }
+          ? {
+              skillId: controls.showAqua ? 'aqua-barrage' : 'dragon-laser',
+              elapsed: 1.2,
+              fired: 0,
+              hitIds: [],
+            }
           : { skillId: 'inferno-stream', elapsed: 1.2, fired: 1, hitIds: [] };
         snapshot.beams = controls.showLaser
           ? [
               {
                 ownerId: 'stream-preview',
                 team: 0,
-                skillId: 'dragon-laser',
-                startX: 310,
-                startDepth: 338,
-                endX: 500,
-                endDepth: 338,
+                skillId: controls.showAqua ? 'aqua-barrage' : 'dragon-laser',
+                startX: controls.showcase ? 184 : 310,
+                startDepth: controls.showcase ? 0 : 338,
+                endX: controls.showcase ? 550 : 500,
+                endDepth: controls.showcase ? 0 : 338,
                 width: 34,
                 clashWith: 'burn-preview',
               },
@@ -263,10 +327,10 @@ new Phaser.Game({
                 ownerId: 'burn-preview',
                 team: 1,
                 skillId: 'dragon-laser',
-                startX: 690,
-                startDepth: 338,
-                endX: 500,
-                endDepth: 338,
+                startX: controls.showcase ? 890 : 690,
+                startDepth: controls.showcase ? 0 : 338,
+                endX: controls.showcase ? 550 : 500,
+                endDepth: controls.showcase ? 0 : 338,
                 width: 34,
                 clashWith: 'stream-preview',
               },

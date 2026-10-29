@@ -83,28 +83,31 @@ describe('citadel terrain', () => {
     expect(e.state.projectiles).toHaveLength(0);
     expect(target.hp).toBe(hp);
   });
-  it('clips a sustained laser at a pillar and protects the target behind it', () => {
-    const e = initializeBattle(
-      {
-        rules: { ...DEFAULT_RULES, arena: 'ruins', teamSize: 1, activeSize: 1 },
-        players: ['a', 'b'],
-        teams: [['runedrake'], ['charmander']],
-      },
-      1,
-    );
-    e.startBattle();
-    const [a, b] = e.state.fighters;
-    Object.assign(a, ruinsPoint(430, 425));
-    Object.assign(b, ruinsPoint(650, 425));
-    a.thinkIn = b.thinkIn = 100;
-    a.invulnerable = b.invulnerable = 0;
-    const hp = b.hp;
-    expect(e.beginSkill(a, 'dragon-laser')).toBe(true);
-    for (let i = 0; i < 70; i++) e.updateBattle(1 / 60);
-    expect(e.state.beams).toHaveLength(1);
-    expect(e.state.beams![0].endX).toBeLessThanOrEqual(525 * RUINS_ART.scale);
-    expect(b.hp).toBe(hp);
-  });
+  it.each(['runedrake', 'squirtle'] as const)(
+    'clips %s’s sustained beam at a pillar and protects the target behind it',
+    (species) => {
+      const e = initializeBattle(
+        {
+          rules: { ...DEFAULT_RULES, arena: 'ruins', teamSize: 1, activeSize: 1 },
+          players: ['a', 'b'],
+          teams: [[species], ['charmander']],
+        },
+        1,
+      );
+      e.startBattle();
+      const [a, b] = e.state.fighters;
+      Object.assign(a, ruinsPoint(430, 425));
+      Object.assign(b, ruinsPoint(650, 425));
+      a.thinkIn = b.thinkIn = 100;
+      a.invulnerable = b.invulnerable = 0;
+      const hp = b.hp;
+      expect(e.beginSkill(a, species === 'squirtle' ? 'aqua-barrage' : 'dragon-laser')).toBe(true);
+      for (let i = 0; i < 70; i++) e.updateBattle(1 / 60);
+      expect(e.state.beams).toHaveLength(1);
+      expect(e.state.beams![0].endX).toBeLessThanOrEqual(525 * RUINS_ART.scale);
+      expect(b.hp).toBe(hp);
+    },
+  );
   it('blocks rushing skills and melee damage across the narrow L wall', () => {
     const e = battle();
     const a = e.state.fighters[0],

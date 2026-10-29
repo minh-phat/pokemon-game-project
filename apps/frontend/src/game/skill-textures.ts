@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { ELEMENTS, SKILL_BY_ID } from '@arena/game-data';
 import type { Element } from '@arena/shared-types';
+import { aquaBarrageArt } from './aqua-barrage-art';
 
 const SIZE = 128;
 const FRAMES = 12;
@@ -405,6 +406,10 @@ function pixelSludge(
 }
 
 function paint(c: Context, id: string, element: Element, frame: number) {
+  if (id.startsWith('aqua-barrage')) {
+    aquaBarrageArt(c, id, frame);
+    return;
+  }
   if (id.startsWith('dragon-laser')) {
     dragonLaserArt(c, id, frame);
     return;
@@ -617,6 +622,8 @@ export function createSkillTextures(scene: Phaser.Scene) {
   definitions.push({ id: 'burning', element: 'fire' });
   definitions.push({ id: 'dragon-laser-charge', element: 'fire' });
   definitions.push({ id: 'dragon-laser-impact', element: 'fire' });
+  for (const id of ['aqua-barrage-charge', 'aqua-barrage-impact', 'aqua-barrage-steam'])
+    definitions.push({ id, element: 'water' });
   definitions.push(
     { id: 'eevee-guard', element: 'normal' },
     { id: 'eevee-adaptive', element: 'normal' },

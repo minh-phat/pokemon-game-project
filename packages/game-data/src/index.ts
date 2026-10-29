@@ -205,6 +205,18 @@ export const SKILLS = {
     events: [],
     usage: { minRange: 150, priority: 1.75 },
   }),
+  aquaBarrage: skill('aqua-barrage', 'Thủy Kích Liên Hoàn', 'water', 'area', 30, 45, 10, 650, {
+    description:
+      'Aqua Barrage: charge water, then sustain a high-pressure stream that clashes with opposing beams.',
+    startup: 0.6,
+    active: 2.4,
+    recovery: 0.3,
+    hitbox: { width: 34, height: 38, altitude: 30 },
+    knockback: 0,
+    beam: { width: 34, interval: 0.4, clashPower: 1 },
+    events: [],
+    usage: { minRange: 150, priority: 1.75 },
+  }),
   tackle: skill('tackle', 'Tackle', 'normal', 'melee', 52, 0, 1.15, 88, {
     description: 'A sturdy body check.',
     knockback: 160,
@@ -496,7 +508,13 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
     dodgeCooldown: 2.5,
     attackRange: 88,
     collision: { width: 48, height: 50 },
-    skills: [SKILLS.tackle, SKILLS.waterGun, SKILLS.bubbleBeam, SKILLS.rapidSpin],
+    skills: [
+      SKILLS.tackle,
+      SKILLS.waterGun,
+      SKILLS.bubbleBeam,
+      SKILLS.rapidSpin,
+      SKILLS.aquaBarrage,
+    ],
     animations,
     ai: { aggression: 0.5, dodge: 0.6, guard: 0.85, preferredDistance: 180, retreat: 0.3 },
   },

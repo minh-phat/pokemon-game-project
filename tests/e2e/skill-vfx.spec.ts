@@ -28,16 +28,19 @@ for (const renderer of ['canvas', 'webgl']) {
       const glyphImage = await readFile('apps/frontend/public/assets/runedrake-ember-glyph.png');
       const bindRigImage = await readFile('apps/frontend/public/assets/runedrake-bind-rig.png');
       const victimImage = await readFile('apps/frontend/public/assets/charmander.svg');
+      const squirtleImage = await readFile('apps/frontend/public/assets/squirtle.svg');
       await page.evaluate(
         (assets) => {
           (window as any).emberGlyphAsset = assets.glyph;
           (window as any).bindRigAsset = assets.rig;
           (window as any).bindVictimAsset = assets.victim;
+          (window as any).aquaSquirtleAsset = assets.squirtle;
         },
         {
           glyph: `data:image/png;base64,${glyphImage.toString('base64')}`,
           rig: `data:image/png;base64,${bindRigImage.toString('base64')}`,
           victim: `data:image/svg+xml;base64,${victimImage.toString('base64')}`,
+          squirtle: `data:image/svg+xml;base64,${squirtleImage.toString('base64')}`,
         },
       );
       await page.evaluate((value) => {
@@ -122,6 +125,16 @@ for (const renderer of ['canvas', 'webgl']) {
       expect((await inspect()).laserMouths).toBe(1);
       await page.screenshot({ path: 'test-results/dragon-laser-preview.png' });
       await page.evaluate(() => {
+        (window as any).vfxPreview.controls.showAqua = true;
+      });
+      await expect.poll(async () => (await inspect()).aquaCores).toBe(1);
+      expect((await inspect()).laserCores).toBe(1);
+      expect((await inspect()).steam).toBe(1);
+      expect((await inspect()).aquaMouths).toBe(1);
+      expect((await inspect()).aquaMouthWidth).toBeCloseTo(54);
+      expect((await inspect()).laserMouths).toBe(0);
+      await page.screenshot({ path: `test-results/aqua-barrage-${renderer}.png` });
+      await page.evaluate(() => {
         (window as any).vfxPreview.controls.paused = true;
       });
       await page.waitForTimeout(100);
@@ -132,6 +145,13 @@ for (const renderer of ['canvas', 'webgl']) {
         Object.assign((window as any).vfxPreview.controls, { paused: false, reduced: true });
       });
       await expect.poll(async () => (await inspect()).particles).toBe(0);
+      await page.evaluate(() => (window as any).vfxPreview.focusAqua());
+      await expect.poll(async () => (await inspect()).aquaCores).toBe(1);
+      await page.waitForTimeout(200);
+      await page.screenshot({
+        path: `test-results/aqua-barrage-showcase-${renderer}.png`,
+        clip: { x: 30, y: 240, width: 940, height: 360 },
+      });
       await page.evaluate(() => {
         (window as any).vfxPreview.controls.clear = true;
       });

@@ -300,6 +300,48 @@ describe('damage and hit geometry', () => {
     expect(a.hp).toBe(POKEMON.runedrake.hp);
     expect(b.hp).toBe(POKEMON.runedrake.hp);
   });
+  it('sustains Squirtle’s fifth move, pulses damage, and ends cleanly', () => {
+    const e = battle([['squirtle'], ['charmander']]);
+    const [a, b] = e.state.fighters;
+    Object.assign(a, { x: 350, depth: 0, thinkIn: 100, invulnerable: 0 });
+    Object.assign(b, { x: 750, depth: 0, thinkIn: 100, invulnerable: 0 });
+    expect(POKEMON.squirtle.skills[4].id).toBe('aqua-barrage');
+    const hp = b.hp;
+    expect(e.beginSkill(a, 'aqua-barrage')).toBe(true);
+    step(e, 0.5);
+    expect(e.state.beams).toHaveLength(0);
+    expect(b.hp).toBe(hp);
+    step(e, 0.5);
+    expect(e.state.beams).toHaveLength(1);
+    expect(b.hp).toBeLessThan(hp);
+    const first = b.hp;
+    step(e, 0.5);
+    expect(b.hp).toBeLessThan(first);
+    step(e, 2);
+    expect(e.state.beams).toHaveLength(0);
+    expect(a.cast?.skillId).not.toBe('aqua-barrage');
+  });
+  it.each([false, true])('clashes water and fire in either fighter order (%s)', (reverse) => {
+    const e = battle(reverse ? [['runedrake'], ['squirtle']] : [['squirtle'], ['runedrake']]);
+    const [a, b] = e.state.fighters;
+    Object.assign(a, { x: 350, depth: 0, thinkIn: 100, invulnerable: 0 });
+    Object.assign(b, { x: 850, depth: 0, thinkIn: 100, invulnerable: 0 });
+    const hp = [a.hp, b.hp];
+    expect(e.beginSkill(a, reverse ? 'dragon-laser' : 'aqua-barrage')).toBe(true);
+    expect(e.beginSkill(b, reverse ? 'aqua-barrage' : 'dragon-laser')).toBe(true);
+    step(e, 1.5);
+    const [left, right] = e.state.beams!;
+    expect(left.clashWith).toBe(b.id);
+    expect(right.clashWith).toBe(a.id);
+    expect(left.endX).toBeCloseTo(right.endX);
+    expect(left.endX).toBeGreaterThan(a.x);
+    expect(left.endX).toBeLessThan(b.x);
+    expect([a.hp, b.hp]).toEqual(hp);
+    b.cast = null;
+    step(e, 0.5);
+    expect(e.state.beams![0].clashWith).toBeUndefined();
+    expect(b.hp).toBeLessThan(hp[1]);
+  });
   it('lands Sludge Bomb beneath a hit target and damages only while it stands in the pool', () => {
     const e = battle([['bulbasaur'], ['charmander']]);
     const [a, b] = e.state.fighters;

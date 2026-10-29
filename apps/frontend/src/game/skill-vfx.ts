@@ -71,7 +71,7 @@ export class SkillVfx {
       effect = undefined;
     }
     if (!effect) {
-      effect = { sprite: this.sprite(key), key };
+      effect = { sprite: this.sprite(key).setName(id), key };
       this.attached.set(id, effect);
     }
     effect.sprite
@@ -232,16 +232,21 @@ export class SkillVfx {
         const charge = f.cast.elapsed < skill.startup;
         const fade = Math.max(
           0,
-          1 - (f.cast.elapsed - skill.startup - skill.active) / skill.recovery,
+          Math.min(1, 1 - (f.cast.elapsed - skill.startup - skill.active) / skill.recovery),
         );
         if (fade <= 0) continue;
         const id = `beam-mouth-${f.id}`;
         const progress = Math.min(1, f.cast.elapsed / skill.startup);
         const ignition = charge ? 0 : Math.max(0, 1 - (f.cast.elapsed - skill.startup) / 0.16);
-        const size = charge ? 30 + 65 * progress * progress : 86 + ignition * 32;
+        const water = skill.element === 'water';
+        const size = water
+          ? (charge ? 22 + 40 * progress * progress : 54 + ignition * 18) * fade
+          : charge
+            ? 30 + 65 * progress * progress
+            : 86 + ignition * 32;
         this.place(
           id,
-          'skill-vfx-dragon-laser-charge',
+          `skill-vfx-${skill.id}-charge`,
           mouthX,
           mouthY,
           size,
@@ -255,7 +260,7 @@ export class SkillVfx {
           .setAlpha((charge ? 0.55 + 0.45 * progress : 0.95) * fade);
         live.add(id);
         if (emit && !reduced)
-          this.emitters.get('fire')!.emitParticleAt(mouthX, mouthY, charge ? 2 : 5);
+          this.emitters.get(skill.element)!.emitParticleAt(mouthX, mouthY, charge ? 2 : 5);
         continue;
       }
       if (skill.id === 'cursed-scroll-bind') {
@@ -443,6 +448,8 @@ export class SkillVfx {
     for (const beam of snapshot.beams ?? []) {
       const owner = snapshot.fighters.find((f) => f.id === beam.ownerId);
       if (!owner) continue;
+      const skill = SKILL_BY_ID[beam.skillId];
+      const water = skill.element === 'water';
       const hover = hoverByFighter.get(owner.id) ?? 0;
       const sx = beam.startX,
         sy = 492 + beam.startDepth - owner.y - hover - 20;
@@ -459,42 +466,74 @@ export class SkillVfx {
         this.beamGraphics.set(beam.ownerId, graphics);
       }
       graphics.clear();
+      graphics.setDepth(water ? 13 : 11);
       const time = reduced ? 0 : this.beamTime;
       const dx = Math.cos(angle),
         dy = Math.sin(angle);
       const point = (along: number, across: number) =>
         new Phaser.Geom.Point(sx + dx * along - dy * across, sy + dy * along + dx * across);
-      // Flame tongues travel towards the impact while the straight core stays readable.
-      const tongues = Math.max(4, Math.ceil(length / 38));
-      for (let i = 0; i < tongues; i++) {
-        const t = (i / tongues + time * 0.8) % 1;
-        const side = i % 2 ? 1 : -1;
-        const envelope = Math.sin(t * Math.PI);
-        const along = t * length;
-        const base = side * beam.width * 0.3;
-        const reach = side * beam.width * (0.7 + 0.25 * Math.sin(time * 13 + i)) * envelope;
-        graphics.fillStyle(i % 3 ? color : 0xffd16d, reduced ? 0.25 : 0.55);
-        graphics.fillPoints(
-          [
-            point(Math.max(0, along - 26), base),
-            point(Math.max(0, along - 18), reach * 0.85),
-            point(along - 8, reach),
-            point(along + 4, reach * 0.55),
-            point(Math.min(length, along + 15), base),
-            point(along - 5, base * 0.65),
-          ],
-          true,
-        );
+      if (water) {
+        // Rings stay circular in world space instead of stretching with the core texture.
+        const rings = Math.max(2, Math.ceil(length / 85));
+        for (let i = 0; i < rings; i++) {
+          const t = (i / rings + time * 0.9) % 1;
+          const radius = beam.width * (0.45 + Math.sin(t * Math.PI) * 0.18);
+          const points: Phaser.Geom.Point[] = [];
+          for (let j = 0; j <= 28; j++) {
+            const a = (j / 28) * Math.PI * 2;
+            points.push(point(t * length + Math.cos(a) * 5, Math.sin(a) * radius));
+          }
+          graphics.lineStyle(1.6, 0xc9faff, reduced ? 0.25 : Math.sin(t * Math.PI) * 0.8);
+          graphics.strokePoints(points, true);
+        }
+        for (let i = 0; i < Math.ceil(length / 22); i++) {
+          const t = (i * 0.173 + time * 0.65) % 1;
+          const side = i % 2 ? 1 : -1;
+          const drop = point(t * length, side * beam.width * (0.4 + t * 0.45));
+          graphics.fillStyle(i % 3 ? 0x54d8f2 : 0xddffff, (1 - t) * 0.7);
+          graphics.fillEllipse(drop.x, drop.y + t * t * 12, 3, 4.5);
+        }
+      } else {
+        // Flame tongues travel towards the impact while the straight core stays readable.
+        const tongues = Math.max(4, Math.ceil(length / 38));
+        for (let i = 0; i < tongues; i++) {
+          const t = (i / tongues + time * 0.8) % 1;
+          const side = i % 2 ? 1 : -1;
+          const envelope = Math.sin(t * Math.PI);
+          const along = t * length;
+          const base = side * beam.width * 0.3;
+          const reach = side * beam.width * (0.7 + 0.25 * Math.sin(time * 13 + i)) * envelope;
+          graphics.fillStyle(i % 3 ? color : 0xffd16d, reduced ? 0.25 : 0.55);
+          graphics.fillPoints(
+            [
+              point(Math.max(0, along - 26), base),
+              point(Math.max(0, along - 18), reach * 0.85),
+              point(along - 8, reach),
+              point(along + 4, reach * 0.55),
+              point(Math.min(length, along + 15), base),
+              point(along - 5, base * 0.65),
+            ],
+            true,
+          );
+        }
       }
       liveBeams.add(beam.ownerId);
       const id = `beam-core-${beam.ownerId}`;
       this.place(
         id,
-        'skill-vfx-dragon-laser',
+        `skill-vfx-${skill.id}`,
         (sx + ex) / 2,
         (sy + ey) / 2,
         Math.max(4, length),
-        beam.width * 2.8 * (1 + (reduced ? 0 : Math.sin(time * 17) * 0.025)),
+        beam.width *
+          2.8 *
+          (1 + (reduced ? 0 : Math.sin(time * 17) * 0.025)) *
+          (water && owner.cast
+            ? Math.min(
+                1,
+                Math.max(0.08, (skill.startup + skill.active - owner.cast.elapsed) / 0.16),
+              )
+            : 1),
         angle,
       );
       this.attached
@@ -502,17 +541,52 @@ export class SkillVfx {
         .sprite.setDepth(12)
         .setBlendMode(Phaser.BlendModes.ADD)
         .setAlpha(reduced ? 0.72 : 1);
+      if (water) this.attached.get(id)!.sprite.setBlendMode(Phaser.BlendModes.NORMAL);
       live.add(id);
       if (beam.clashWith) {
         const pair = [beam.ownerId, beam.clashWith].sort().join('-');
         if (!liveClashes.has(pair)) {
           const impactId = `beam-clash-${pair}`;
           const size = 138 + Math.sin(time * 19) * 5;
-          this.place(impactId, 'skill-vfx-dragon-laser-impact', ex, ey, size, size, time * 0.4);
+          const other = snapshot.beams?.find((b) => b.ownerId === beam.clashWith);
+          const otherElement = other ? SKILL_BY_ID[other.skillId].element : skill.element;
+          const mixed =
+            (water && otherElement === 'fire') ||
+            (skill.element === 'fire' && otherElement === 'water');
+          this.place(
+            impactId,
+            `skill-vfx-${mixed ? 'dragon-laser' : skill.id}-impact`,
+            ex,
+            ey,
+            size,
+            size,
+            mixed ? 0 : angle,
+          );
           this.attached.get(impactId)!.sprite.setDepth(16).setBlendMode(Phaser.BlendModes.ADD);
+          if (mixed) {
+            const splashId = `${impactId}-water`;
+            const steamId = `${impactId}-steam`;
+            const waterAngle = water ? angle : angle + Math.PI;
+            this.place(
+              splashId,
+              'skill-vfx-aqua-barrage-impact',
+              ex - Math.cos(waterAngle) * 9,
+              ey - Math.sin(waterAngle) * 9,
+              size,
+              size,
+              waterAngle,
+            );
+            this.attached.get(splashId)!.sprite.setDepth(17);
+            this.place(steamId, 'skill-vfx-aqua-barrage-steam', ex, ey - 53, 116, 145, 0);
+            this.attached.get(steamId)!.sprite.setDepth(18);
+            live.add(splashId);
+            live.add(steamId);
+            if (emit) this.emitters.get('water')!.emitParticleAt(ex, ey, 5);
+          }
           live.add(impactId);
           liveClashes.add(pair);
-          if (emit && !reduced) this.emitters.get('fire')!.emitParticleAt(ex, ey, 8);
+          if (emit && !reduced)
+            this.emitters.get(mixed ? 'fire' : skill.element)!.emitParticleAt(ex, ey, 5);
         }
       } else if (
         snapshot.fighters.some(
@@ -524,7 +598,7 @@ export class SkillVfx {
         )
       ) {
         const impactId = `beam-hit-${beam.ownerId}`;
-        this.place(impactId, 'skill-vfx-dragon-laser-impact', ex, ey, 96, 96, angle);
+        this.place(impactId, `skill-vfx-${skill.id}-impact`, ex, ey, 96, 96, angle);
         this.attached
           .get(impactId)!
           .sprite.setDepth(14)
@@ -535,7 +609,7 @@ export class SkillVfx {
       if (emit && !reduced)
         for (const part of [0.2, 0.5, 0.8])
           this.emitters
-            .get('fire')!
+            .get(skill.element)!
             .emitParticleAt(sx + (ex - sx) * part, sy + (ey - sy) * part, 2);
     }
     for (const [id, graphics] of this.beamGraphics)
