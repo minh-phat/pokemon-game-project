@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="vi">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Eevee · Linh thú tự nhiên · Animation</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 32px;
+      background: #192a29;
+      color: #f6e8c7;
+      font: 16px system-ui;
+    }
+    h1 {
+      font-size: 25px;
+      margin: 0 0 8px;
+    }
+    p {
+      color: #bac9bd;
+    }
+    main {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      max-width: 1200px;
+    }
+    article {
+      background: #2c4340;
+      border: 1px solid #577166;
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+    }
+    .sprite {
+      width: 160px;
+      height: 160px;
+      margin: auto;
+      background-image: url('../../../apps/frontend/public/assets/eevee-sheet.png');
+      background-position-y: calc(var(--row) * -160px);
+      animation: frames var(--duration) steps(6) infinite;
+    }
+    body.paused .sprite {
+      animation-play-state: paused;
+    }
+    body.flipped .sprite {
+      transform: scaleX(-1);
+    }
+    @keyframes frames {
+      from {
+        background-position-x: 0;
+      }
+      to {
+        background-position-x: -960px;
+      }
+    }
+    button {
+      background: #e4c58b;
+      color: #192a29;
+      border: 0;
+      border-radius: 6px;
+      padding: 10px 16px;
+      margin: 8px 8px 22px 0;
+      cursor: pointer;
+    }
+    h2 {
+      font-size: 14px;
+      font-weight: 500;
+    }
+  </style>
+  <h1>Eevee · Linh thú tự nhiên</h1>
+  <p>
+    15 trạng thái · 6 khung/trạng thái · Preview lặp để xem chuyển động. Trong game, các động tác
+    một lần sẽ dừng theo trạng thái.
+  </p>
+  <button onclick="document.body.classList.toggle('paused')">Dừng / Tiếp tục</button
+  ><button onclick="document.body.classList.toggle('flipped')">Đổi hướng</button>
+  <main id="animations"></main>
+  <script>
+    const labels = [
+      'Đứng yên',
+      'Chạy',
+      'Nhảy',
+      'Rơi',
+      'Tiếp đất',
+      'Đánh',
+      'Thi triển',
+      'Lướt',
+      'Né lùi',
+      'Cúi thấp',
+      'Phòng thủ',
+      'Trúng đòn',
+      'Bị đẩy lùi',
+      'Gục ngã',
+      'Ăn mừng',
+    ];
+    labels.forEach((label, row) => {
+      const card = document.createElement('article');
+      const sprite = document.createElement('div');
+      sprite.className = 'sprite';
+      sprite.style.setProperty('--row', row);
+      sprite.style.setProperty('--duration', `${row === 1 ? 6 / 14 : 0.6}s`);
+      const title = document.createElement('h2');
+      title.textContent = label;
+      card.append(sprite, title);
+      document.getElementById('animations').append(card);
+    });
+  </script>
+</html>
