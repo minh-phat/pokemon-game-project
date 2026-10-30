@@ -841,6 +841,8 @@ body:has(.fantasy-app) .dialog-content {
   border-radius: 0;
   color: #fff3dc;
   box-shadow: 0 6px 0 #050a17;
+}
+body:has(.fantasy-app) .dialog-content:not(.skill-training-dialog) {
   max-height: calc(100dvh - 24px);
   overflow-y: auto;
 }
@@ -1079,7 +1081,7 @@ body:has(.fantasy-app) .dialog-content .dialog-close {
   .event-dots {
     display: none;
   }
-  body:has(.fantasy-app) .dialog-content {
+  body:has(.fantasy-app) .dialog-content:not(.skill-training-dialog) {
     padding: 22px 30px;
   }
   .account-form {
