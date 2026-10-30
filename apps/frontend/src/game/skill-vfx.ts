@@ -1,21 +1,16 @@
 import { terrainContact, terrainHeight } from '@arena/game-core';
 import * as Phaser from 'phaser';
-import {
-  ARENAS,
-  ELEMENTS,
-  POKEMON,
-  SKILL_BY_ID,
-  HYDRO_CROSSFIRE,
-  hydroCrossfirePoint,
-} from '@arena/game-data';
+import { ARENAS, ELEMENTS, POKEMON, SKILL_BY_ID } from '@arena/game-data';
 import type { BattleEvent, BattleSnapshot, Element } from '@arena/shared-types';
 import { createSkillTextures } from './skill-textures';
 import { BindVfx } from './bind-vfx';
+import { drawHydroCrossfire, drawHydroImpact } from './hydro-crossfire-vfx';
 
 type Effect = { sprite: Phaser.GameObjects.Sprite; key: string };
 
 export class SkillVfx {
   private crossfires = new Map<string, Phaser.GameObjects.Graphics>();
+  private hydroImpacts: { graphics: Phaser.GameObjects.Graphics; remaining: number }[] = [];
   private attached = new Map<string, Effect>();
   private beamGraphics = new Map<string, Phaser.GameObjects.Graphics>();
   private binds = new Map<string, BindVfx>();
@@ -204,7 +199,6 @@ export class SkillVfx {
           g = this.scene.add.graphics();
           this.crossfires.set(f.id, g);
         }
-        const age = Math.max(0, f.cast.elapsed - skill.startup);
         const fade = Math.min(
           1,
           f.cast.elapsed / skill.startup,
@@ -213,44 +207,10 @@ export class SkillVfx {
             (skill.startup + skill.active + skill.recovery - f.cast.elapsed) / skill.recovery,
           ),
         );
-        g.clear()
-          .setPosition(x, y)
+        g.setPosition(x, y)
           .setDepth(12 + f.depth / 300)
           .setAlpha(fade);
-        const extent = Math.min(skill.range, age * HYDRO_CROSSFIRE.speed);
-        if (age > 0 && age <= skill.active) {
-          for (let arm = 0; arm < 4; arm++) {
-            const points = Array.from({ length: 41 }, (_, i) => {
-              const p = hydroCrossfirePoint(age, arm, (extent * i) / 40);
-              return new Phaser.Math.Vector2(p.x, p.depth);
-            });
-            g.lineStyle(24, 0x167cb8, reduced ? 0.25 : 0.35).strokePoints(points);
-            g.lineStyle(16, 0x38c6ef, 0.8).strokePoints(points);
-            g.lineStyle(7, 0xa5edff, 0.95).strokePoints(points);
-            g.lineStyle(2, 0xf0ffff, 0.95).strokePoints(points);
-            if (emit) {
-              const tip = points[40];
-              this.emitters.get('water')!.emitParticleAt(x + tip.x, y + tip.y, 2);
-            }
-          }
-        }
-        // A closed shell replaces the body while the head and limbs are withdrawn.
-        const rotation = age * HYDRO_CROSSFIRE.angularSpeed;
-        const shellPoint = (angle: number, radius: number) =>
-          new Phaser.Math.Vector2(
-            Math.cos(angle + rotation) * radius,
-            Math.sin(angle + rotation) * radius * 0.8,
-          );
-        const rim = Array.from({ length: 33 }, (_, i) => shellPoint((i * Math.PI) / 16, 32));
-        g.fillStyle(0x122f46).fillPoints(rim, true);
-        g.lineStyle(5, 0xc7dfd5).strokePoints(rim, true);
-        const plates = Array.from({ length: 6 }, (_, i) => shellPoint((i * Math.PI) / 3, 17));
-        g.fillStyle(0x367f8d).fillPoints(plates, true);
-        g.lineStyle(3, 0x72bac1).strokePoints(plates, true);
-        for (let i = 0; i < 6; i++) {
-          const outer = shellPoint((i * Math.PI) / 3, 30);
-          g.lineBetween(plates[i].x, plates[i].y, outer.x, outer.y);
-        }
+        drawHydroCrossfire(g, f.cast.elapsed, skill.startup, skill.active, skill.recovery, reduced);
         continue;
       }
       if (skill.id === 'liquid-wrap') {
@@ -819,6 +779,12 @@ export class SkillVfx {
         this.binds.delete(id);
       }
     }
+    for (const impact of this.hydroImpacts) {
+      if (!paused) impact.remaining -= delta;
+      drawHydroImpact(impact.graphics, 1 - Math.max(0, impact.remaining) / 320, reduced);
+      if (impact.remaining <= 0) impact.graphics.destroy();
+    }
+    this.hydroImpacts = this.hydroImpacts.filter((impact) => impact.remaining > 0);
     for (const impact of this.impacts) {
       if (paused || reduced) impact.sprite.anims.pause();
       else impact.sprite.anims.resume();
@@ -835,6 +801,15 @@ export class SkillVfx {
     const element = event.kind === 'heal' ? 'grass' : (event.element ?? 'normal');
     const x = event.x,
       y = 492 + (event.depth ?? 0) - event.y - hoverLift;
+    if (event.text.startsWith('Hydro Crossfire')) {
+      const source = event.targetId ? this.crossfires.get(event.targetId) : undefined;
+      const angle = source ? Math.atan2(y - source.y, x - source.x) : 0;
+      const graphics = this.scene.add.graphics().setPosition(x, y).setRotation(angle).setDepth(15);
+      drawHydroImpact(graphics, 0, this.reduced);
+      this.hydroImpacts.push({ graphics, remaining: 320 });
+      if (this.hydroImpacts.length > 24) this.hydroImpacts.shift()!.graphics.destroy();
+      return;
+    }
     const electroBall = event.text.startsWith('Electro Ball');
     const sludgeBomb = event.text.startsWith('Sludge Bomb');
     const finale = event.text.startsWith('Starfall Rush · finale');
@@ -895,6 +870,8 @@ export class SkillVfx {
   destroy() {
     for (const g of this.crossfires.values()) g.destroy();
     this.crossfires.clear();
+    for (const impact of this.hydroImpacts) impact.graphics.destroy();
+    this.hydroImpacts = [];
     for (const graphics of this.beamGraphics.values()) graphics.destroy();
     this.beamGraphics.clear();
     for (const bind of this.binds.values()) bind.destroy();
