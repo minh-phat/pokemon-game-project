@@ -15,6 +15,7 @@ new Phaser.Game({
       this.load.image('runedrake-bind-rig', (window as any).bindRigAsset);
       this.load.image('bind-victim', (window as any).bindVictimAsset);
       this.load.image('aqua-squirtle', (window as any).aquaSquirtleAsset);
+      this.load.image('aqua-barrage-orb', (window as any).aquaOrbAsset);
     },
     create() {
       createSkillTextures(this);
@@ -228,12 +229,27 @@ new Phaser.Game({
               .map((o) => (o as Phaser.GameObjects.Image).depth),
             bindHeadX: (this.children.getByName('bind-head') as Phaser.GameObjects.Sprite)?.x,
             bindHeadY: (this.children.getByName('bind-head') as Phaser.GameObjects.Sprite)?.y,
-            aquaCores: this.children.list.filter(
-              (o) =>
-                o instanceof Phaser.GameObjects.Sprite &&
-                o.texture.key === 'skill-vfx-aqua-barrage' &&
-                o.displayWidth > 150,
+            aquaOrbs: this.children.list.filter(
+              (o) => o instanceof Phaser.GameObjects.Sprite && o.texture.key === 'aqua-barrage-orb',
             ).length,
+            aquaOrbHeights: this.children.list
+              .filter(
+                (o) =>
+                  o instanceof Phaser.GameObjects.Sprite && o.texture.key === 'aqua-barrage-orb',
+              )
+              .map((o) => (o as Phaser.GameObjects.Sprite).displayHeight),
+            aquaOrbPositions: this.children.list
+              .filter(
+                (o) =>
+                  o instanceof Phaser.GameObjects.Sprite && o.texture.key === 'aqua-barrage-orb',
+              )
+              .map((o) => (o as Phaser.GameObjects.Sprite).x),
+            aquaOrbOffsets: this.children.list
+              .filter(
+                (o) =>
+                  o instanceof Phaser.GameObjects.Sprite && o.texture.key === 'aqua-barrage-orb',
+              )
+              .map((o) => (o as Phaser.GameObjects.Sprite).y),
             steam: this.children.list.filter(
               (o) =>
                 o instanceof Phaser.GameObjects.Sprite &&

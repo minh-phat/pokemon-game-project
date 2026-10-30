@@ -63,6 +63,7 @@ export function createArenaScene(
     preload() {
       const arena = ARENAS.find((a) => a.id === arenaId)!;
       this.load.image('electro-ball-art', '/assets/electro-ball-art.png');
+      this.load.image('aqua-barrage-orb', '/assets/aqua-barrage-orb.png');
       this.load.image('water-slime-wrap-art', '/assets/water-slime-wrap.png');
       this.load.image('ember-glyph-art', '/assets/runedrake-ember-glyph.png');
       this.load.image('runedrake-bind-rig', '/assets/runedrake-bind-rig.png');

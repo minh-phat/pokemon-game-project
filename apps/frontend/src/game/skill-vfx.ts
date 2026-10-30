@@ -49,6 +49,7 @@ export class SkillVfx {
     if (
       key !== 'water-slime-wrap-art' &&
       key !== 'electro-ball-art' &&
+      key !== 'aqua-barrage-orb' &&
       key !== 'ember-glyph-art' &&
       key !== 'runedrake' &&
       key !== 'runedrake-bind-body' &&
@@ -88,6 +89,7 @@ export class SkillVfx {
       this.reduced &&
       key !== 'water-slime-wrap-art' &&
       key !== 'electro-ball-art' &&
+      key !== 'aqua-barrage-orb' &&
       key !== 'ember-glyph-art' &&
       key !== 'runedrake' &&
       key !== 'runedrake-bind-body' &&
@@ -475,6 +477,8 @@ export class SkillVfx {
       if (!owner) continue;
       const skill = SKILL_BY_ID[beam.skillId];
       const water = skill.element === 'water';
+      const waterOrbs =
+        skill.id === 'aqua-barrage' && this.scene.textures.exists('aqua-barrage-orb');
       const hover = hoverByFighter.get(owner.id) ?? 0;
       const sx = beam.startX,
         sy = 492 + beam.startDepth - owner.y - hover - 20;
@@ -498,18 +502,53 @@ export class SkillVfx {
       const point = (along: number, across: number) =>
         new Phaser.Geom.Point(sx + dx * along - dy * across, sy + dy * along + dx * across);
       if (water) {
-        // Rings stay circular in world space instead of stretching with the core texture.
-        const rings = Math.max(2, Math.ceil(length / 85));
-        for (let i = 0; i < rings; i++) {
-          const t = (i / rings + time * 0.9) % 1;
-          const radius = beam.width * (0.45 + Math.sin(t * Math.PI) * 0.18);
-          const points: Phaser.Geom.Point[] = [];
-          for (let j = 0; j <= 28; j++) {
-            const a = (j / 28) * Math.PI * 2;
-            points.push(point(t * length + Math.cos(a) * 5, Math.sin(a) * radius));
-          }
-          graphics.lineStyle(1.6, 0xc9faff, reduced ? 0.25 : Math.sin(t * Math.PI) * 0.8);
-          graphics.strokePoints(points, true);
+        // Give each emission its own identity: repeating one identical row every 35 ms
+        // made the fast stream look stationary through temporal aliasing.
+        const interval = 0.043;
+        const speed = 780;
+        const newest = Math.floor(time / interval);
+        const count = waterOrbs ? Math.ceil(length / (speed * interval)) + 2 : 0;
+        const noise = (seed: number) => {
+          const value = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
+          return value - Math.floor(value);
+        };
+        const fade = owner.cast
+          ? Phaser.Math.Clamp((skill.startup + skill.active - owner.cast.elapsed) / 0.16, 0, 1)
+          : 1;
+        for (let i = 0; i < count; i++) {
+          const emission = newest - i;
+          const seed = emission + beam.ownerId.length * 53;
+          const age = time - (emission * interval + noise(seed) * interval * 0.3);
+          const along = age * speed;
+          if (along <= 0 || along > length) continue;
+          // Expansion depends on distance from the mouth, not total beam length.
+          const growth = Phaser.Math.Clamp(along / 145, 0, 1);
+          const eased = growth * growth * (3 - 2 * growth);
+          const phase = noise(seed + 19) * Math.PI * 2;
+          const ripple = reduced ? 0 : Math.sin(age * 24 + phase);
+          const width = (48 + eased * 60) * (0.8 + noise(seed + 3) * 0.25);
+          const height =
+            beam.width * (0.22 + eased * 1.55) * (0.72 + noise(seed + 7) * 0.22 + ripple * 0.06);
+          // Bounded turbulence around the straight aim line; never spray off-target.
+          const across = eased * beam.width * ((noise(seed + 11) - 0.5) * 0.28 + ripple * 0.09);
+          const orbId = `beam-orb-${beam.ownerId}-${emission}`;
+          const pos = point(along, across);
+          this.place(orbId, 'aqua-barrage-orb', pos.x, pos.y, width, height, angle);
+          const sprite = this.attached.get(orbId)!.sprite;
+          // The reference faces right. Anchor its leading edge at the travelled distance.
+          sprite.setOrigin(1, 0.5).setDepth(12).setBlendMode(Phaser.BlendModes.NORMAL);
+          sprite.setFlipY(noise(seed + 23) > 0.5);
+          sprite.setAlpha((reduced ? 0.65 : 0.72 + noise(seed + 29) * 0.22) * fade);
+          // Clip the tail at the mouth so new droplets never render behind Squirtle.
+          const sourceWidth = sprite.frame.realWidth;
+          const visible = Math.min(1, along / width);
+          sprite.setCrop(
+            sourceWidth * (1 - visible),
+            0,
+            sourceWidth * visible,
+            sprite.frame.realHeight,
+          );
+          live.add(orbId);
         }
         for (let i = 0; i < Math.ceil(length / 22); i++) {
           const t = (i * 0.173 + time * 0.65) % 1;
@@ -543,31 +582,33 @@ export class SkillVfx {
         }
       }
       liveBeams.add(beam.ownerId);
-      const id = `beam-core-${beam.ownerId}`;
-      this.place(
-        id,
-        `skill-vfx-${skill.id}`,
-        (sx + ex) / 2,
-        (sy + ey) / 2,
-        Math.max(4, length),
-        beam.width *
-          2.8 *
-          (1 + (reduced ? 0 : Math.sin(time * 17) * 0.025)) *
-          (water && owner.cast
-            ? Math.min(
-                1,
-                Math.max(0.08, (skill.startup + skill.active - owner.cast.elapsed) / 0.16),
-              )
-            : 1),
-        angle,
-      );
-      this.attached
-        .get(id)!
-        .sprite.setDepth(12)
-        .setBlendMode(Phaser.BlendModes.ADD)
-        .setAlpha(reduced ? 0.72 : 1);
-      if (water) this.attached.get(id)!.sprite.setBlendMode(Phaser.BlendModes.NORMAL);
-      live.add(id);
+      if (!waterOrbs) {
+        const id = `beam-core-${beam.ownerId}`;
+        this.place(
+          id,
+          `skill-vfx-${skill.id}`,
+          (sx + ex) / 2,
+          (sy + ey) / 2,
+          Math.max(4, length),
+          beam.width *
+            2.8 *
+            (1 + (reduced ? 0 : Math.sin(time * 17) * 0.025)) *
+            (water && owner.cast
+              ? Math.min(
+                  1,
+                  Math.max(0.08, (skill.startup + skill.active - owner.cast.elapsed) / 0.16),
+                )
+              : 1),
+          angle,
+        );
+        this.attached
+          .get(id)!
+          .sprite.setDepth(12)
+          .setBlendMode(Phaser.BlendModes.ADD)
+          .setAlpha(reduced ? 0.72 : 1);
+        if (water) this.attached.get(id)!.sprite.setBlendMode(Phaser.BlendModes.NORMAL);
+        live.add(id);
+      }
       if (beam.clashWith) {
         const pair = [beam.ownerId, beam.clashWith].sort().join('-');
         if (!liveClashes.has(pair)) {
