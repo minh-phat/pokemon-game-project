@@ -1,6 +1,7 @@
 import type { SpeciesId } from '@arena/shared-types';
 
 export const LOCOMOTION_SPRITES: Partial<Record<SpeciesId, string>> = {
+  pikachu: '/assets/pikachu-directions.png',
   'water-slime': '/assets/water-slime-directions.png',
   charmander: '/assets/charmander-directions.png',
   squirtle: '/assets/lam-quy-directions.png',

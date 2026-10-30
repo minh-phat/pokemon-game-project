@@ -13,6 +13,7 @@ const expected = [
   'favicon.svg',
   'pikachu.png',
   'pikachu-sheet.png',
+  'pikachu-directions.png',
   'charmander.png',
   'charmander-sheet.png',
   'bulbasaur.png',
@@ -102,3 +103,13 @@ const bulbasaur = await sharp(
 ).metadata();
 if (bulbasaur.width !== 960 || bulbasaur.height !== 2400 || !bulbasaur.hasAlpha)
   throw new Error('Invalid Bulbasaur sprite sheet');
+
+const pikachuDirections = await sharp(
+  resolve('apps/frontend/public/assets/pikachu-directions.png'),
+).metadata();
+if (
+  pikachuDirections.width !== 960 ||
+  pikachuDirections.height !== 960 ||
+  !pikachuDirections.hasAlpha
+)
+  throw new Error('Invalid star-tail summon directional sheet');
