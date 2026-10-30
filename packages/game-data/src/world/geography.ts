@@ -1,4 +1,5 @@
 import { createWorld as createLegacyGeography } from './legacy-geography';
+import type { Direction } from '../directions';
 
 /** Coarse continental height field and drainage graph. Never expanded to full world resolution. */
 export const WORLD_SIZE = 256;
@@ -40,6 +41,7 @@ export type WildPokemon = Point & {
   phase: number;
   moving: boolean;
   facing: number;
+  direction?: Direction;
 };
 export type World = { seed: number; tiles: Tile[]; spawn: Point; wildlife: WildPokemon[] };
 export const biomeNames: Record<Biome, [string, string]> = {

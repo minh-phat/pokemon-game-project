@@ -30,6 +30,7 @@ import {
 export { hash, habitat, biomeNames, biomeColors, BIOMES, SEA };
 export type { Point, Biome, Species };
 import type { PetProgression } from '@arena/shared-types';
+import { worldMovementDirection } from '../directions';
 export type WildPokemon = GeographicPokemon & PetProgression;
 export function wildProgression(world: World, id: number, position: Point): PetProgression {
   const distance = Math.hypot(position.x - world.spawn.x, position.y - world.spawn.y);
@@ -595,6 +596,7 @@ export function updateWildlife(world: World, player: Point, dt: number, time: nu
       actor.x = x;
       actor.y = y;
       actor.facing = dx - dy >= 0 ? 1 : -1;
+      actor.direction = worldMovementDirection(dx, dy, actor.direction);
     } else actor.moving = false;
   }
   return near.length;

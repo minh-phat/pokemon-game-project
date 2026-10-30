@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="vi">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Kiểm tra chuyển động 8 hướng</title>
+  <style>
+    body {
+      margin: 24px;
+      background: #152a2e;
+      color: #e2f4eb;
+      font: 15px system-ui;
+    }
+    h1 {
+      font-size: 24px;
+    }
+    p {
+      color: #b1c9c2;
+    }
+    .controls {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin: 20px 0;
+    }
+    select,
+    button {
+      padding: 8px 12px;
+      font: inherit;
+    }
+    main {
+      overflow: auto;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 120px repeat(8, 112px);
+      align-items: center;
+    }
+    .cell {
+      margin: 4px;
+      background: #dce9e6;
+      border-radius: 8px;
+      text-align: center;
+      color: #365454;
+      font-size: 12px;
+    }
+    canvas {
+      width: 104px;
+      height: 104px;
+      display: block;
+    }
+  </style>
+  <h1>Chuyển động 8 hướng</h1>
+  <p>5 thú có góc nhìn mới. Pikachu và Bulbasaur vẫn dùng hình trái/phải hiện tại.</p>
+  <div class="controls">
+    <label
+      >Động tác
+      <select id="state">
+        <option value="run">Chạy</option>
+        <option value="idle">Đứng chờ</option>
+      </select></label
+    >
+    <label>Tốc độ <input id="speed" type="range" min="0.25" max="2" step="0.25" value="1" /></label>
+    <button id="pause">Tạm dừng</button>
+    <label><input type="checkbox" id="reduced" /> Giảm chuyển động</label>
+  </div>
+  <main id="grid"></main>
+  <script>
+    const creatures = [
+      ['water-slime', 'Water Slime'],
+      ['charmander', 'Charmander'],
+      ['lam-quy', 'Lam Quy'],
+      ['eevee', 'Eevee'],
+      ['runedrake', 'Runedrake'],
+    ];
+    const headings = [
+      ['↑ Lên', 2, false],
+      ['↗ Chéo lên phải', 3, false],
+      ['→ Phải', 1, false],
+      ['↘ Chéo xuống phải', 4, false],
+      ['↓ Xuống', 5, false],
+      ['↙ Chéo xuống trái', 4, true],
+      ['← Trái', 1, true],
+      ['↖ Chéo lên trái', 3, true],
+    ];
+    const tiles = [];
+    for (const [id, name] of creatures) {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const title = document.createElement('strong');
+      title.textContent = name;
+      row.append(title);
+      const image = new Image();
+      image.src = `../apps/frontend/public/assets/${id}-directions.png`;
+      for (const [label, frameRow, flip] of headings) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        const canvas = document.createElement('canvas');
+        canvas.width = 208;
+        canvas.height = 208;
+        const caption = document.createElement('span');
+        caption.textContent = label;
+        cell.append(canvas, caption);
+        row.append(cell);
+        tiles.push({ image, canvas, row: frameRow, flip, width: id === 'runedrake' ? 320 : 160 });
+      }
+      document.querySelector('#grid').append(row);
+    }
+    let paused = false,
+      time = 0,
+      last = performance.now();
+    document.querySelector('#pause').onclick = (e) => {
+      paused = !paused;
+      e.target.textContent = paused ? 'Tiếp tục' : 'Tạm dừng';
+    };
+    function paint(now) {
+      const reduced = document.querySelector('#reduced').checked;
+      if (!paused && !reduced)
+        time += ((now - last) / 1000) * Number(document.querySelector('#speed').value);
+      last = now;
+      const run = document.querySelector('#state').value === 'run';
+      for (const t of tiles) {
+        const c = t.canvas.getContext('2d');
+        c.clearRect(0, 0, 208, 208);
+        if (!t.image.complete || !t.image.naturalWidth) continue;
+        const col = reduced ? 0 : run || t.row === 1 ? Math.floor(time * (run ? 10 : 8)) % 6 : 0;
+        const row = !run && t.row === 1 ? 0 : t.row;
+        c.save();
+        c.translate(104, 194);
+        c.scale(
+          t.flip ? -1 : 1,
+          !run && !reduced && t.row !== 1 ? 1 + Math.sin(time * 2.4) * 0.018 : 1,
+        );
+        const size = t.width === 320 ? 208 : 160;
+        c.drawImage(t.image, col * t.width, row * 160, t.width, 160, -size / 2, -160, size, 160);
+        c.restore();
+      }
+      requestAnimationFrame(paint);
+    }
+    requestAnimationFrame(paint);
+  </script>
+</html>

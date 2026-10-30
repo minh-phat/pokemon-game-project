@@ -23,6 +23,8 @@ import { easeHover, hoverTarget } from './hover';
 import { SkillVfx } from './skill-vfx';
 import { DashWind } from './dash-wind';
 import { automaticCameraFrame } from './arena-camera';
+import { creatureLocomotion, fighterDirection } from './creature-locomotion';
+import type { Direction } from '@arena/game-data';
 
 type Visual = {
   wind: DashWind;
@@ -34,6 +36,8 @@ type Visual = {
   targetMarker: Phaser.GameObjects.Text;
   lastAnimation: string;
   hoverLift: number;
+  direction: Direction;
+  locomotionClock: number;
 };
 /** External snapshots render on a transparent world layer; the world remains the sole simulation owner. */
 export type WorldArenaSource = () => {
@@ -95,6 +99,11 @@ export function createArenaScene(
         this.shownError = true;
         onError('An arena asset could not load. Reload the page to retry.');
       });
+      for (const [id, path] of Object.entries(ASSETS.locomotion))
+        this.load.spritesheet(`${id}-directions`, path, {
+          frameWidth: id === 'runedrake' ? 320 : 160,
+          frameHeight: 160,
+        });
     }
     create() {
       if (worldSource?.().trainingDummy) {
@@ -265,6 +274,8 @@ export function createArenaScene(
           .setDepth(16),
         lastAnimation: '',
         hoverLift: POKEMON[f.species].hoverHeight ?? 0,
+        direction: f.facing < 0 ? 'west' : 'east',
+        locomotionClock: f.slot * 1.37,
       };
       this.actors.set(f.id, visual);
       if (!worldSource)
@@ -498,6 +509,12 @@ export function createArenaScene(
               )
           : 1;
         const baseScale = f.species === 'eevee' ? 0.66 : f.species === 'runedrake' ? 0.9 : 0.82;
+        v.direction = fighterDirection(f, v.direction);
+        if (!settings.paused && !settings.reducedMotion) v.locomotionClock += delta / 1000;
+        const locomotion =
+          f.id === external?.trainingDummy?.id
+            ? null
+            : creatureLocomotion(f, v.direction, v.locomotionClock, settings.reducedMotion);
         v.sprite
           .setVisible(faintAlpha > 0 && entryFade > 0)
           .setPosition(
@@ -507,10 +524,10 @@ export function createArenaScene(
           .setRotation(glyphWobble)
           .setScale(
             baseScale * (1 - 0.13 * bindProgress - 0.045 * bindPulse) * slime.x,
-            baseScale * (1 + 0.035 * bindProgress) * slime.y,
+            baseScale * (1 + 0.035 * bindProgress) * slime.y * (locomotion?.scaleY ?? 1),
           )
           .setDepth(10 + (ground - 300) / 300)
-          .setFlipX(f.facing < 0)
+          .setFlipX(locomotion?.flipX ?? f.facing < 0)
           .setAlpha(
             (f.invulnerable > 0 ? 0.55 + Math.sin(time / 35) * 0.2 : faintAlpha) *
               entryFade *
@@ -519,7 +536,12 @@ export function createArenaScene(
               hydroFade,
           );
         const animation = `${f.species}-${f.animation}`;
-        if (f.id !== external?.trainingDummy?.id && animation !== v.lastAnimation) {
+        if (locomotion) {
+          v.sprite.anims.stop();
+          v.sprite.setTexture(`${f.species}-directions`, locomotion.frame);
+          v.lastAnimation = '';
+        } else if (f.id !== external?.trainingDummy?.id && animation !== v.lastAnimation) {
+          v.sprite.setTexture(f.species);
           v.sprite.play(animation);
           v.lastAnimation = animation;
         }
@@ -533,7 +555,7 @@ export function createArenaScene(
             : 1;
         if (settings.paused) v.sprite.anims.pause();
         else v.sprite.anims.resume();
-        if (f.species === 'charmander') {
+        if (!locomotion && f.species === 'charmander') {
           const frame = charmanderCastFrame(f);
           if (settings.reducedMotion) {
             v.sprite.anims.pause();
@@ -543,7 +565,7 @@ export function createArenaScene(
             v.sprite.setFrame(frame);
           }
         }
-        if (f.species === 'bulbasaur') {
+        if (!locomotion && f.species === 'bulbasaur') {
           const frame = bulbasaurCastFrame(f);
           if (settings.reducedMotion) {
             v.sprite.anims.pause();

@@ -11,6 +11,7 @@ import {
   type AnimationName,
 } from '@arena/shared-types';
 export * from './manifest';
+export * from './directions';
 export * from './hydro-crossfire';
 export { combatPower } from './combat-power';
 export * from './progression';

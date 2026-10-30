@@ -3,7 +3,15 @@ import { addCityObjects, paintCityTile, cityColors } from './binh-minh-renderer'
 import { geographyColor } from './open-world-geography';
 import { automaticCameraFrame } from './arena-camera';
 import type { WorldArenaLayer } from './world-arena-layer';
-import { ASSETS, POKEMON, fighterDefinition } from '@arena/game-data';
+import {
+  ASSETS,
+  POKEMON,
+  fighterDefinition,
+  worldMovementDirection,
+  directionFlipped,
+  locomotionFrame,
+  type Direction,
+} from '@arena/game-data';
 import {
   WORLD_COMBAT_HEIGHT_SCALE,
   worldCombatOffset,
@@ -138,7 +146,17 @@ export class OpenWorldEngine {
   get companion() {
     return this.companions[0] ?? null;
   }
-  private followers = new Map<string, { motion: Motion; path: Point[]; repath: number }>();
+  private followers = new Map<
+    string,
+    {
+      motion: Motion;
+      path: Point[];
+      repath: number;
+      direction: Direction;
+      moving: boolean;
+      phase: number;
+    }
+  >();
   selectedTargets: WildPokemon[] = [];
   private drag: { id: number; start: Point; end: Point } | null = null;
   rewardPending = false;
@@ -176,11 +194,14 @@ export class OpenWorldEngine {
   }
   private resetFollowers() {
     this.followers.clear();
-    this.companions.forEach((pet) =>
+    this.companions.forEach((pet, index) =>
       this.followers.set(pet.id, {
         motion: createMotion(this.world, this.player),
         path: [],
         repath: 0,
+        direction: 'south',
+        moving: false,
+        phase: index * 1.37,
       }),
     );
     this.companionMotion = this.companion ? this.followers.get(this.companion.id)!.motion : null;
@@ -336,6 +357,7 @@ export class OpenWorldEngine {
       )
         follower.path.shift();
       const waypoint = follower.path[0] ?? destination;
+      const before = { ...position };
       stepMotion(
         this.world,
         follower.motion,
@@ -348,6 +370,10 @@ export class OpenWorldEngine {
         },
         dt,
       );
+      const dx = position.x - before.x,
+        dy = position.y - before.y;
+      follower.moving = Math.hypot(dx, dy) > 0.0001;
+      if (follower.moving) follower.direction = worldMovementDirection(dx, dy, follower.direction);
     }
   }
 
@@ -580,14 +606,17 @@ export class OpenWorldEngine {
       const img = new Image();
       img.onload = () => {
         if (this.disposed) return;
-        // Rasterize only the idle/walk rows once at their original frame resolution.
-        const sheet = canvas(960, 320),
+        // Keep the full directional atlas, including Runedrake's wider frames.
+        const sheet = canvas(
+            img.naturalWidth,
+            ASSETS.locomotion[species] ? img.naturalHeight : 320,
+          ),
           ctx = sheet.getContext('2d')!;
         ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(img, 0, 0, 960, 320, 0, 0, 960, 320);
+        ctx.drawImage(img, 0, 0);
         this.sprites.set(species, sheet);
       };
-      img.src = ASSETS.sprites[species];
+      img.src = ASSETS.locomotion[species] ?? ASSETS.sprites[species];
     }
   }
   private loadEnvironment() {
@@ -983,22 +1012,38 @@ export class OpenWorldEngine {
       c.fillRect(x - 4, y - 8, 8, 8);
       return;
     }
-    const frameRate =
-      actor.species === 'charmander' || actor.species === 'bulbasaur'
-        ? POKEMON[actor.species].animations[actor.moving ? 'run' : 'idle'].frameRate
-        : actor.moving
-          ? 9
-          : 3;
-    const frame = this.input.reducedMotion
-      ? 0
-      : Math.floor(this.time * frameRate + actor.phase) % 6;
+    const frameRate = POKEMON[actor.species].animations[actor.moving ? 'run' : 'idle'].frameRate;
+    const direction =
+      (ASSETS.locomotion[actor.species] && actor.direction) || (actor.facing < 0 ? 'west' : 'east');
+    const frame = locomotionFrame(
+      direction,
+      actor.moving,
+      this.time + actor.phase,
+      frameRate,
+      this.input.reducedMotion,
+    );
     const bob = this.input.reducedMotion
       ? 0
       : Math.sin(this.time * (actor.moving ? 10 : 2) + actor.phase);
     c.save();
     c.translate(Math.round(x), Math.round(y + bob));
-    c.scale(actor.facing, 1);
-    c.drawImage(sprite, frame * 160, actor.moving ? 160 : 0, 160, 160, -16, -28, 32, 32);
+    const breath =
+      this.input.reducedMotion || actor.moving
+        ? 1
+        : 1 + Math.sin(this.time * 2.4 + actor.phase) * 0.018;
+    c.scale(directionFlipped(direction) ? -1 : 1, breath);
+    const width = actor.species === 'runedrake' ? 320 : 160;
+    c.drawImage(
+      sprite,
+      (frame % 6) * width,
+      Math.floor(frame / 6) * 160,
+      width,
+      160,
+      -width / 10,
+      -28,
+      width / 5,
+      32,
+    );
     c.restore();
     this.pokemonLabels.push({
       x,
@@ -1177,7 +1222,8 @@ export class OpenWorldEngine {
       });
     }
     for (const pet of this.encounter ? [] : this.companions) {
-      const motion = this.followers.get(pet.id)!.motion;
+      const follower = this.followers.get(pet.id)!;
+      const motion = follower.motion;
       const pos = motion.position;
       const p = project(pos.x, pos.y, motion.z);
       const actor = {
@@ -1189,9 +1235,10 @@ export class OpenWorldEngine {
         home: this.player,
         group: -1,
         leader: -1,
-        phase: 0,
-        moving: Math.hypot(pos.x - this.player.x, pos.y - this.player.y) > 1.5,
-        facing: 1,
+        phase: follower.phase,
+        moving: follower.moving,
+        direction: follower.direction,
+        facing: directionFlipped(follower.direction) ? -1 : 1,
       };
       objects.push({
         depth: pos.x + pos.y,
