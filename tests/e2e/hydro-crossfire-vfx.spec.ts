@@ -27,6 +27,12 @@ for (const renderer of ['canvas', 'webgl']) {
       await page.evaluate((value) => {
         (window as any).hydroRenderer = value;
       }, renderer);
+      await page.evaluate(
+        (data) => {
+          (window as any).hydroOrbData = data;
+        },
+        `data:image/png;base64,${(await readFile('apps/frontend/public/assets/aqua-barrage-orb.png')).toString('base64')}`,
+      );
       await page.addScriptTag({
         content: await readFile(join(output, 'hydro-crossfire-preview.global.js'), 'utf8'),
       });
@@ -36,6 +42,8 @@ for (const renderer of ['canvas', 'webgl']) {
         await page.evaluate((value) => {
           (window as any).hydroPreview.controls.elapsed = value;
         }, elapsed);
+        if (elapsed === 1.55)
+          await expect.poll(async () => (await inspect()).orbs).toBeGreaterThan(40);
         await page.waitForTimeout(70);
         await page.screenshot({ path: `test-results/hydro-${renderer}-${elapsed}.png` });
       }
@@ -46,6 +54,7 @@ for (const renderer of ['canvas', 'webgl']) {
         preview.hit();
       });
       await expect.poll(async () => (await inspect()).impacts).toBe(1);
+      await expect.poll(async () => (await inspect()).orbs).toBeGreaterThan(40);
       const paused = await inspect();
       await page.waitForTimeout(120);
       expect(await inspect()).toEqual(paused);
@@ -60,6 +69,7 @@ for (const renderer of ['canvas', 'webgl']) {
         (window as any).hydroPreview.controls.clear = true;
       });
       await expect.poll(async () => (await inspect()).streams).toBe(0);
+      expect((await inspect()).orbs).toBe(0);
       await page.evaluate(() => (window as any).hydroPreview.destroy());
       expect(errors).toEqual([]);
     } finally {

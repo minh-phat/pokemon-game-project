@@ -230,12 +230,22 @@ export interface ArenaDefinition {
   layers: string[];
   ambient: string;
 }
+export interface HydroDrop {
+  id: number;
+  emittedAt: number;
+  x: number;
+  depth: number;
+  vx: number;
+  vDepth: number;
+}
 export interface Cast {
   skillId: string;
   elapsed: number;
   fired: number;
   hitIds: string[];
   channelTicks?: number;
+  hydroDrops?: HydroDrop[];
+  hydroSource?: { x: number; depth: number };
   autoBasic?: boolean;
   targetId?: string;
   counterAt?: number;

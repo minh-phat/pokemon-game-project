@@ -1,6 +1,15 @@
 import { terrainContact, terrainHeight } from '@arena/game-core';
 import * as Phaser from 'phaser';
-import { ARENAS, ELEMENTS, POKEMON, SKILL_BY_ID } from '@arena/game-data';
+import {
+  ARENAS,
+  ELEMENTS,
+  POKEMON,
+  SKILL_BY_ID,
+  HYDRO_CROSSFIRE,
+  createHydroDrop,
+  hydroDropPosition,
+  hydroDropVisible,
+} from '@arena/game-data';
 import type { BattleEvent, BattleSnapshot, Element } from '@arena/shared-types';
 import { createSkillTextures } from './skill-textures';
 import { BindVfx } from './bind-vfx';
@@ -212,7 +221,55 @@ export class SkillVfx {
         g.setPosition(x, y)
           .setDepth(12 + f.depth / 300)
           .setAlpha(fade);
-        drawHydroCrossfire(g, f.cast.elapsed, skill.startup, skill.active, skill.recovery, reduced);
+        const waterOrbs = this.scene.textures.exists('aqua-barrage-orb');
+        drawHydroCrossfire(
+          g,
+          f.cast.elapsed,
+          skill.startup,
+          skill.active,
+          skill.recovery,
+          reduced,
+          !waterOrbs,
+        );
+        if (waterOrbs) {
+          const age = Math.max(0, f.cast.elapsed - skill.startup);
+          // Authoritative launch positions stay fixed even as Squirtle walks away.
+          // The fallback supports isolated previews without a running battle engine.
+          const newest = Math.floor(Math.min(age, skill.active) / HYDRO_CROSSFIRE.emissionInterval);
+          const drops =
+            f.cast.hydroDrops ??
+            Array.from({ length: 24 }, (_, i) => newest - i)
+              .filter(
+                (emission) =>
+                  emission >= 0 && emission * HYDRO_CROSSFIRE.emissionInterval < skill.active,
+              )
+              .flatMap((emission) =>
+                Array.from({ length: 4 }, (_, arm) => createHydroDrop(emission, arm, f.x, f.depth)),
+              );
+          for (const drop of drops) {
+            if (!hydroDropVisible(drop, age)) continue;
+            const point = hydroDropPosition(drop, age);
+            const distance = Math.hypot(point.x - drop.x, point.depth - drop.depth);
+            const growth = Math.min(1, (distance - 28) / 120);
+            const id = `hydro-orb-${f.id}-${drop.id}`;
+            // Orient the texture along its velocity, never along a pre-shaped curve.
+            this.place(
+              id,
+              'aqua-barrage-orb',
+              x + point.x - f.x,
+              y + point.depth - f.depth,
+              25 + growth * 20,
+              12 + growth * 13,
+              Math.atan2(drop.vDepth, drop.vx),
+            );
+            this.attached
+              .get(id)!
+              .sprite.setDepth(11.9 + point.depth / 300)
+              .setAlpha((reduced ? 0.65 : 0.88) * fade)
+              .setFlipY(drop.id % 3 === 0);
+            live.add(id);
+          }
+        }
         continue;
       }
       if (skill.id === 'liquid-wrap') {

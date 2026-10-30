@@ -1307,6 +1307,24 @@ describe('Electro Ball', () => {
 });
 
 describe('Hydro Crossfire', () => {
+  it('preserves airborne water launch positions when the caster moves', () => {
+    const e = battle([['squirtle'], ['charmander']]);
+    const [a, b] = e.state.fighters;
+    e.setManualMode('a', true);
+    a.thinkIn = b.thinkIn = 100;
+    a.x = 350;
+    a.depth = 0;
+    b.x = 900;
+    e.beginSkill(a, 'hydro-crossfire');
+    step(e, 0.6);
+    const drop = structuredClone(a.cast!.hydroDrops!.at(-1)!);
+    expect(drop).toBeDefined();
+    a.x += 80;
+    step(e, 0.05);
+    expect(a.cast!.hydroDrops!.find((current) => current.id === drop.id)).toEqual(drop);
+    expect(a.cast!.hydroDrops!.at(-1)!.x).toBeGreaterThan(drop.x + 50);
+  });
+
   it.each([0, 1] as const)('AI on team %s approaches and circles while channeling', (team) => {
     const e = battle(team === 0 ? [['squirtle'], ['charmander']] : [['charmander'], ['squirtle']]);
     const a = e.state.fighters[team];

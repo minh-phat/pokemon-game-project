@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { HYDRO_CROSSFIRE, hydroCrossfirePoint } from '@arena/game-data';
+import { HYDRO_CROSSFIRE, hydroCrossfirePoint, hydroCrossfireRotation } from '@arena/game-data';
 
 const TAU = Math.PI * 2;
 
@@ -11,6 +11,7 @@ export function drawHydroCrossfire(
   active: number,
   recovery: number,
   reduced: boolean,
+  drawStreams = true,
 ) {
   const age = Math.max(0, elapsed - startup);
   const charge = Math.min(1, elapsed / startup);
@@ -37,7 +38,7 @@ export function drawHydroCrossfire(
   const extent = Math.min(HYDRO_CROSSFIRE.range, age * HYDRO_CROSSFIRE.speed);
   // The final water travels outward during recovery, exposing the shell again.
   const inner = Math.max(28, release * (HYDRO_CROSSFIRE.range + 32));
-  if (extent > inner && release < 1) {
+  if (drawStreams && extent > inner && release < 1) {
     const opacity = 1 - release;
     for (let arm = 0; arm < 4; arm++) {
       const count = reduced ? 28 : 48;
@@ -132,7 +133,7 @@ export function drawHydroCrossfire(
     );
   }
 
-  const rotation = motion * HYDRO_CROSSFIRE.angularSpeed;
+  const rotation = hydroCrossfireRotation(motion);
   const shellPoint = (angle: number, radius: number, lift = 0) =>
     new Phaser.Math.Vector2(
       Math.cos(angle + rotation) * radius,

@@ -9,6 +9,9 @@ new Phaser.Game({
   height: 640,
   backgroundColor: '#29453e',
   scene: {
+    preload() {
+      this.load.image('aqua-barrage-orb', (window as any).hydroOrbData);
+    },
     create() {
       const vfx = new SkillVfx(this);
       const controls = { elapsed: 0.15, paused: false, reduced: false, clear: false };
@@ -58,6 +61,9 @@ new Phaser.Game({
             element: 'water',
           }),
         inspect: () => ({
+          orbs: [...(vfx as any).attached.values()].filter(
+            (effect) => effect.key === 'aqua-barrage-orb',
+          ).length,
           streams: (vfx as any).crossfires.size,
           impacts: (vfx as any).hydroImpacts.length,
           remaining: (vfx as any).hydroImpacts[0]?.remaining ?? 0,

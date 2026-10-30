@@ -34,7 +34,9 @@ import {
   DIFFICULTY,
   SKILL_BY_ID,
   HYDRO_CROSSFIRE,
-  hydroCrossfireHits,
+  createHydroDrop,
+  hydroDropPosition,
+  hydroDropVisible,
 } from '@arena/game-data';
 import { decideAction, decideManualAction, decideMovement } from '@arena/game-ai';
 import {
@@ -863,6 +865,31 @@ export class BattleEngine {
     }
     if (s.id === 'hydro-crossfire') {
       const age = cast.elapsed - s.startup;
+      const source = cast.hydroSource ?? { x: f.x, depth: f.depth };
+      const drops = (cast.hydroDrops ?? []).filter(
+        (drop) =>
+          (age - drop.emittedAt) * Math.hypot(drop.vx, drop.vDepth) <= HYDRO_CROSSFIRE.range,
+      );
+      const first = Math.max(0, Math.ceil((age - dt) / HYDRO_CROSSFIRE.emissionInterval));
+      const last = Math.floor(Math.min(age, s.active - 1e-9) / HYDRO_CROSSFIRE.emissionInterval);
+      for (let emission = first; emission <= last; emission++) {
+        if (drops.some((drop) => drop.id === emission * 4)) continue;
+        const fraction = Math.max(
+          0,
+          Math.min(1, (emission * HYDRO_CROSSFIRE.emissionInterval - (age - dt)) / dt),
+        );
+        for (let arm = 0; arm < 4; arm++)
+          drops.push(
+            createHydroDrop(
+              emission,
+              arm,
+              source.x + (f.x - source.x) * fraction,
+              source.depth + (f.depth - source.depth) * fraction,
+            ),
+          );
+      }
+      cast.hydroDrops = drops;
+      cast.hydroSource = { x: f.x, depth: f.depth };
       if (this.isManuallyControlled(f)) {
         const walking = this.manualMovement.get(f.id);
         f.moveIntent = walking && walking.until > this.state.elapsed ? walking.direction : 0;
@@ -890,12 +917,14 @@ export class BattleEngine {
             target.team === f.team ||
             target.invulnerable > 0 ||
             Math.abs(target.y - f.y) > 45 ||
-            !hydroCrossfireHits(
-              age,
-              target.x - f.x,
-              target.depth - f.depth,
-              fighterDefinition(target).collision.width / 2,
-            ) ||
+            !drops.some((drop) => {
+              if (!hydroDropVisible(drop, age)) return false;
+              const point = hydroDropPosition(drop, age);
+              return (
+                Math.hypot(target.x - point.x, target.depth - point.depth) <=
+                HYDRO_CROSSFIRE.width / 2 + fighterDefinition(target).collision.width / 2
+              );
+            }) ||
             terrainContact(this.arena, f, target) < 1
           )
             continue;
