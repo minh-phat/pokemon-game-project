@@ -1,3 +1,7 @@
+# Bộ đang sử dụng
+
+Pikachu hiện dùng thiết kế má xanh, đuôi xù theo ảnh mới. Xem [nguồn, prompt và cách build](electric-fluff/README.md). Các tài nguyên bên dưới được giữ làm tư liệu thiết kế cũ.
+
 # Pikachu (Thiết kế lại từ mô hình gốc của người dùng)
 
 Nhân vật Pikachu được thiết kế lại dựa trên ảnh mô hình 3D nguyên bản do người dùng cung cấp: thân vàng tròn trịa, đôi tai dài vút nhọn viền đen ở chóp, hai đốm má đỏ tròn tích điện, mắt đen sáng ngời, miệng cười tươi, chân tay ngắn đáng yêu và chiếc đuôi sấm sét đặc trưng.

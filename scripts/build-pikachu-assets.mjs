@@ -1,222 +1,95 @@
 import sharp from 'sharp';
 import { mkdir } from 'node:fs/promises';
-import { resolve } from 'node:path';
 
-const source = 'docs/character-concepts/pikachu/';
-const extracted = 'docs/character-concepts/pikachu/extracted/';
+// Generated from the user's electric, blue-cheeked, fluffy-tail reference.
+// Keep the source and these crop boundaries so `npm run assets` is reproducible.
+const source = 'docs/character-concepts/pikachu/electric-fluff/source.png';
 const output = 'apps/frontend/public/assets/';
-await mkdir(output, { recursive: true });
-
-const blank = (width = 160, height = 160) =>
+const rows = [0, 130, 250, 380, 523, 663, 794, 939, 1051, 1185, 1315, 1447, 1586, 1712, 1829, 1983];
+const { data, info } = await sharp(source)
+  .ensureAlpha()
+  .raw()
+  .toBuffer({ resolveWithObject: true });
+if (info.width !== 793 || info.height !== 1983) throw new Error('Unexpected Pikachu source size');
+const alpha = (x, y) => data[(y * info.width + x) * 4 + 3];
+const blank = (width, height) =>
   sharp({ create: { width, height, channels: 4, background: '#00000000' } });
-
-// Engine animation order (15 rows x 6 frames, each 160 x 160):
-// 0: idle
-// 1: run
-// 2: jump
-// 3: fall
-// 4: land
-// 5: attack
-// 6: cast
-// 7: dash
-// 8: backstep
-// 9: crouch
-// 10: guard
-// 11: hit
-// 12: knockback
-// 13: faint
-// 14: victory
-const rowFrames = [
-  // 0: idle (breathing and blinking loop)
-  [
-    'movement_r0_c0.png',
-    'movement_r0_c1.png',
-    'movement_r0_c2.png',
-    'movement_r0_c3.png',
-    'movement_r0_c4.png',
-    'movement_r0_c5.png',
-  ],
-  // 1: run (dynamic run cycle)
-  [
-    'movement_r1_c0.png',
-    'movement_r1_c1.png',
-    'movement_r1_c2.png',
-    'movement_r1_c3.png',
-    'movement_r1_c4.png',
-    'movement_r1_c5.png',
-  ],
-  // 2: jump (squat windup -> launch -> rising -> apex)
-  [
-    'movement_r2_c0.png',
-    'movement_r2_c1.png',
-    'movement_r2_c2.png',
-    'movement_r2_c3.png',
-    'movement_r2_c2.png',
-    'movement_r2_c1.png',
-  ],
-  // 3: fall (airborne falling with downward momentum)
-  [
-    'movement_r2_c3.png',
-    'movement_r2_c4.png',
-    'movement_r2_c4.png',
-    'movement_r2_c4.png',
-    'movement_r2_c5.png',
-    'movement_r2_c5.png',
-  ],
-  // 4: land (impact squash -> rising back to standing)
-  [
-    'movement_r2_c5.png',
-    'movement_r2_c5.png',
-    'movement_r2_c6.png',
-    'movement_r2_c0.png',
-    'movement_r0_c0.png',
-    'movement_r0_c0.png',
-  ],
-  // 5: attack (tackle lunge -> strike -> tail slap spin -> recover)
-  [
-    'combat_r0_c0.png',
-    'combat_r0_c1.png',
-    'combat_r0_c2.png',
-    'combat_r0_c3.png',
-    'combat_r0_c4.png',
-    'combat_r0_c5.png',
-  ],
-  // 6: cast (cheeks sparking -> electricity surge -> thunderbolt discharge -> recover)
-  [
-    'combat_r1_c0.png',
-    'combat_r1_c1.png',
-    'combat_r1_c2a.png',
-    'combat_r1_c2b.png',
-    'combat_r1_c3.png',
-    'combat_r1_c4.png',
-  ],
-  // 7: dash (Volt Tackle high-speed charge -> glide -> skid stop)
-  [
-    'combat_r2_c0.png',
-    'combat_r2_c1.png',
-    'combat_r2_c2.png',
-    'combat_r2_c3.png',
-    'combat_r2_c4.png',
-    'combat_r2_c5.png',
-  ],
-  // 8: backstep (dodge leap backward -> landing)
-  [
-    'combat_r3_c0.png',
-    'combat_r3_c1.png',
-    'combat_r3_c2.png',
-    'combat_r3_c3.png',
-    'combat_r3_c2.png',
-    'combat_r3_c0.png',
-  ],
-  // 9: crouch (low crouching stance)
-  [
-    'combat_r3_c4.png',
-    'combat_r3_c5.png',
-    'combat_r3_c4.png',
-    'combat_r3_c5.png',
-    'combat_r3_c4.png',
-    'combat_r3_c5.png',
-  ],
-  // 10: guard (raising paws and wrapping tail forward in defensive posture)
-  [
-    'movement_r3_c1.png',
-    'movement_r3_c2.png',
-    'movement_r3_c3.png',
-    'movement_r3_c4.png',
-    'movement_r3_c5.png',
-    'movement_r3_c6.png',
-  ],
-  // 11: hit (flinching back in pain)
-  [
-    'combat_r4_c0.png',
-    'combat_r4_c1.png',
-    'combat_r4_c0.png',
-    'combat_r4_c1.png',
-    'combat_r4_c0.png',
-    'combat_r4_c3.png',
-  ],
-  // 12: knockback (tumbling onto ground -> rolling -> pushing back up)
-  [
-    'combat_r4_c1.png',
-    'combat_r4_c2.png',
-    'combat_r4_c3.png',
-    'combat_r4_c2.png',
-    'combat_r4_c1.png',
-    'combat_r4_c0.png',
-  ],
-  // 13: faint (collapsing forward -> knocked out on belly with closed eyes)
-  [
-    'movement_r4_c0.png',
-    'movement_r4_c1.png',
-    'movement_r4_c2.png',
-    'movement_r4_c3.png',
-    'movement_r4_c4.png',
-    'movement_r4_c5.png',
-  ],
-  // 14: victory (joyful victory bounce and cheering with both hands raised!)
-  [
-    'combat_r4_c3.png',
-    'combat_r4_c4.png',
-    'combat_r4_c5.png',
-    'combat_r4_c4.png',
-    'combat_r4_c5.png',
-    'combat_r4_c4.png',
-  ],
-];
-
-const scale = 0.74;
 const overlays = [];
+let portrait;
 
-for (let r = 0; r < rowFrames.length; r++) {
-  for (let c = 0; c < 6; c++) {
-    const file = rowFrames[r][c];
-    const img = sharp(extracted + file);
-    const meta = await img.metadata();
-
-    const w = Math.round(meta.width * scale);
-    const h = Math.round(meta.height * scale);
-
-    // Dynamic vertical displacement for jumps, falls and celebration bounces
-    let yOffset = 0;
-    if (r === 2) {
-      yOffset = [0, -8, -18, -26, -18, -8][c]; // jump trajectory
-    } else if (r === 3) {
-      yOffset = [-24, -18, -12, -8, -4, 0][c]; // fall descending
-    } else if (r === 14) {
-      yOffset = [0, -8, -12, -8, -12, -8][c]; // victory hopping
+// Row order: idle, run, jump, fall, land, attack, cast, dash, backstep,
+// crouch, guard, hit, knockback, faint, victory. Six frames in each row.
+for (let row = 0; row < 15; row++) {
+  const top = rows[row];
+  const bottom = rows[row + 1];
+  const columns = [0];
+  // Find the transparent gutters near each expected column boundary.
+  for (let col = 1; col < 6; col++) {
+    const expected = Math.round((col * info.width) / 6);
+    let best = expected;
+    let bestScore = Infinity;
+    for (let x = expected - 16; x <= expected + 16; x++) {
+      let occupied = 0;
+      for (let y = top; y < bottom; y++) if (alpha(x, y) > 100) occupied++;
+      const score = occupied * 100 + Math.abs(x - expected);
+      if (score < bestScore) {
+        bestScore = score;
+        best = x;
+      }
     }
-
-    const resized = await img.resize(w, h).png().toBuffer();
-    const left = c * 160 + Math.round((160 - w) / 2);
-    // Baseline: y = 150 (leaves 10px floor margin, matching Lam Quy and Eevee)
-    const top = Math.max(r * 160 + 2, r * 160 + 150 - h + yOffset);
-
-    overlays.push({ input: resized, left, top });
+    columns.push(best);
+  }
+  columns.push(info.width);
+  for (let col = 0; col < 6; col++) {
+    let x0 = columns[col + 1],
+      x1 = -1,
+      y0 = bottom,
+      y1 = -1;
+    for (let y = top; y < bottom; y++) {
+      for (let x = columns[col]; x < columns[col + 1]; x++) {
+        if (alpha(x, y) > 8) {
+          x0 = Math.min(x0, x);
+          x1 = Math.max(x1, x);
+          y0 = Math.min(y0, y);
+          y1 = Math.max(y1, y);
+        }
+      }
+    }
+    if (x1 < x0) throw new Error(`Empty Pikachu frame ${row}:${col}`);
+    // A common scale retains pose proportions (especially crouch and faint).
+    const width = Math.round((x1 - x0 + 1) * 0.95);
+    const height = Math.round((y1 - y0 + 1) * 0.95);
+    if (width > 152 || height > 148) throw new Error(`Oversized Pikachu frame ${row}:${col}`);
+    const crop = await sharp(source)
+      .extract({ left: x0, top: y0, width: x1 - x0 + 1, height: y1 - y0 + 1 })
+      .png()
+      .toBuffer();
+    const input = await sharp(crop)
+      .flop() // Engine uses unflipped sprites for facing right.
+      .resize(width, height)
+      .png()
+      .toBuffer();
+    const lift =
+      row === 2
+        ? [0, 4, 10, 12, 8, 4][col]
+        : row === 3
+          ? [12, 10, 8, 6, 3, 0][col]
+          : row === 14
+            ? [0, 4, 8, 4, 8, 0][col]
+            : 0;
+    const left = Math.round((160 - width) / 2);
+    const frameTop = Math.max(2, 150 - height - lift);
+    overlays.push({ input, left: col * 160 + left, top: row * 160 + frameTop });
+    if (row === 0 && col === 0) portrait = { input, left, top: frameTop };
   }
 }
-
-// Build 960 x 2400 sprite sheet
+await mkdir(output, { recursive: true });
 await blank(960, 2400)
   .composite(overlays)
   .png()
   .toFile(output + 'pikachu-sheet.png');
-
-// Build 160 x 160 portrait from in-game sprite (matching Lam Quy, Water Slime, and Eevee)
-const portraitSprite = sharp(extracted + 'movement_r0_c0.png');
-const pMeta = await portraitSprite.metadata();
-const pW = Math.round(pMeta.width * scale);
-const pH = Math.round(pMeta.height * scale);
-const pResized = await portraitSprite.resize(pW, pH).png().toBuffer();
-
 await blank(160, 160)
-  .composite([
-    {
-      input: pResized,
-      left: Math.round((160 - pW) / 2),
-      top: 150 - pH,
-    },
-  ])
+  .composite([portrait])
   .png()
   .toFile(output + 'pikachu.png');
-
-console.log('Packaged Pikachu: 15 animation states × 6 frames and portrait.');
+console.log('Packaged electric fluffy Pikachu: 15 states × 6 frames and portrait.');
