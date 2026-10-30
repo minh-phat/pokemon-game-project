@@ -36,7 +36,6 @@ import {
   HYDRO_CROSSFIRE,
   createHydroDrop,
   hydroDropPosition,
-  hydroDropVisible,
 } from '@arena/game-data';
 import { decideAction, decideManualAction, decideMovement } from '@arena/game-ai';
 import {
@@ -870,10 +869,9 @@ export class BattleEngine {
         (drop) =>
           (age - drop.emittedAt) * Math.hypot(drop.vx, drop.vDepth) <= HYDRO_CROSSFIRE.range,
       );
-      const first = Math.max(0, Math.ceil((age - dt) / HYDRO_CROSSFIRE.emissionInterval));
+      const first = cast.hydroNextEmission ?? 0;
       const last = Math.floor(Math.min(age, s.active - 1e-9) / HYDRO_CROSSFIRE.emissionInterval);
       for (let emission = first; emission <= last; emission++) {
-        if (drops.some((drop) => drop.id === emission * 4)) continue;
         const fraction = Math.max(
           0,
           Math.min(1, (emission * HYDRO_CROSSFIRE.emissionInterval - (age - dt)) / dt),
@@ -888,7 +886,7 @@ export class BattleEngine {
             ),
           );
       }
-      cast.hydroDrops = drops;
+      cast.hydroNextEmission = Math.max(first, last + 1);
       cast.hydroSource = { x: f.x, depth: f.depth };
       if (this.isManuallyControlled(f)) {
         const walking = this.manualMovement.get(f.id);
@@ -904,33 +902,67 @@ export class BattleEngine {
       }
       f.sprinting = false;
       f.state = 'CastSkill';
-      if (age >= 0 && age < s.active) {
-        const pulse = Math.floor(age / HYDRO_CROSSFIRE.interval);
-        if (cast.channelTicks !== pulse) {
-          cast.channelTicks = pulse;
-          cast.hitIds = [];
-        }
+      const pulse = Math.floor(age / HYDRO_CROSSFIRE.interval);
+      if (cast.channelTicks !== pulse) {
+        cast.channelTicks = pulse;
+        cast.hitIds = [];
+      }
+      const contacts = new Map<string, { x: number; depth: number; y: number }>();
+      cast.hydroDrops = drops.filter((drop) => {
+        const from = hydroDropPosition(drop, Math.max(drop.emittedAt, age - dt));
+        const to = hydroDropPosition(drop, age);
+        const height = f.y + s.hitbox.altitude;
+        let nearest = terrainContact(
+          this.arena,
+          { ...from, y: height },
+          { ...to, y: height },
+          HYDRO_CROSSFIRE.width / 2,
+        );
+        let blocker: Fighter | undefined;
+        const dx = to.x - from.x,
+          dz = to.depth - from.depth;
+        const lengthSquared = dx * dx + dz * dz;
         for (const target of this.state.fighters) {
           if (
             !target.active ||
             target.hp <= 0 ||
             target.team === f.team ||
-            target.invulnerable > 0 ||
-            Math.abs(target.y - f.y) > 45 ||
-            !drops.some((drop) => {
-              if (!hydroDropVisible(drop, age)) return false;
-              const point = hydroDropPosition(drop, age);
-              return (
-                Math.hypot(target.x - point.x, target.depth - point.depth) <=
-                HYDRO_CROSSFIRE.width / 2 + fighterDefinition(target).collision.width / 2
-              );
-            }) ||
-            terrainContact(this.arena, f, target) < 1
+            Math.abs(target.y - f.y) > 45
           )
             continue;
+          const radius = HYDRO_CROSSFIRE.width / 2 + fighterDefinition(target).collision.width / 2;
+          const ox = from.x - target.x,
+            oz = from.depth - target.depth;
+          const c = ox * ox + oz * oz - radius * radius;
+          const b = ox * dx + oz * dz;
+          const discriminant = b * b - lengthSquared * c;
+          const contact =
+            c <= 0
+              ? 0
+              : lengthSquared > 0 && discriminant >= 0
+                ? (-b - Math.sqrt(discriminant)) / lengthSquared
+                : Infinity;
+          // Select the first body or wall along this frame's travel, regardless of roster order.
+          if (
+            contact >= 0 &&
+            contact <= 1 &&
+            (contact < nearest || (contact === 1 && nearest === 1))
+          ) {
+            nearest = contact;
+            blocker = target;
+          }
+        }
+        if (blocker) contacts.set(blocker.id, { ...from, y: height });
+        // Absorb water permanently: blocked droplets must never reappear past the obstacle.
+        return !blocker && nearest === 1;
+      });
+      if (age >= 0 && age < s.active) {
+        for (const target of this.state.fighters) {
+          const origin = contacts.get(target.id);
+          if (!origin || target.invulnerable > 0) continue;
           if (!cast.hitIds.includes(target.id)) {
             cast.hitIds.push(target.id);
-            this.hit(f, target, s, (s.damagePercent * HYDRO_CROSSFIRE.interval) / s.active);
+            this.hit(f, target, s, (s.damagePercent * HYDRO_CROSSFIRE.interval) / s.active, origin);
           }
           const distance = Math.hypot(target.x - f.x, target.depth - f.depth) || 1;
           const push = HYDRO_CROSSFIRE.pushSpeed * dt;

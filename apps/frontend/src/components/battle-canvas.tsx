@@ -16,6 +16,7 @@ export function BattleCanvas({
   useEffect(() => {
     let disposed = false;
     let game: import('phaser').Game | undefined;
+    let resizeObserver: ResizeObserver | undefined;
     void Promise.all([import('phaser'), import('@/game/arena-scene')])
       .then(([Phaser, { createArenaScene }]) => {
         if (disposed || !container.current) return;
@@ -29,8 +30,8 @@ export function BattleCanvas({
           // stalls on software-rendered browsers while preserving every effect.
           type: Phaser.CANVAS,
           parent: container.current,
-          width: 1200,
-          height: 760,
+          width: container.current.clientWidth,
+          height: container.current.clientHeight,
           backgroundColor: '#28443c',
           scene: Scene,
           // Frame against the actual viewport, including narrow screens.
@@ -43,6 +44,13 @@ export function BattleCanvas({
           banner: false,
           fps: { target: 60, forceSetTimeOut: false },
         });
+        resizeObserver = new ResizeObserver(([entry]) => {
+          if (disposed || !game || !entry) return;
+          const width = Math.round(entry.contentRect.width);
+          const height = Math.round(entry.contentRect.height);
+          if (width > 0 && height > 0) game.scale.resize(width, height);
+        });
+        resizeObserver.observe(container.current);
         game.canvas.setAttribute(
           'aria-label',
           'Animated Pokémon battle arena. In manual mode, select an active Pokémon using the controls in this arena.',
@@ -56,6 +64,7 @@ export function BattleCanvas({
       );
     return () => {
       disposed = true;
+      resizeObserver?.disconnect();
       game?.destroy(true);
     };
   }, [arena]);

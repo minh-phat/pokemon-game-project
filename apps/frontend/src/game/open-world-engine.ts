@@ -230,10 +230,7 @@ export class OpenWorldEngine {
           snapshot: this.encounter?.state ?? null,
           paused: this.input.paused || document.hidden || this.encounter?.state.phase !== 'battle',
           reducedMotion: this.input.reducedMotion,
-          viewport:
-            this.encounter?.state.arenaDefinition?.worldTerrain && this.target
-              ? this.combatViewport()
-              : undefined,
+          viewport: this.target ? this.combatViewport() : undefined,
         }));
       })
       .catch(() => {
@@ -1333,7 +1330,9 @@ export class OpenWorldEngine {
       if (snapshot) {
         const width = this.surface.clientWidth;
         const height = this.surface.clientHeight;
-        const frame = automaticCameraFrame(snapshot, 0, { width: 1200 }, width, height);
+        // World combat can roam beyond the encounter's original arena rectangle.
+        // Follow the selected fighter without clamping to that artwork's bounds.
+        const frame = automaticCameraFrame(snapshot, 0, { width: 1200 }, width, height, 'world');
         const origin = project(this.target.x, this.target.y, this.combatLevel);
         point = {
           x: origin.x + (frame.x - 650) * WORLD_COMBAT_HEIGHT_SCALE,

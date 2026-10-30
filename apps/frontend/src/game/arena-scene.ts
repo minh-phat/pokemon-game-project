@@ -353,15 +353,22 @@ export function createArenaScene(
         const frame = automaticCameraFrame(snapshot, myTeam, arena, camera.width, camera.height);
         const blend = settings.reducedMotion ? 1 : 1 - Math.exp(-delta / 180);
         // Widen immediately to include new arrivals; ease back in as the group closes up.
-        const zoom = Math.min(frame.zoom, Phaser.Math.Linear(camera.zoom, frame.zoom, blend));
+        const zoom = Math.max(
+          frame.minZoom,
+          Math.min(frame.zoom, Phaser.Math.Linear(camera.zoom, frame.zoom, blend)),
+        );
         const halfW = camera.width / (2 * zoom);
         const halfH = camera.height / (2 * zoom);
         const centerX = Phaser.Math.Linear(camera.midPoint.x, frame.x, blend);
         const centerY = Phaser.Math.Linear(camera.midPoint.y, frame.y, blend);
         camera.setZoom(zoom);
         camera.centerOn(
-          Phaser.Math.Clamp(centerX, frame.right - halfW, frame.left + halfW),
-          Phaser.Math.Clamp(centerY, frame.bottom - halfH, frame.top + halfH),
+          frame.minZoom > 0
+            ? Phaser.Math.Clamp(centerX, halfW, arena.width - halfW)
+            : Phaser.Math.Clamp(centerX, frame.right - halfW, frame.left + halfW),
+          frame.minZoom > 0
+            ? Phaser.Math.Clamp(centerY, halfH, (arena.height ?? 760) - halfH)
+            : Phaser.Math.Clamp(centerY, frame.bottom - halfH, frame.top + halfH),
         );
       }
       if (!settings.reducedMotion)

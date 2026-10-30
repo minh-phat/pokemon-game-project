@@ -264,7 +264,8 @@ export class SkillVfx {
             );
             this.attached
               .get(id)!
-              .sprite.setDepth(11.9 + point.depth / 300)
+              .sprite.setOrigin(1, 0.5)
+              .setDepth(11.9 + point.depth / 300)
               .setAlpha((reduced ? 0.65 : 0.88) * fade)
               .setFlipY(drop.id % 3 === 0);
             live.add(id);

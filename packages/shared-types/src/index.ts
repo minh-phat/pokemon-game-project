@@ -245,6 +245,7 @@ export interface Cast {
   hitIds: string[];
   channelTicks?: number;
   hydroDrops?: HydroDrop[];
+  hydroNextEmission?: number;
   hydroSource?: { x: number; depth: number };
   autoBasic?: boolean;
   targetId?: string;

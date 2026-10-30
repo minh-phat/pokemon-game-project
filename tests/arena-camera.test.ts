@@ -14,7 +14,7 @@ function battle() {
   );
   engine.startBattle();
   const snapshot = engine.getBattleSnapshot();
-  snapshot.fighters[0].x = 200;
+  snapshot.fighters[0].x = 700;
   snapshot.fighters[1].x = 1800;
   return snapshot;
 }
@@ -34,7 +34,7 @@ it('follows the local controlled Pokémon, observes survivors, and resumes on re
   own.active = true;
   expect(automaticCameraFrame(snapshot, 0, arena, 1200, 760).x).toBe(own.x);
   snapshot.manualTeams[0] = false;
-  expect(automaticCameraFrame(snapshot, 0, arena, 1200, 760).x).toBe(1000);
+  expect(automaticCameraFrame(snapshot, 0, arena, 1200, 760).x).toBe(1250);
   snapshot.manualTeams[1] = true;
   snapshot.controlledFighterIds[1] = opponent.id;
   expect(automaticCameraFrame(snapshot, 1, arena, 1200, 760).x).toBe(opponent.x);
@@ -65,7 +65,7 @@ it('fits the whole group in portrait and landscape, including jumps and depth', 
 
 it('shows the arena when empty and observes all fighters for a spectator', () => {
   const snapshot = battle();
-  expect(automaticCameraFrame(snapshot, -1, arena, 1200, 760).x).toBe(1000);
+  expect(automaticCameraFrame(snapshot, -1, arena, 1200, 760).x).toBe(1250);
   snapshot.fighters.forEach((f) => {
     f.active = false;
   });
@@ -73,4 +73,29 @@ it('shows the arena when empty and observes all fighters for a spectator', () =>
   expect(frame.x).toBe(1200);
   expect(frame.y).toBe(600);
   expect(frame.zoom).toBe(0.5);
+});
+
+it('fills the viewport and keeps the camera inside the arena while following near every edge', () => {
+  const snapshot = battle();
+  const own = snapshot.fighters[0];
+  snapshot.manualTeams[0] = true;
+  snapshot.controlledFighterIds[0] = own.id;
+  for (const [width, height] of [
+    [1440, 1000],
+    [1920, 1080],
+    [390, 844],
+    [844, 390],
+  ]) {
+    for (const [x, depth] of [
+      [55, -300],
+      [1145, 200],
+    ]) {
+      Object.assign(own, { x, depth });
+      const frame = automaticCameraFrame(snapshot, 0, { width: 1200 }, width, height);
+      expect(frame.x - width / (2 * frame.zoom)).toBeGreaterThanOrEqual(-1e-8);
+      expect(frame.x + width / (2 * frame.zoom)).toBeLessThanOrEqual(1200 + 1e-8);
+      expect(frame.y - height / (2 * frame.zoom)).toBeGreaterThanOrEqual(-1e-8);
+      expect(frame.y + height / (2 * frame.zoom)).toBeLessThanOrEqual(760 + 1e-8);
+    }
+  }
 });
