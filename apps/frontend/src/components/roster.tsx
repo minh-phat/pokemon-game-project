@@ -1,6 +1,9 @@
 'use client';
 import { formatSkillRange } from '@/lib/skill-range';
 import { useState } from 'react';
+import { SkillTraining } from './skill-training';
+import type { SpeciesId } from '@arena/shared-types';
+import { useLanguage } from '@/lib/i18n';
 import { useCopy } from '@/lib/i18n';
 import { ArrowRight, Check, Heart, Plus, Search, Shield, Swords, Zap } from 'lucide-react';
 import {
@@ -22,6 +25,8 @@ import { Button } from './ui/button';
 import { ElementBadge, PageTitle, Portrait, Steps, TeamSlots } from './common';
 export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean }) {
   const c = useCopy();
+  const { t } = useLanguage();
+  const [training, setTraining] = useState<{ species: SpeciesId; skillId: string } | null>(null);
   const formatPower = (value: number) =>
     value.toLocaleString(state.language === 'vi' ? 'vi-VN' : 'en-US');
   const state = useGame();
@@ -67,6 +72,7 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
   }
   return (
     <div className={`page-wrap roster-page ${inspectOnly ? 'pet-library' : ''}`}>
+      {training && <SkillTraining {...training} onClose={() => setTraining(null)} />}
       {!inspectOnly && <Steps step={3} />}
       <PageTitle
         eyebrow={inspectOnly ? c('THE SUMMONER’S ARCHIVE') : c('YOUR ADVENTURE. YOUR TEAM.')}
@@ -417,12 +423,25 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
               <div className="skill-row" key={s.id}>
                 <span className={`skill-number element-${s.element}`}>0{i + 1}</span>
                 <div>
-                  <strong>{c(s.name)}</strong>
+                  <button
+                    className="skill-test-name"
+                    onClick={() => setTraining({ species: selected.id, skillId: s.id })}
+                  >
+                    <strong>{c(s.name)}</strong>
+                  </button>
                   <p>{s.description}</p>
                   <small>
                     {s.damagePercent}% {c('Attack')} · {s.energy} {c('energy')} · {s.cooldown}s{' '}
                     {c('cooldown')} · {formatSkillRange(s, state.language)}
                   </small>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="skill-test-button"
+                    onClick={() => setTraining({ species: selected.id, skillId: s.id })}
+                  >
+                    <Swords size={14} /> {t('Test chiêu', 'Test move')}
+                  </Button>
                 </div>
               </div>
             ))}

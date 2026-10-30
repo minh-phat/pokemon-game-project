@@ -3494,3 +3494,46 @@ select option {
 .account-error {
   color: #a32e2e;
 }
+
+.skill-test-name {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.skill-test-name:hover {
+  text-decoration: underline;
+}
+.skill-test-button {
+  display: flex;
+  margin-top: 10px;
+}
+.dialog-content.skill-training-dialog {
+  width: min(960px, calc(100vw - 24px));
+  max-width: 960px;
+  max-height: 92dvh;
+  overflow-y: auto;
+}
+.skill-training-arena {
+  width: 100%;
+  aspect-ratio: 900 / 460;
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  margin: 16px 0;
+  background: radial-gradient(ellipse, #395c4f, #172d29);
+  border: 1px solid #728a64;
+}
+.skill-training-arena canvas {
+  display: block;
+}
+.skill-training-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}

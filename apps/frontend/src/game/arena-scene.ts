@@ -40,6 +40,7 @@ export type WorldArenaSource = () => {
   snapshot: import('@arena/shared-types').BattleSnapshot | null;
   paused: boolean;
   reducedMotion: boolean;
+  trainingDummy?: { id: string; label: string };
   viewport?: { x: number; y: number; width: number; height: number };
 };
 export function createArenaScene(
@@ -96,6 +97,17 @@ export function createArenaScene(
       });
     }
     create() {
+      if (worldSource?.().trainingDummy) {
+        const art = this.make.graphics({ x: 0, y: 0 });
+        art.fillStyle(0x78563b).fillRect(74, 70, 12, 70).fillRect(40, 132, 80, 9);
+        art.fillStyle(0xb89359).fillRoundedRect(39, 45, 82, 60, 16);
+        art.fillStyle(0xe0bd7d).fillCircle(80, 28, 21);
+        art.lineStyle(5, 0x704d35).strokeCircle(80, 75, 20).strokeCircle(80, 75, 8);
+        art.lineStyle(3, 0x463a30).lineBetween(68, 23, 75, 30).lineBetween(75, 23, 68, 30);
+        art.lineBetween(86, 23, 93, 30).lineBetween(93, 23, 86, 30);
+        art.generateTexture('training-dummy', 160, 160);
+        art.destroy();
+      }
       if (!worldSource && arenaId !== 'ruins') {
         for (let i = 0; i < 4; i++)
           this.layers.push(
@@ -500,7 +512,7 @@ export function createArenaScene(
               hydroFade,
           );
         const animation = `${f.species}-${f.animation}`;
-        if (animation !== v.lastAnimation) {
+        if (f.id !== external?.trainingDummy?.id && animation !== v.lastAnimation) {
           v.sprite.play(animation);
           v.lastAnimation = animation;
         }
@@ -565,6 +577,10 @@ export function createArenaScene(
                 );
           v.sprite.anims.pause();
           v.sprite.setFrame(row * 6 + frame);
+        }
+        if (f.id === external?.trainingDummy?.id) {
+          v.sprite.stop().setTexture('training-dummy').setScale(0.82).setFlipX(false);
+          v.label.setText(external.trainingDummy.label);
         }
         v.shadow
           .setVisible(!hidden && !liquidBinding && (hoverHeight > 0 ? faintAlpha > 0 : !faint))
