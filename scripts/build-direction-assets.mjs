@@ -6,7 +6,7 @@ const output = 'apps/frontend/public/assets';
 const ids = process.argv.slice(2);
 const species = ids.length
   ? ids
-  : ['water-slime', 'charmander', 'lam-quy', 'eevee', 'runedrake', 'pikachu'];
+  : ['water-slime', 'charmander', 'lam-quy', 'eevee', 'runedrake', 'pikachu', 'bulbasaur'];
 await mkdir(output, { recursive: true });
 
 for (const id of species) {

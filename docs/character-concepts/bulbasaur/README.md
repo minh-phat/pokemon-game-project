@@ -25,6 +25,9 @@ node scripts/preview-bulbasaur.mjs
 
 - `apps/frontend/public/assets/bulbasaur-sheet.png`: 960×2400, 15 hàng × 6 ô, mỗi ô 160×160, alpha thật.
 - `apps/frontend/public/assets/bulbasaur.png`: chân dung 160×160, alpha thật.
+- `apps/frontend/public/assets/bulbasaur-directions.png`: 960×960, giữ hai hàng đứng/chạy ngang và thêm 24 frame chạy lên, chéo lên phải, chéo xuống phải, xuống; lật ảnh cho các hướng trái để đủ 8 hướng.
+
+Các hướng mới được tạo bằng công cụ `image_gen` tích hợp, dùng `thorn-grove-v1/run.png` làm mẫu tạo hình. Ảnh nguồn, prompt đầy đủ và thông tin cắt frame nằm trong `docs/character-concepts/directions-v1/bulbasaur*`. Build lại bằng `node scripts/build-direction-assets.mjs bulbasaur`; xem chuyển động tại `docs/directional-animation-preview.html`. Đấu trường và thế giới mở tự tải atlas từ manifest. Đứng chờ ở góc trước/sau dùng tư thế đầu với nhịp thở; nhảy/rơi/tiếp đất dùng tư thế chạy phù hợp theo cơ chế hiện có. Các đòn đánh vẫn dùng bảng chiến đấu gốc.
 
 `ASSETS` dùng hai file PNG này cho chọn nhân vật, đấu trường và thế giới mở. Các SVG cũ chỉ là nguồn legacy. Bộ ảnh và builder của Charmander vẫn độc lập.
 

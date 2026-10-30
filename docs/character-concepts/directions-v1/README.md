@@ -2,7 +2,7 @@
 
 Generated with the built-in `image_gen` tool using each existing portrait as its identity/style reference. Sources retain generated alpha. `scripts/build-direction-assets.mjs` finds transparent grid seams, registers all poses to a fixed baseline and packages runtime atlases without changing the original combat sheets.
 
-Available: Water Slime, Charmander, Lam Quy (`squirtle`), Eevee and Runedrake. Pikachu and Bulbasaur generation requests were rejected by the image service; they intentionally retain existing art and are not advertised as supporting eight views.
+Available: Water Slime, Charmander, Lam Quy (`squirtle`), Eevee, Runedrake, the star-tail creature under `pikachu`, and Bulbasaur. Bulbasaur uses its existing thorn-grove run sheet as the identity/style reference; its 24 new generated poses and original side animations support all eight headings. The exact prompt is saved in `bulbasaur-prompt.json`.
 
 Each runtime atlas has six columns and six rows: original east idle, original east run, north run, northeast run, southeast run, south run. Left-facing directions mirror the corresponding right-facing view. Front/back idle holds the first authored pose with subtle runtime breathing. North/south/diagonal jump and fall hold a lifted running pose; landing adds a brief squash. These are locomotion additions, not separately authored directional attacks. Casts and other combat actions continue to use their existing action sheets.
 

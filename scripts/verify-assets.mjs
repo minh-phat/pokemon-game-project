@@ -18,6 +18,7 @@ const expected = [
   'charmander-sheet.png',
   'bulbasaur.png',
   'bulbasaur-sheet.png',
+  'bulbasaur-directions.png',
   'water-slime.png',
   'water-slime-sheet.png',
   'water-slime-wrap.png',
@@ -113,3 +114,13 @@ if (
   !pikachuDirections.hasAlpha
 )
   throw new Error('Invalid star-tail summon directional sheet');
+
+const bulbasaurDirections = await sharp(
+  resolve('apps/frontend/public/assets/bulbasaur-directions.png'),
+).metadata();
+if (
+  bulbasaurDirections.width !== 960 ||
+  bulbasaurDirections.height !== 960 ||
+  !bulbasaurDirections.hasAlpha
+)
+  throw new Error('Invalid Bulbasaur directional sheet');

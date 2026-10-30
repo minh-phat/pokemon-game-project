@@ -80,9 +80,17 @@ describe('eight-direction locomotion', () => {
     expect(creatureLocomotion({ ...fighter, species: 'pikachu' }, 'north', 1, false)?.frame).toBe(
       14,
     );
-    for (const species of ['bulbasaur'] as SpeciesId[])
-      if (!ASSETS.locomotion[species])
-        expect(creatureLocomotion({ ...fighter, species }, 'north', 1, false)).toBeNull();
+    expect(ASSETS.locomotion.bulbasaur).toBe('/assets/bulbasaur-directions.png');
+    for (const direction of DIRECTIONS) {
+      const bulbasaur = { ...fighter, species: 'bulbasaur' as SpeciesId };
+      expect(creatureLocomotion(bulbasaur, direction, 0, false)).toMatchObject({
+        frame: directionRow(direction) * 6,
+        flipX: directionFlipped(direction),
+      });
+      expect(
+        creatureLocomotion({ ...bulbasaur, animation: 'cast' }, direction, 0, false),
+      ).toBeNull();
+    }
   });
 });
 
