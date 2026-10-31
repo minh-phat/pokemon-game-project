@@ -5,6 +5,7 @@ import { randomInt } from 'node:crypto';
 import express from 'express';
 import { DEFAULT_RULES, JoinSchema } from '@arena/shared-types';
 import { BattleSession } from './session';
+import { MatchRoom } from './match-room';
 
 class ArenaRoom extends Room {
   maxClients = 2;
@@ -127,5 +128,6 @@ const server = new Server({
   greet: false,
 });
 server.define('arena', ArenaRoom);
+server.define('matchmaking', MatchRoom);
 await server.listen(Number(process.env.GAME_PORT ?? 2567), '0.0.0.0');
 console.log('Authoritative game rooms ready at ws://localhost:2567');

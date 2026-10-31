@@ -90,6 +90,9 @@ export class AuthDatabase {
         await db.collection<User>('users').createIndex({ email: 1 }, { unique: true });
         await db.collection<Session>('sessions').createIndex({ tokenHash: 1 }, { unique: true });
         await db
+          .collection('matchTickets')
+          .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+        await db
           .collection<Session>('sessions')
           .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
         return db;
@@ -222,6 +225,29 @@ export class AuthController {
     const { db, user } = await this.owner(req);
     await migrateLegacyPets(db, user);
     return loadPetCollection(db, user);
+  }
+  @Get('rank') async rank(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    res.setHeader('Cache-Control', 'no-store');
+    const { user } = await this.owner(req);
+    return { points: (user as User & { rankPoints?: number }).rankPoints ?? 0 };
+  }
+  @Post('match-ticket') async matchTicket(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    this.checkOrigin(req);
+    res.setHeader('Cache-Control', 'no-store');
+    const { db, user } = await this.owner(req);
+    await migrateLegacyPets(db, user);
+    const token = randomBytes(32).toString('hex');
+    await db
+      .collection('matchTickets')
+      .insertOne({
+        tokenHash: digest(token),
+        userId: user._id,
+        expiresAt: new Date(Date.now() + 60000),
+      });
+    return { token };
   }
   @Post('summon') async summon(
     @Req() req: Request,

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ArrowRight,
   Check,
@@ -14,12 +14,35 @@ import {
 import { useGame } from '@/lib/store';
 import { useLanguage } from '@/lib/i18n';
 import { Dialog } from './ui/dialog';
+import { findMatch } from '@/lib/network';
 
 type ArenaMode = 'casual' | 'ranked' | 'custom';
 
 export function ArenaScreen() {
   const { t } = useLanguage();
-  const { go, set } = useGame();
+  const { go, set, user } = useGame();
+  const [rankPoints, setRankPoints] = useState<number | null>(null);
+  useEffect(() => {
+    if (!user) {
+      setRankPoints(null);
+      return;
+    }
+    let active = true;
+    void fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'}/auth/rank`, {
+      credentials: 'include',
+      cache: 'no-store',
+    })
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data) => {
+        if (active) setRankPoints(data.points);
+      })
+      .catch(() => {
+        if (active) setRankPoints(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [user]);
   const [mode, setMode] = useState<ArenaMode>(
     useGame.getState().mode === 'online' ? 'custom' : 'casual',
   );
@@ -112,11 +135,13 @@ export function ArenaScreen() {
               {mode === 'custom'
                 ? t('Phòng riêng · PvP 1vs1', 'Private room · PvP 1v1')
                 : ranked
-                  ? t('Chưa xếp hạng', 'Unranked')
+                  ? rankPoints === null
+                    ? t('Đăng nhập để xem hạng', 'Sign in to view rank')
+                    : `${rankPoints >= 1600 ? t('Kim cương', 'Diamond') : rankPoints >= 1000 ? t('Bạch kim', 'Platinum') : rankPoints >= 600 ? t('Vàng', 'Gold') : rankPoints >= 300 ? t('Bạc', 'Silver') : t('Đồng', 'Bronze')} · ${rankPoints} ${t('điểm', 'points')}`
                   : t('Không tính điểm hạng', 'No rank points')}
               <small>
                 {ranked
-                  ? t('Hành trình thứ hạng sắp bắt đầu', 'Your ranked journey is coming soon')
+                  ? t('Thắng +25 · thua -15 · hòa không đổi', 'Win +25 · loss -15 · draw unchanged')
                   : mode === 'custom'
                     ? t('Sử dụng PvP hiện tại', 'Existing PvP rooms')
                     : t(
@@ -255,21 +280,25 @@ export function ArenaScreen() {
                 {players}vs{players} <i>·</i> {petLabel} / {t('người', 'player')}
               </strong>
             </div>
-            <button className="fantasy-frame arena-continue" disabled>
-              <LockKeyhole size={18} />
-              {t('Tìm trận · Sắp ra mắt', 'Find match · Coming soon')}
+            <button
+              className="fantasy-frame arena-continue"
+              disabled={tactical || players !== 1 || pets === 'all'}
+              onClick={() => {
+                if (!user) {
+                  set({ accountView: 'login' });
+                  return;
+                }
+                if (pets !== 'all') void findMatch(mode, pets);
+              }}
+            >
+              <Swords size={18} />
+              {t('Tìm trận', 'Find match')}
             </button>
             <p className="arena-help">
               {t(
-                'Bạn có thể chọn trước cấu hình. Tính năng ghép trận',
-                'Explore your match settings. Matchmaking',
+                'Đối kháng 1vs1 với 3 hoặc 6 thú. Sau khi ghép trận, bạn có 15 giây chọn đội hình; sau 60 giây tìm trận sẽ gặp máy nếu chưa có đối thủ.',
+                'Play 1v1 with 3 or 6 companions. After matching, you have 15 seconds to choose your team; a bot joins if no opponent is found after 60 seconds.',
               )}
-              {ranked
-                ? t(
-                    ' và tính điểm hạng sẽ được bổ sung sau.',
-                    ' and rank scoring will be added later.',
-                  )
-                : t(' sẽ được bổ sung sau.', ' will be added later.')}
             </p>
           </section>
         )}

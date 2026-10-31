@@ -24,7 +24,7 @@ export type SpeciesId = z.infer<typeof SpeciesSchema>;
 export type Element = 'normal' | 'electric' | 'fire' | 'water' | 'grass' | 'poison';
 export const RulesSchema = z
   .object({
-    teamSize: z.number().int().min(1).max(4),
+    teamSize: z.number().int().min(1).max(6),
     activeSize: z.number().int().min(1).max(4),
     duration: z.union([z.literal(0), z.literal(60), z.literal(120), z.literal(180)]),
     difficulty: z.enum(['easy', 'normal', 'hard']),
@@ -49,7 +49,7 @@ export const DEFAULT_RULES: MatchRules = {
   elements: true,
   switching: true,
 };
-export const TeamSchema = z.array(SpeciesSchema).min(1).max(4);
+export const TeamSchema = z.array(SpeciesSchema).min(1).max(6);
 export function validateTeam(team: unknown, rules: MatchRules): SpeciesId[] {
   const parsed = TeamSchema.parse(team);
   if (parsed.length !== rules.teamSize) throw new Error(`Choose exactly ${rules.teamSize} Pokémon`);
@@ -496,6 +496,16 @@ export interface OwnedPet {
   quality: PetQuality;
   level: number;
   acquiredAt: string;
+}
+export interface MatchSelectionSnapshot {
+  pets: OwnedPet[];
+  selected: string[];
+  revision: number;
+  ready: boolean;
+  opponentReady: boolean;
+  deadline: number;
+  serverNow: number;
+  size: 3 | 6;
 }
 export function summonQualityOdds(attempts: number): Record<PetQuality, number> {
   const progress = Math.min(1000, Math.max(0, attempts)) / 1000;

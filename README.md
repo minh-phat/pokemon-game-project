@@ -126,7 +126,15 @@ The frontend currently imports immutable game data from the shared workspace, so
 ## Limitations and next improvements
 
 - Art and synthesized audio are authored placeholders of a consistent quality, not production-licensed Pokémon assets. Names/designs remain Pokémon IP. A commercial release needs appropriate rights or an original creature roster.
-- Balancing is an initial pass. There are no competitive rankings or public matchmaking. Account Pets support persistent levels, experience and open-world contracts.
+- Balancing is an initial pass. Account Pets support persistent levels, experience and open-world contracts.
+
+### Đấu thường và đấu hạng
+
+Đăng nhập và sở hữu ít nhất 3 hoặc 6 thú để tìm trận đối kháng 1vs1. Đấu thường ghép người cùng chế độ và số thú dựa trên chiến lực của các thú mạnh nhất theo cấp và phẩm chất, với tổng chiến lực chênh lệch không quá 20% so với đội yếu hơn. Đấu hạng ghép người cùng bậc và số thú, không giới hạn chiến lực. Sau khi ghép, mỗi người có 15 giây chọn bất kỳ thú nào mình sở hữu; nếu chưa chọn đủ, các vị trí trống được bổ sung bằng thú mạnh nhất còn lại. Hai người có thể xác nhận để bắt đầu sớm. Nếu sau 60 giây chưa tìm được người phù hợp, đối thủ máy dùng đội hình ngẫu nhiên có tổng chiến lực chênh lệch không quá 20% so với đội thực tế được chọn; bản đồ được chọn ngẫu nhiên trong bốn bản đồ đối kháng. Chiến thuật, 2vs2 và toàn bộ thú chưa hỗ trợ tìm trận.
+
+Điểm hạng ban đầu là 0; thắng +25, thua -15 (tối thiểu 0), hòa không đổi. Các bậc Đồng, Bạc, Vàng, Bạch kim và Kim cương bắt đầu lần lượt tại 0, 300, 600, 1000 và 1600 điểm. Kết quả do máy chủ trận đấu ghi vào MongoDB. Rời trận sau khi ghép được tính là thua.
+
+Hàng đợi và trận đấu nằm trong bộ nhớ máy chủ phòng: dùng một tiến trình game-server để người chơi tìm thấy nhau. Khởi động lại tiến trình sẽ hủy hàng đợi và các trận đang chạy; cần MongoDB cho tài khoản, thú và điểm hạng. Kết quả chưa được ghi khi tiến trình dừng đột ngột có thể bị mất.
 - Online uses full MessagePack snapshots at 20 Hz rather than delta-compressed schema patches. State stays in one process. Rate limits are process-local; internet-scale abuse/load hardening is not complete.
 - Desktop Chrome and a mobile-sized Chrome viewport were exercised. Real mobile devices, Safari/Firefox, GPU diversity, screen-reader behavior, and high-latency networks need a wider test matrix. No universal 60 FPS or internet-latency guarantee is claimed.
 - Audio starts muted, respects autoplay restrictions, and uses short synthesized loops. Unlimited matches have no artificial timeout; the tested roster combinations all resolve, but future balance changes can introduce stalemates.

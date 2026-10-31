@@ -74,22 +74,24 @@ export function BattleResultOverlay({
           </span>
         </div>
         <div className="result-buttons">
-          <Button
-            onClick={() => {
-              if (online) sendRoom('rematch', true);
-              else state.go('roster');
-            }}
-            disabled={
-              online && !!state.lobby?.players.find((p) => p.id === state.sessionId)?.rematch
-            }
-          >
-            <RotateCcw size={17} />
-            {online
-              ? state.lobby?.players.find((p) => p.id === state.sessionId)?.rematch
-                ? 'Waiting for opponent…'
-                : 'Request rematch'
-              : 'Play again'}
-          </Button>
+          {!state.matchmade && (
+            <Button
+              onClick={() => {
+                if (online) sendRoom('rematch', true);
+                else state.go('roster');
+              }}
+              disabled={
+                online && !!state.lobby?.players.find((p) => p.id === state.sessionId)?.rematch
+              }
+            >
+              <RotateCcw size={17} />
+              {online
+                ? state.lobby?.players.find((p) => p.id === state.sessionId)?.rematch
+                  ? 'Waiting for opponent…'
+                  : 'Request rematch'
+                : 'Play again'}
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={() => {

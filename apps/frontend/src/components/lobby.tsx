@@ -6,6 +6,7 @@ import { leaveRoom, sendRoom } from '@/lib/network';
 import { ARENAS, POKEMON } from '@arena/game-data';
 import { Button } from './ui/button';
 import { PageTitle, Portrait } from './common';
+import { MatchSelectionScreen } from './match-selection';
 export function LobbyScreen() {
   const c = useCopy();
   const state = useGame();
@@ -14,17 +15,21 @@ export function LobbyScreen() {
     return (
       <div className="page-wrap narrow">
         <PageTitle
-          eyebrow="ONLINE 1V1"
+          eyebrow={state.matchmade ? 'TÌM TRẬN 1VS1' : 'ONLINE 1V1'}
           title={state.connection === 'lost' ? c('Room unavailable') : c('Finding your arena…')}
           description={
             state.connection === 'lost'
               ? c('Return home to create or join a new room.')
-              : c('Connecting to the game server.')
+              : state.matchmade
+                ? 'Đang tìm đối thủ phù hợp. Sau 60 giây, bạn sẽ đấu với máy.'
+                : c('Connecting to the game server.')
           }
         />
-        <Button onClick={leaveRoom}>{c('Return home')}</Button>
+        {state.error && <p role="alert">{state.error}</p>}
+        <Button onClick={leaveRoom}>{state.matchmade ? 'Hủy tìm trận' : c('Return home')}</Button>
       </div>
     );
+  if (state.matchmade) return <MatchSelectionScreen />;
   const me = lobby.players.find((p) => p.id === state.sessionId),
     host = lobby.hostId === state.sessionId;
   const arena = ARENAS.find((a) => a.id === lobby.rules.arena)!;

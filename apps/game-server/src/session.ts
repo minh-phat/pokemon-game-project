@@ -6,6 +6,8 @@ import {
   validateTeam,
   type LobbySnapshot,
   type MatchRules,
+  type OwnedPet,
+  type PetProgression,
 } from '@arena/shared-types';
 
 /** Transport-independent room policy; persistence can be attached outside this class. */
@@ -15,6 +17,8 @@ export class BattleSession {
   lastActivity = Date.now();
   private operations = new Map<string, { tokens: number; time: number }>();
   private movements = new Map<string, { tokens: number; time: number }>();
+  private matchedTeams?: [OwnedPet[], OwnedPet[]];
+  private botId?: string;
   constructor(
     code: string,
     rules: unknown = DEFAULT_RULES,
@@ -29,6 +33,33 @@ export class BattleSession {
       countdown: 0,
       reconnectSeconds: 30,
     };
+  }
+  startMatched(
+    players: [
+      { id: string; name: string; pets: OwnedPet[] },
+      { id: string; name: string; pets: OwnedPet[] },
+    ],
+    bot = false,
+  ) {
+    this.prepareMatched(players, bot);
+    this.startPreparedMatched([players[0].pets, players[1].pets]);
+  }
+  prepareMatched(
+    players: [{ id: string; name: string }, { id: string; name: string }],
+    bot = false,
+  ) {
+    if (bot) this.botId = players[1].id;
+    for (const player of players) this.join(player.id, player.name);
+  }
+  startPreparedMatched(teams: [OwnedPet[], OwnedPet[]]) {
+    this.matchedTeams = teams;
+    for (const [index, player] of this.lobby.players.entries()) {
+      this.select(
+        player.id,
+        teams[index].map((pet) => pet.species),
+      );
+      this.ready(player.id, true);
+    }
   }
   join(id: string, name: unknown) {
     if (this.lobby.phase !== 'lobby' || this.lobby.players.length >= 2)
@@ -124,12 +155,24 @@ export class BattleSession {
       if (this.lobby.countdown <= 0) {
         const [a, b] = this.lobby.players;
         this.engine = initializeBattle(
-          { rules: this.lobby.rules, players: [a.id, b.id], teams: [a.team, b.team] },
+          {
+            rules: this.lobby.rules,
+            players: [a.id, b.id],
+            teams: [a.team, b.team],
+            ...(this.matchedTeams
+              ? {
+                  progressions: this.matchedTeams.map((team) =>
+                    team.map(({ level, quality }) => ({ level, quality })),
+                  ) as [PetProgression[], PetProgression[]],
+                }
+              : {}),
+            ...(this.botId ? { aiTeams: [1] } : {}),
+          },
           this.seed,
         );
         this.engine.startBattle();
         this.engine.setManualMode(a.id, true);
-        this.engine.setManualMode(b.id, true);
+        if (!this.botId) this.engine.setManualMode(b.id, true);
         this.lobby.phase = 'battle';
       }
     }

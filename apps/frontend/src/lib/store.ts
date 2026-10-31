@@ -7,6 +7,7 @@ import {
   type LobbySnapshot,
   type MatchRules,
   type SpeciesId,
+  type MatchSelectionSnapshot,
 } from '@arena/shared-types';
 type Screen =
   | 'home'
@@ -27,6 +28,8 @@ interface GameStore {
   accountView: 'login' | 'register' | 'profile' | null;
   screen: Screen;
   mode: 'ai' | 'online';
+  matchmade: boolean;
+  matchSelection: MatchSelectionSnapshot | null;
   rules: MatchRules;
   team: SpeciesId[];
   aiTeam: SpeciesId[];
@@ -59,6 +62,8 @@ export const useGame = create<GameStore>()(
       accountView: null,
       screen: 'home',
       mode: 'ai',
+      matchmade: false,
+      matchSelection: null,
       rules: { ...DEFAULT_RULES },
       team: [],
       aiTeam: [],

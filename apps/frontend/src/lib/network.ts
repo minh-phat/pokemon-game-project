@@ -5,11 +5,13 @@ import {
   type BattleSnapshot,
   type LobbySnapshot,
   type ManualBattleCommand,
+  type MatchSelectionSnapshot,
 } from '@arena/shared-types';
 import { useGame } from './store';
 import { battleFeed } from './battle-feed';
 let room: Room | null = null;
 let client: Client | null = null;
+let searchGeneration = 0;
 const getClient = () =>
   (client ??= new Client(process.env.NEXT_PUBLIC_GAME_SERVER_URL ?? 'http://localhost:2567'));
 function attach(joined: Room) {
@@ -53,10 +55,23 @@ function attach(joined: Room) {
     if (phaseChanged && lobby.phase === 'lobby') battleFeed.clear();
   });
   joined.onMessage('battle', (snapshot: BattleSnapshot) => battleFeed.push(snapshot));
+  joined.onMessage('match-selection', (selection: MatchSelectionSnapshot) => {
+    const current = useGame.getState().matchSelection;
+    useGame.getState().set({
+      matchSelection: {
+        ...selection,
+        ...(current && current.revision > selection.revision
+          ? { selected: current.selected, revision: current.revision }
+          : {}),
+        deadline: Date.now() + Math.max(0, selection.deadline - selection.serverNow),
+      },
+    });
+  });
   joined.onMessage('error', (error: string) => useGame.getState().set({ error }));
   joined.onDrop(() =>
     useGame.getState().set({
       connection: 'reconnecting',
+      matchSelection: null,
       notice: 'Connection lost. Reconnecting for up to 30 seconds…',
     }),
   );
@@ -79,7 +94,8 @@ function attach(joined: Room) {
 }
 export async function connectRoom(kind: 'create' | 'join') {
   const state = useGame.getState();
-  state.set({ connection: 'connecting', error: '' });
+  sessionStorage.removeItem('arena-matchmade');
+  state.set({ connection: 'connecting', error: '', matchmade: false });
   try {
     const joined =
       kind === 'create'
@@ -100,14 +116,59 @@ export async function connectRoom(kind: 'create' | 'join') {
     });
   }
 }
+export async function findMatch(mode: 'casual' | 'ranked', size: 3 | 6) {
+  const generation = ++searchGeneration;
+  useGame.getState().set({
+    connection: 'connecting',
+    error: '',
+    lobby: null,
+    matchSelection: null,
+    mode: 'online',
+    matchmade: true,
+    screen: 'lobby',
+  });
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'}/auth/match-ticket`,
+      {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'X-Arena-Request': '1' },
+        signal: AbortSignal.timeout(12000),
+      },
+    );
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Không thể bắt đầu tìm trận.');
+    if (generation !== searchGeneration) return;
+    const joined = await getClient().joinOrCreate('matchmaking', { token: data.token, mode, size });
+    if (generation !== searchGeneration) {
+      void joined.leave();
+      return;
+    }
+    sessionStorage.setItem('arena-matchmade', '1');
+    attach(joined);
+  } catch (error) {
+    if (generation !== searchGeneration) return;
+    useGame.getState().set({
+      connection: 'lost',
+      error: error instanceof Error ? error.message : 'Không thể tìm trận.',
+    });
+  }
+}
 export async function restoreRoom() {
   const token = sessionStorage.getItem('arena-reconnect');
   if (!token) return;
-  useGame.getState().set({ connection: 'reconnecting', mode: 'online', screen: 'lobby' });
+  useGame.getState().set({
+    connection: 'reconnecting',
+    mode: 'online',
+    screen: 'lobby',
+    matchmade: sessionStorage.getItem('arena-matchmade') === '1',
+  });
   try {
     attach(await getClient().reconnect(token));
   } catch {
     sessionStorage.removeItem('arena-reconnect');
+    sessionStorage.removeItem('arena-matchmade');
     useGame.getState().set({
       connection: 'lost',
       error: 'The reconnection window expired. Please create or join a new room.',
@@ -117,6 +178,12 @@ export async function restoreRoom() {
 export function sendRoom(type: 'rules' | 'team' | 'ready' | 'rematch', value: unknown) {
   if (room) room.send(type, value);
   else useGame.getState().set({ error: 'No active room. Create or join a room first.' });
+}
+export function selectMatchPets(ids: string[]) {
+  room?.send('match-select', ids);
+}
+export function readyMatchPets() {
+  room?.send('match-ready');
 }
 export function sendManualMode(enabled: boolean) {
   room?.send('manual-mode', enabled);
@@ -139,10 +206,12 @@ export function sendBattleCommand(command: ManualBattleCommand) {
   room?.send('battle-command', command);
 }
 export function leaveRoom() {
+  searchGeneration++;
   const previous = room;
   room = null;
   void previous?.leave();
   sessionStorage.removeItem('arena-reconnect');
+  sessionStorage.removeItem('arena-matchmade');
   battleFeed.clear();
   useGame.getState().set({
     lobby: null,
@@ -152,5 +221,7 @@ export function leaveRoom() {
     notice: '',
     screen: 'home',
     team: [],
+    matchmade: false,
+    matchSelection: null,
   });
 }
