@@ -2236,6 +2236,24 @@ body:has(.fantasy-app) .dialog-content.pets-dialog {
 .pets-summary b {
   color: #ffe4a1;
 }
+.pets-sort {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: #c4cfe0;
+}
+.pets-sort select {
+  width: auto;
+  max-width: 100%;
+  margin-top: 0;
+}
+.pet-card-power {
+  color: #ffe4a1;
+  font-size: 12px;
+}
 .summon-meter {
   height: 8px;
   border-radius: 10px;

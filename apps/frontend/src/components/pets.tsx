@@ -1,6 +1,6 @@
 'use client';
 import { formatSkillRange } from '@/lib/skill-range';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Sparkles, PawPrint, ArrowLeft } from 'lucide-react';
 import { POKEMON, calculatePetStats, experienceToNextLevel, combatPower } from '@arena/game-data';
 import {
@@ -13,6 +13,8 @@ import {
 import { useLanguage, useCopy } from '@/lib/i18n';
 import { Dialog } from './ui/dialog';
 import { Portrait, ElementBadge } from './common';
+
+type PetSort = 'power' | 'quality' | 'time';
 
 async function requestCollection(summon: true): Promise<SummonResult>;
 async function requestCollection(summon?: false): Promise<PetCollection>;
@@ -32,8 +34,9 @@ async function requestCollection(summon = false): Promise<PetCollection | Summon
 }
 
 export function PetsDialog({ view, onClose }: { view: 'pets' | 'summon'; onClose: () => void }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [tab, setTab] = useState(view);
+  const [sort, setSort] = useState<PetSort>('power');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [collection, setCollection] = useState<PetCollection | null>(null);
   const [result, setResult] = useState<SummonResult | null>(null);
@@ -86,6 +89,23 @@ export function PetsDialog({ view, onClose }: { view: 'pets' | 'summon'; onClose
     }
   };
   const owned = collection?.pets ?? [];
+  const sortedPets = useMemo(() => {
+    const pets = (collection?.pets ?? []).map((pet) => ({
+      pet,
+      power: combatPower(calculatePetStats(POKEMON[pet.species], pet)),
+      quality: PET_QUALITIES.indexOf(pet.quality),
+      acquiredAt: Date.parse(pet.acquiredAt),
+    }));
+    return pets.sort((a, b) => {
+      const difference =
+        sort === 'power'
+          ? b.power - a.power
+          : sort === 'quality'
+            ? b.quality - a.quality
+            : b.acquiredAt - a.acquiredAt;
+      return difference || b.acquiredAt - a.acquiredAt || a.pet.id.localeCompare(b.pet.id);
+    });
+  }, [collection, sort]);
   const total = owned.length;
   const selectedPet = owned.find((pet) => pet.id === selectedId);
   const speciesCount = new Set(owned.map((pet) => pet.species)).size;
@@ -241,6 +261,16 @@ export function PetsDialog({ view, onClose }: { view: 'pets' | 'summon'; onClose
                 {speciesCount}/{speciesIds.length} {t('loài', 'species')} · {total} pets
               </b>
             </div>
+            {!selectedPet && owned.length > 0 && (
+              <label className="pets-sort">
+                {t('Sắp xếp theo', 'Sort by')}
+                <select value={sort} onChange={(event) => setSort(event.target.value as PetSort)}>
+                  <option value="power">{t('Chiến lực', 'Combat power')}</option>
+                  <option value="quality">{t('Phẩm chất', 'Quality')}</option>
+                  <option value="time">{t('Thời gian', 'Time acquired')}</option>
+                </select>
+              </label>
+            )}
             {selectedPet ? (
               <OwnedPetDetails
                 pet={selectedPet}
@@ -253,7 +283,7 @@ export function PetsDialog({ view, onClose }: { view: 'pets' | 'summon'; onClose
               />
             ) : owned.length ? (
               <div className="owned-pets-grid">
-                {owned.map((pet) => (
+                {sortedPets.map(({ pet, power }) => (
                   <button
                     type="button"
                     id={`pet-card-${pet.id}`}
@@ -274,6 +304,10 @@ export function PetsDialog({ view, onClose }: { view: 'pets' | 'summon'; onClose
                       {t('Phẩm chất', 'Quality')} {pet.quality}
                     </span>
                     <ElementBadge element={POKEMON[pet.species].element} />
+                    <span className="pet-card-power">
+                      {t('Lực chiến', 'Combat power')}{' '}
+                      {power.toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US')}
+                    </span>
                     <span className="pet-card-hint">{t('Xem thông tin', 'View details')}</span>
                   </button>
                 ))}
