@@ -95,8 +95,9 @@ test('online: two trainers complete an authoritative match and vote for rematch'
   guest.on('pageerror', (e) => errors.push(e.message));
   await host.goto('/');
   await host.getByRole('button', { name: 'EN', exact: true }).click();
-  await host.getByRole('button', { name: 'Play Now' }).click();
-  await host.getByRole('button', { name: /BETTER WITH A FRIEND/ }).click();
+  await host.getByRole('button', { name: 'Arena', exact: true }).click();
+  await host.getByRole('button', { name: /Custom room Challenge your friends/ }).click();
+  await host.getByRole('button', { name: 'Enter custom room', exact: true }).click();
   await host.getByLabel('Your trainer name').fill('Alice');
   await host.getByRole('button', { name: 'Create a private room' }).click();
   await rules(host);

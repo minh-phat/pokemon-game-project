@@ -11,6 +11,7 @@ import {
 type Screen =
   | 'home'
   | 'modes'
+  | 'arena'
   | 'rules'
   | 'roster'
   | 'online'

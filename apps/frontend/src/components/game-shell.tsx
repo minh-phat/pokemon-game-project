@@ -14,6 +14,7 @@ import {
 import { useGame } from '@/lib/store';
 import { leaveRoom, restoreRoom } from '@/lib/network';
 import { battleFeed } from '@/lib/battle-feed';
+import { ArenaScreen } from './arena';
 import { Home, LanguagePicker } from './home';
 import { useLanguage } from '@/lib/i18n';
 import { Account } from './account';
@@ -30,7 +31,7 @@ const OpenWorld = dynamic(() => import('./open-world'), { ssr: false });
 export function GameShell() {
   const state = useGame();
   const { language, t } = useLanguage();
-  const isHome = state.screen === 'home' || state.screen === 'modes';
+  const isHome = ['home', 'modes', 'arena'].includes(state.screen);
   useEffect(() => {
     document.documentElement.lang = language;
   }, [language]);
@@ -125,7 +126,7 @@ export function GameShell() {
               onClick={() => navigate('arenas')}
             >
               <Compass size={16} />
-              {t('Đấu trường', 'Arenas')}
+              {t('Bản đồ', 'Maps')}
             </button>
           </nav>
           <div className="header-actions">
@@ -201,6 +202,7 @@ export function GameShell() {
         )}
         {isHome && <Home isAppMode={isAppMode} onEnterFullscreen={() => void toggleFullscreen()} />}
         {state.screen === 'modes' && <ModeSelection />}
+        {state.screen === 'arena' && <ArenaScreen />}
         {state.screen === 'rules' && <RulesScreen />}
         {state.screen === 'roster' && <RosterScreen />}
         {state.screen === 'codex' && <RosterScreen inspectOnly />}

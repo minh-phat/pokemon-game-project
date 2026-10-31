@@ -80,6 +80,15 @@ function Emblem({ children }: { children: ReactNode }) {
   );
 }
 
+function HomeActionArt({ variant }: { variant: 'play' | 'arena' }) {
+  return (
+    <span className={`home-action-art home-action-art-${variant}`} aria-hidden="true">
+      <span className="home-action-rune" />
+      <img src={`/assets/home/${variant}-emblem-v1.webp`} alt="" width={160} height={160} />
+    </span>
+  );
+}
+
 export function Home({
   isAppMode,
   onEnterFullscreen,
@@ -182,9 +191,19 @@ export function Home({
                 <UserRoundPlus />
                 {t('Đăng Ký', 'Sign Up')}
               </button>
-              <button className="fantasy-frame fantasy-action gold" onClick={play}>
-                <Swords />
+              <button
+                className="fantasy-frame fantasy-action gold illustrated-action"
+                onClick={play}
+              >
+                <HomeActionArt variant="play" />
                 {t('Chơi Ngay', 'Play Now')}
+              </button>
+              <button
+                className="fantasy-frame fantasy-action arena-entry illustrated-action"
+                onClick={() => go('arena')}
+              >
+                <HomeActionArt variant="arena" />
+                {t('Đấu Trường', 'Arena')}
               </button>
             </div>
             <button
@@ -342,16 +361,29 @@ export function Home({
             ))}
           </nav>
           <nav className="player-main-menu" aria-label={t('Menu người chơi', 'Player menu')}>
-            <button className="fantasy-frame player-menu-card play-card" onClick={play}>
-              <Emblem>⚔️</Emblem>
-              <span>
-                <strong>{t('Chơi', 'Play')}</strong>
-                <small>
-                  {t('Bắt đầu hành trình triệu hồi!', 'Begin your summoning adventure!')}
-                </small>
-              </span>
-              <ChevronRight />
-            </button>
+            <div className="home-battle-actions">
+              <button className="fantasy-frame player-menu-card play-card" onClick={play}>
+                <HomeActionArt variant="play" />
+                <span className="home-action-copy">
+                  <strong>{t('Chơi', 'Play')}</strong>
+                  <small>
+                    {t('Bắt đầu hành trình triệu hồi!', 'Begin your summoning adventure!')}
+                  </small>
+                </span>
+                <ChevronRight />
+              </button>
+              <button
+                className="fantasy-frame player-menu-card arena-entry"
+                onClick={() => go('arena')}
+              >
+                <HomeActionArt variant="arena" />
+                <span className="home-action-copy">
+                  <strong>{t('Đấu Trường', 'Arena')}</strong>
+                  <small>{t('So tài cùng triệu hồi sư', 'Challenge fellow summoners')}</small>
+                </span>
+                <ChevronRight />
+              </button>
+            </div>
             <button
               className="fantasy-frame player-menu-card pets-card"
               onClick={() => setPetView('pets')}

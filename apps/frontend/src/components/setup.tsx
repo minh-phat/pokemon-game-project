@@ -52,18 +52,6 @@ export function ModeSelection() {
       action: t('Vào luyện tập', 'Start training'),
     },
     {
-      mode: 'online' as const,
-      title: t('Đấu PvP', 'Online 1v1'),
-      text: t(
-        'Mời bạn bè, tập hợp linh thú và cùng so tài trong những trận đấu trực tuyến.',
-        'Invite a friend, gather your companions and face off in live online battles.',
-      ),
-      icon: Users,
-      tag: t('SO TÀI CÙNG BẠN BÈ', 'BETTER WITH A FRIEND.'),
-      detail: t('Online 1v1 · Phòng riêng', 'Online 1v1 · Private rooms'),
-      action: t('Vào đấu trường', 'Enter PvP'),
-    },
-    {
       mode: 'story' as const,
       title: t('Cốt truyện', 'Story mode'),
       text: t(
@@ -108,7 +96,7 @@ export function ModeSelection() {
                 return;
               }
               set({ mode: m.mode, team: [], snapshot: null });
-              go(m.mode === 'ai' ? 'rules' : 'online');
+              go('rules');
             }}
           >
             <span className="mode-card-art" aria-hidden="true">
@@ -231,7 +219,9 @@ export function RulesScreen() {
         eyebrow={state.mode === 'ai' ? c('VS AI · MAKE IT YOURS') : c('ONLINE 1V1 · HOST SETTINGS')}
         title={c('Set the stage.')}
         description={c('A few little choices. A whole different battle.')}
-        back={() => state.go(state.sessionId ? 'lobby' : 'modes')}
+        back={() =>
+          state.go(state.sessionId ? 'lobby' : state.mode === 'online' ? 'online' : 'modes')
+        }
       />
       <div className="rules-layout">
         <div className="panel rules-panel">
@@ -370,7 +360,7 @@ export function OnlineAccess() {
         eyebrow={c('A LITTLE FRIENDLY COMPETITION')}
         title={c('Better together.')}
         description={c("Create your own arena, or join a friend's invitation.")}
-        back={() => state.go('modes')}
+        back={() => state.go('arena')}
       />
       <div className="panel online-entry">
         <Globe2 size={32} className="accent" />

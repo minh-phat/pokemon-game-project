@@ -201,7 +201,7 @@ test('portrait remains usable and offers a dismissible landscape hint', async ({
   // Let the compositor settle after viewport changes before capturing art.
   await page.waitForTimeout(300);
   await page.screenshot({ path: 'test-results/summoner-lobby-portrait.png' });
-  await page.getByRole('button', { name: /Chơi Bắt đầu hành trình/ }).click();
+  await page.getByRole('button', { name: 'Chơi', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Bạn muốn chơi thế nào?' })).toBeVisible();
   await page.getByRole('button', { name: /HÀNH TRÌNH CỦA RIÊNG BẠN/ }).click();
   await expect(page.getByRole('heading', { name: 'Thiết lập trận đấu.' })).toBeVisible();
@@ -241,11 +241,16 @@ test('play opens a responsive mode popup, locks story mode and preserves both pl
   await expect(dialog).toHaveCount(0);
   await expect(play).toBeVisible();
   await play.click();
-  await dialog.getByRole('button', { name: /Đấu PvP/ }).click();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Đấu Trường', exact: true }).click();
+  await page.getByRole('button', { name: /^Phòng tuỳ chỉnh/ }).click();
+  await page.getByRole('button', { name: 'Vào phòng tuỳ chỉnh', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Cùng nhau chiến đấu.' })).toBeVisible();
   await page.getByRole('button', { name: 'Quay lại', exact: true }).click();
-  await expect(dialog).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Đấu trường', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await play.click();
   await dialog.getByRole('button', { name: /Đấu với máy/ }).click();
   await expect(page.getByRole('heading', { name: 'Thiết lập trận đấu.' })).toBeVisible();
 });
@@ -375,4 +380,57 @@ test('every summon grants a quality pet, milestones are visible and collection s
   await expect(dialog.getByRole('alert')).toBeVisible();
   await dialog.getByRole('button', { name: 'Tải lại', exact: true }).click();
   await expect(dialog.locator('.summon-stats')).toContainText('12');
+});
+
+test('arena options, custom PvP entry and responsive layouts', async ({ page }) => {
+  await mockAccount(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Đấu Trường', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Đấu trường', exact: true });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /2vs2/ }).click();
+  await dialog.getByRole('button', { name: '6 thú', exact: true }).click();
+  await expect(dialog.locator('.arena-selection-summary')).toContainText('2vs2 · 6 thú');
+  await dialog.getByRole('button', { name: /Đấu hạng Chinh phục/ }).click();
+  await expect(dialog).toContainText('Chưa xếp hạng');
+  await expect(dialog.getByRole('button', { name: '6 thú', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await dialog.getByRole('button', { name: /Chiến thuật Toàn bộ/ }).click();
+  await expect(dialog.locator('.arena-fixed-roster')).toContainText('Toàn bộ');
+  await expect(dialog.getByRole('button', { name: '3 thú', exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: /Tìm trận/ })).toBeDisabled();
+  for (const [width, height] of [
+    [1440, 900],
+    [820, 1180],
+    [390, 844],
+    [640, 360],
+  ]) {
+    await page.setViewportSize({ width, height });
+    const fits = await dialog.evaluate((element) => {
+      const r = element.getBoundingClientRect();
+      return (
+        r.left >= 0 &&
+        r.top >= 0 &&
+        r.right <= innerWidth &&
+        r.bottom <= innerHeight &&
+        element.scrollWidth <= element.clientWidth
+      );
+    });
+    expect(fits).toBe(true);
+    await page.screenshot({ path: `test-results/arena-${width}x${height}.png` });
+  }
+  await dialog.getByRole('button', { name: /Đối kháng So tài/ }).click();
+  await expect(dialog.getByRole('button', { name: '6 thú', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await dialog.getByRole('button', { name: /^Phòng tuỳ chỉnh/ }).click();
+  await dialog.getByRole('button', { name: 'Vào phòng tuỳ chỉnh', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Cùng nhau chiến đấu.' })).toBeVisible();
+  await page.getByRole('button', { name: 'Quay lại', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Vào phòng tuỳ chỉnh', exact: true }),
+  ).toBeVisible();
 });
