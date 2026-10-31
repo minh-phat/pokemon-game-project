@@ -232,7 +232,7 @@ export const SKILLS = {
   }),
   cursedScrollBind: skill(
     'cursed-scroll-bind',
-    'Trầm Mộc Chấn Lực (Cursed Scroll Bind)',
+    'Cursed Scroll Bind',
     'normal',
     'melee',
     120,
