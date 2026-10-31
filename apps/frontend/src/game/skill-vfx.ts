@@ -126,6 +126,11 @@ export class SkillVfx {
     if (!paused) this.particleClock += Math.min(delta, 100);
     const emit = !paused && !reduced && this.particleClock >= 35;
     if (emit) this.particleClock %= 35;
+    const fightersById = new Map(snapshot.fighters.map((fighter) => [fighter.id, fighter]));
+    const previousFighters = new Map(previous?.fighters.map((fighter) => [fighter.id, fighter]));
+    const previousProjectiles = new Map(
+      previous?.projectiles.map((projectile) => [projectile.id, projectile]),
+    );
     const live = new Set<string>();
     const liveBinds = new Set<string>();
     const liveCrossfires = new Set<string>();
@@ -171,7 +176,8 @@ export class SkillVfx {
     }
     for (const f of snapshot.fighters) {
       if (!f.active || f.hp <= 0) continue;
-      const old = previous?.fighters.find((v) => v.id === f.id && v.active === f.active);
+      const prior = previousFighters.get(f.id);
+      const old = prior?.active === f.active ? prior : undefined;
       const x = old ? Phaser.Math.Linear(old.x, f.x, alpha) : f.x;
       const y =
         492 +
@@ -274,7 +280,7 @@ export class SkillVfx {
         continue;
       }
       if (skill.id === 'liquid-wrap') {
-        const target = snapshot.fighters.find((v) => v.id === f.cast?.targetId);
+        const target = fightersById.get(f.cast?.targetId ?? '');
         if (f.cast.bound && target) {
           const age = Math.max(0, f.cast.elapsed - skill.startup);
           const enter = Math.min(1, age / 0.22);
@@ -362,11 +368,9 @@ export class SkillVfx {
           }
         }
         if (f.cast.bound && this.scene.textures.exists('runedrake-bind-rig')) {
-          const target = snapshot.fighters.find(
-            (v) => v.id === f.cast?.targetId && v.active && v.hp > 0,
-          );
-          if (target) {
-            const oldTarget = previous?.fighters.find((v) => v.id === target.id);
+          const target = fightersById.get(f.cast.targetId ?? '');
+          if (target && target.active && target.hp > 0) {
+            const oldTarget = previousFighters.get(target.id);
             const tx = oldTarget ? Phaser.Math.Linear(oldTarget.x, target.x, alpha) : target.x;
             const ty =
               492 +
@@ -531,7 +535,7 @@ export class SkillVfx {
     const liveBeams = new Set<string>();
     const liveClashes = new Set<string>();
     for (const beam of snapshot.beams ?? []) {
-      const owner = snapshot.fighters.find((f) => f.id === beam.ownerId);
+      const owner = fightersById.get(beam.ownerId);
       if (!owner) continue;
       const skill = SKILL_BY_ID[beam.skillId];
       const water = skill.element === 'water';
@@ -742,7 +746,7 @@ export class SkillVfx {
         this.beamGraphics.delete(id);
       }
     for (const p of snapshot.projectiles) {
-      const old = previous?.projectiles.find((v) => v.id === p.id);
+      const old = previousProjectiles.get(p.id);
       const x = old ? Phaser.Math.Linear(old.x, p.x, alpha) : p.x;
       const depth = old ? Phaser.Math.Linear(old.depth ?? 0, p.depth ?? 0, alpha) : (p.depth ?? 0);
       const y = 520 + depth - p.y;

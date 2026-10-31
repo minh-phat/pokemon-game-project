@@ -295,12 +295,14 @@ export class MatchRoom extends Room {
     }
   }
   private publish(fight: Fight, includeSelection = false) {
+    const lobby = fight.session.snapshot();
+    const battle = fight.session.engine?.getBattleSnapshot();
     for (const client of this.clients)
       if (fight.users.has(client.sessionId)) {
-        client.send('lobby', fight.session.snapshot());
+        client.send('lobby', lobby);
         if (includeSelection && fight.selection)
           client.send('match-selection', fight.selection.snapshot(client.sessionId));
-        if (fight.session.engine) client.send('battle', fight.session.engine.getBattleSnapshot());
+        if (battle) client.send('battle', battle);
       }
   }
   private async saveResult(fight: Fight) {

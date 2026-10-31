@@ -291,12 +291,20 @@ describe('full roster matchmaking', () => {
     session.tick(0);
     const engine = session.engine!;
     expect(engine.state.fighters.filter((f) => f.active)).toHaveLength(2);
-    expect(engine.state.arenaDefinition?.width).toBe(2400);
-    expect(engine.state.fighters.filter((f) => f.active).map((f) => f.x)).toEqual([330, 2070]);
+    expect(engine.state.arenaDefinition?.width).toBe(6000);
+    expect(engine.state.arenaDefinition?.height).toBe(1200);
+    expect(engine.state.arenaDefinition?.depthBounds).toEqual([-40, 180]);
+    expect(engine.state.fighters.filter((f) => f.active).map((f) => f.x)).toEqual([330, 5670]);
+    expect(engine.state.fighters.filter((f) => f.active).map((f) => f.depth)).toEqual([70, 70]);
     for (let i = 0; i < 29; i++) engine.updateBattle(1 / 60);
     expect(engine.state.fighters.filter((f) => f.active)).toHaveLength(2);
     engine.updateBattle(1 / 60);
     expect(engine.state.fighters.filter((f) => f.active)).toHaveLength(4);
+    for (let i = 0; i < 300; i++) engine.updateBattle(1 / 60);
+    for (const fighter of engine.state.fighters.filter((f) => f.active)) {
+      expect(fighter.depth).toBeGreaterThanOrEqual(-40);
+      expect(fighter.depth).toBeLessThanOrEqual(180);
+    }
     engine.state.fighters
       .filter((f) => f.team === 0 && f.active)
       .forEach((f) => {
@@ -306,10 +314,9 @@ describe('full roster matchmaking', () => {
   });
 });
 
-it('uses shorter skill reach and slower projectiles only in full-roster battles', async () => {
+it('uses the same skills in full-roster battles', async () => {
   const { battleSkill, SKILL_BY_ID } = await import('@arena/game-data');
   const id = Object.keys(SKILL_BY_ID)[0];
-  expect(battleSkill(id, true).range).toBeCloseTo(battleSkill(id).range * 0.65);
-  expect(battleSkill(id, true).projectileSpeed).toBeCloseTo(battleSkill(id).projectileSpeed * 0.7);
+  expect(battleSkill(id, true)).toBe(battleSkill(id));
   expect(battleSkill(id)).toBe(SKILL_BY_ID[id]);
 });

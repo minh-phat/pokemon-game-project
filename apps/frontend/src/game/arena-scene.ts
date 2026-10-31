@@ -24,6 +24,7 @@ import { easeHover, hoverTarget } from './hover';
 import { SkillVfx } from './skill-vfx';
 import { DashWind } from './dash-wind';
 import { automaticCameraFrame } from './arena-camera';
+import { constrainCamera, zoomCamera, type CameraView } from './manual-arena-camera';
 import { creatureLocomotion, fighterDirection } from './creature-locomotion';
 import type { Direction } from '@arena/game-data';
 
@@ -60,10 +61,12 @@ export function createArenaScene(
     private actors = new Map<string, Visual>();
     private skillVfx!: SkillVfx;
     private lastEvent = 0;
+    private floatingLabels = 0;
     private ambience!: BattleAudio;
     private leaves: { dot: Phaser.GameObjects.Ellipse; speed: number; phase: number }[] = [];
     private layers: Phaser.GameObjects.Image[] = [];
     private shownError = false;
+    private manualCamera?: CameraView;
     constructor() {
       super('arena');
     }
@@ -120,7 +123,11 @@ export function createArenaScene(
         art.destroy();
       }
       if (!worldSource && fullRoster) {
-        this.add.image(1200, 380, 'arena-background').setDisplaySize(2400, 760).setDepth(-10);
+        const arena = FULL_ROSTER_ARENA;
+        this.add
+          .image(arena.width / 2, (arena.height ?? 760) / 2, 'arena-background')
+          .setDisplaySize(arena.width, arena.height ?? 760)
+          .setDepth(-10);
       }
       if (!worldSource && !fullRoster && arenaId !== 'ruins') {
         for (let i = 0; i < 4; i++)
@@ -232,7 +239,104 @@ export function createArenaScene(
         this.skillVfx.destroy();
         this.leaves = [];
       });
+      if (fullRoster && !worldSource) this.setupManualCamera();
       if (!this.shownError) onReady();
+    }
+    private setupManualCamera() {
+      const canvas = this.game.canvas;
+      const arena = { width: FULL_ROSTER_ARENA.width, height: FULL_ROSTER_ARENA.height ?? 760 };
+      const camera = this.cameras.main;
+      const viewport = () => ({ width: camera.width, height: camera.height });
+      const points = new Map<number, { x: number; y: number }>();
+      const toPoint = (e: PointerEvent | WheelEvent) => {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: ((e.clientX - rect.left) * camera.width) / rect.width,
+          y: ((e.clientY - rect.top) * camera.height) / rect.height,
+        };
+      };
+      this.manualCamera = constrainCamera(
+        { x: arena.width / 2, y: arena.height / 2, zoom: 0 },
+        viewport(),
+        arena,
+      );
+      const previousTouchAction = canvas.style.touchAction;
+      canvas.style.touchAction = 'none';
+      const down = (e: PointerEvent) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        points.set(e.pointerId, toPoint(e));
+        canvas.setPointerCapture(e.pointerId);
+      };
+      const move = (e: PointerEvent) => {
+        const old = points.get(e.pointerId);
+        if (!old || !this.manualCamera) return;
+        const before = [...points.values()];
+        const point = toPoint(e);
+        points.set(e.pointerId, point);
+        const after = [...points.values()];
+        if (before.length === 1) {
+          this.manualCamera = constrainCamera(
+            {
+              ...this.manualCamera,
+              x: this.manualCamera.x - (point.x - old.x) / this.manualCamera.zoom,
+              y: this.manualCamera.y - (point.y - old.y) / this.manualCamera.zoom,
+            },
+            viewport(),
+            arena,
+          );
+        } else if (before.length === 2) {
+          const oldCenter = {
+            x: (before[0].x + before[1].x) / 2,
+            y: (before[0].y + before[1].y) / 2,
+          };
+          const center = { x: (after[0].x + after[1].x) / 2, y: (after[0].y + after[1].y) / 2 };
+          const oldDistance = Math.hypot(before[0].x - before[1].x, before[0].y - before[1].y);
+          const distance = Math.hypot(after[0].x - after[1].x, after[0].y - after[1].y);
+          let view = this.manualCamera;
+          if (oldDistance > 0)
+            view = zoomCamera(view, distance / oldDistance, oldCenter, viewport(), arena);
+          this.manualCamera = constrainCamera(
+            {
+              ...view,
+              x: view.x - (center.x - oldCenter.x) / view.zoom,
+              y: view.y - (center.y - oldCenter.y) / view.zoom,
+            },
+            viewport(),
+            arena,
+          );
+        }
+      };
+      const up = (e: PointerEvent) => {
+        points.delete(e.pointerId);
+      };
+      const wheel = (e: WheelEvent) => {
+        e.preventDefault();
+        if (this.manualCamera)
+          this.manualCamera = zoomCamera(
+            this.manualCamera,
+            Math.exp(-e.deltaY * 0.001),
+            toPoint(e),
+            viewport(),
+            arena,
+          );
+      };
+      canvas.addEventListener('pointerdown', down);
+      canvas.addEventListener('pointermove', move);
+      canvas.addEventListener('pointerup', up);
+      canvas.addEventListener('pointercancel', up);
+      canvas.addEventListener('lostpointercapture', up);
+      canvas.addEventListener('wheel', wheel, { passive: false });
+      this.events.once('shutdown', () => {
+        canvas.removeEventListener('pointerdown', down);
+        canvas.removeEventListener('pointermove', move);
+        canvas.removeEventListener('pointerup', up);
+        canvas.removeEventListener('pointercancel', up);
+        canvas.removeEventListener('lostpointercapture', up);
+        canvas.removeEventListener('wheel', wheel);
+        canvas.style.touchAction = previousTouchAction;
+        points.clear();
+        this.manualCamera = undefined;
+      });
     }
     private createActor(f: Fighter) {
       const visual: Visual = {
@@ -283,7 +387,7 @@ export function createArenaScene(
         locomotionClock: f.slot * 1.37,
       };
       this.actors.set(f.id, visual);
-      if (!worldSource)
+      if (!worldSource && !fullRoster)
         visual.sprite.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
           const game = useGame.getState();
           const team =
@@ -365,7 +469,15 @@ export function createArenaScene(
       const targetId = controlled && snapshot.manualTeams[myTeam] ? controlled.targetId : null;
       const camera = this.cameras.main;
       const arena = fullRoster ? FULL_ROSTER_ARENA : ARENAS.find((a) => a.id === arenaId)!;
-      if (!worldSource) {
+      if (!worldSource && fullRoster && this.manualCamera) {
+        this.manualCamera = constrainCamera(
+          this.manualCamera,
+          { width: camera.width, height: camera.height },
+          { width: arena.width, height: arena.height ?? 760 },
+        );
+        camera.setZoom(this.manualCamera.zoom);
+        camera.centerOn(this.manualCamera.x, this.manualCamera.y);
+      } else if (!worldSource) {
         const frame = automaticCameraFrame(snapshot, myTeam, arena, camera.width, camera.height);
         const blend = settings.reducedMotion ? 1 : 1 - Math.exp(-delta / 180);
         // Widen immediately to include new arrivals; ease back in as the group closes up.
@@ -392,6 +504,7 @@ export function createArenaScene(
           layer.x = 600 + (cameraTarget - 600) * (0.004 + i * 0.003);
         });
       const hoverByFighter = new Map<string, number>();
+      const previousFighters = previous && new Map(previous.fighters.map((f) => [f.id, f]));
       for (const f of snapshot.fighters) {
         let v = this.actors.get(f.id);
         if (!f.active && f.hp > 0) {
@@ -418,7 +531,7 @@ export function createArenaScene(
           continue;
         }
         if (!v) v = this.createActor(f);
-        const old = previous?.fighters.find((p) => p.id === f.id);
+        const old = previousFighters?.get(f.id);
         const x = old && old.active === f.active ? Phaser.Math.Linear(old.x, f.x, alpha) : f.x;
         const y = old && old.active === f.active ? Phaser.Math.Linear(old.y, f.y, alpha) : f.y;
         const depth =
@@ -513,7 +626,7 @@ export function createArenaScene(
                 Math.max(0, f.cast!.elapsed - SKILL_BY_ID['cursed-scroll-bind'].startup) / 0.12,
               )
           : 1;
-        const rosterScale = fullRoster ? 0.5 : 1;
+        const rosterScale = 1;
         const baseScale =
           (f.species === 'eevee' ? 0.66 : f.species === 'runedrake' ? 0.9 : 0.82) * rosterScale;
         v.direction = fighterDirection(f, v.direction);
@@ -641,7 +754,7 @@ export function createArenaScene(
         v.label
           .setVisible(!faint && !hidden && !liquidBinding)
           .setPosition(x, ground - 96 * rosterScale - altitude)
-          .setScale(fullRoster ? 0.7 : 1);
+          .setScale(1);
         v.targetMarker.setVisible(targeted).setPosition(x, ground - 119 * rosterScale - altitude);
         const def = fighterDefinition(f);
         v.bars.clear();
@@ -691,14 +804,19 @@ export function createArenaScene(
         settings.reducedMotion,
         hoverByFighter,
       );
+      const eventFighters = new Map(snapshot.fighters.map((fighter) => [fighter.id, fighter]));
       for (const event of snapshot.events) {
         if (event.id <= this.lastEvent) continue;
         this.lastEvent = event.id;
-        const eventFighter = snapshot.fighters.find((f) => f.id === event.fighterId);
+        const eventFighter = eventFighters.get(event.fighterId);
         if (eventFighter && eventFighter.team !== myTeam && isConcealed(eventFighter)) continue;
         const eventHover = hoverByFighter.get(event.fighterId) ?? 0;
         this.skillVfx.event(event, eventHover);
-        if (event.kind === 'damage' || event.kind === 'heal') {
+        if (
+          (event.kind === 'damage' || event.kind === 'heal') &&
+          (!fullRoster || this.floatingLabels < 24)
+        ) {
+          if (fullRoster) this.floatingLabels++;
           const floating = this.add
             .text(
               event.x,
@@ -720,11 +838,16 @@ export function createArenaScene(
             y: floating.y - 45,
             alpha: 0,
             duration: 850,
-            onComplete: () => floating.destroy(),
+            onComplete: () => {
+              floating.destroy();
+              if (fullRoster) this.floatingLabels--;
+            },
           });
         }
         if (event.kind === 'skill') {
           this.ambience.play(event.element === 'poison' ? 'water' : (event.element ?? 'normal'));
+          if (fullRoster && this.floatingLabels >= 24) continue;
+          if (fullRoster) this.floatingLabels++;
           const label = this.add
             .text(
               event.x,
@@ -746,7 +869,10 @@ export function createArenaScene(
             alpha: 0,
             delay: 450,
             duration: 300,
-            onComplete: () => label.destroy(),
+            onComplete: () => {
+              label.destroy();
+              if (fullRoster) this.floatingLabels--;
+            },
           });
         }
       }

@@ -116,6 +116,7 @@ function FighterStatus({ fighter }: { fighter: Fighter }) {
   );
 }
 export function BattleScreen() {
+  const { language } = useLanguage();
   const c = useCopy();
   const state = useGame();
   const [ready, setReady] = useState(false);
@@ -319,6 +320,13 @@ export function BattleScreen() {
           onReady={() => setReady(true)}
           onError={setLoadError}
         />
+        {state.lobby?.fullRoster && ready && !finished && (
+          <div className="full-roster-camera-hint">
+            {language === 'vi'
+              ? 'Kéo để di chuyển · Cuộn chuột hoặc chụm hai ngón để thu phóng'
+              : 'Drag to pan · Scroll or pinch to zoom'}
+          </div>
+        )}
         {manual && snapshot && (
           <ManualControls
             snapshot={snapshot}

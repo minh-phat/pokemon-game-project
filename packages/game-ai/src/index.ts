@@ -141,24 +141,21 @@ export function decideAction(
     f.actionTime > 0
   )
     return { type: 'wait' };
-  const original = fighterDefinition(f);
-  const def = state.fullRoster
-    ? {
-        ...original,
-        attackRange: original.attackRange * 0.65,
-        ai: { ...original.ai, preferredDistance: original.ai.preferredDistance * 0.65 },
-        skills: original.skills.map((skill) => battleSkill(skill.id, true)),
-      }
-    : original;
+  const def = fighterDefinition(f);
   const tuning = DIFFICULTY[difficulty];
-  const enemies = state.fighters.filter(
-    (v) => v.active && v.hp > 0 && v.team !== f.team && !isConcealed(v),
-  );
-  const target = enemies.sort(
-    (a, b) =>
-      Math.hypot(a.x - f.x, a.depth - f.depth) - Math.hypot(b.x - f.x, b.depth - f.depth) ||
-      a.id.localeCompare(b.id),
-  )[0];
+  let target: Fighter | undefined;
+  let nearestDistance = Infinity;
+  for (const enemy of state.fighters) {
+    if (!enemy.active || enemy.hp <= 0 || enemy.team === f.team || isConcealed(enemy)) continue;
+    const distance = Math.hypot(enemy.x - f.x, enemy.depth - f.depth);
+    if (
+      distance < nearestDistance ||
+      (distance === nearestDistance && target && enemy.id.localeCompare(target.id) < 0)
+    ) {
+      target = enemy;
+      nearestDistance = distance;
+    }
+  }
   if (!target) return { type: 'move', direction: 0, state: 'FindTarget' };
   const distance = Math.hypot(target.x - f.x, target.depth - f.depth),
     direction = (target.x - f.x) / (distance || 1),

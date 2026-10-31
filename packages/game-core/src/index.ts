@@ -30,6 +30,7 @@ import {
 } from '@arena/shared-types';
 import {
   fighterDefinition,
+  POKEMON,
   ARENAS,
   DIFFICULTY,
   SKILL_BY_ID,
@@ -453,15 +454,21 @@ export class BattleEngine {
       if (f.actionTime === 0) {
         f.crouched = false;
       }
-      const enemies = this.state.fighters.filter(
-        (v) => v.team !== f.team && v.hp > 0 && v.active && !isConcealed(v),
-      );
-      const target =
-        (this.isManuallyControlled(f) && enemies.find((v) => v.id === f.targetId)) ||
-        enemies.sort(
-          (a, b) =>
-            Math.hypot(a.x - f.x, a.depth - f.depth) - Math.hypot(b.x - f.x, b.depth - f.depth),
-        )[0];
+      let target: Fighter | undefined;
+      let nearestDistance = Infinity;
+      const manualTarget = this.isManuallyControlled(f) ? f.targetId : null;
+      for (const enemy of this.state.fighters) {
+        if (enemy.team === f.team || enemy.hp <= 0 || !enemy.active || isConcealed(enemy)) continue;
+        if (manualTarget && enemy.id === manualTarget) {
+          target = enemy;
+          break;
+        }
+        const distance = Math.hypot(enemy.x - f.x, enemy.depth - f.depth);
+        if (distance < nearestDistance) {
+          target = enemy;
+          nearestDistance = distance;
+        }
+      }
       f.targetId = target?.id ?? null;
       if (
         target &&
@@ -754,7 +761,7 @@ export class BattleEngine {
     f.sprinting = false;
     this.setGuard(f, false);
     const def = fighterDefinition(f);
-    const speed = def.speed * staminaSpeedMultiplier(f) * (this.config.fullRoster ? 0.6 : 1);
+    const speed = def.speed * staminaSpeedMultiplier(f);
     f.moveIntent = 0;
     f.moveDepth = 0;
     f.vDepth = depthDirection * speed * (mode === 'dash' ? 2.8 : mode === 'jump' ? 1 : 0);
@@ -773,10 +780,8 @@ export class BattleEngine {
       this.animate(f, 'crouch');
     } else {
       f.vx = direction * speed * 2.8;
-      this.dashRemaining.set(f.id, DASH_DISTANCE * (this.config.fullRoster ? 0.65 : 1));
-      f.actionTime =
-        (DASH_DISTANCE * (this.config.fullRoster ? 0.65 : 1)) / Math.hypot(f.vx, f.vDepth) +
-        FIXED_DELTA;
+      this.dashRemaining.set(f.id, DASH_DISTANCE);
+      f.actionTime = DASH_DISTANCE / Math.hypot(f.vx, f.vDepth) + FIXED_DELTA;
       f.invulnerable = Math.min(0.13, DASH_DISTANCE / Math.hypot(f.vx, f.vDepth));
       f.state = 'Dodge';
       this.animate(f, Math.sign(direction) === f.facing ? 'dash' : 'backstep');
@@ -1531,7 +1536,6 @@ export class BattleEngine {
     if (f.stamina < f.maxStamina * STAMINA_RULES.lowThreshold) f.sprinting = false;
     const speed =
       (f.sprinting ? def.sprintSpeed : def.speed) *
-      (this.config.fullRoster ? 0.6 : 1) *
       staminaScale *
       (terrainWater(this.arena, f) ? 0.68 : 1);
     const movement = f.cast
@@ -1657,10 +1661,16 @@ export class BattleEngine {
       for (let j = i + 1; j < fs.length; j++) {
         const a = fs[i],
           b = fs[j];
-        if (!overlaps(fighterBox(a), fighterBox(b))) continue;
+        const ac = POKEMON[a.species].collision;
+        const bc = POKEMON[b.species].collision;
+        if (
+          Math.abs(a.x - b.x) > (ac.width + bc.width) / 2 ||
+          a.y > b.y + bc.height * (b.crouched ? 0.42 : 1) ||
+          b.y > a.y + ac.height * (a.crouched ? 0.42 : 1)
+        )
+          continue;
         const min =
-          ((fighterDefinition(a).collision.width + fighterDefinition(b).collision.width) / 2) *
-          (this.config.fullRoster ? 0.6 : 1);
+          (fighterDefinition(a).collision.width + fighterDefinition(b).collision.width) / 2;
         const d = Math.hypot(a.x - b.x, a.depth - b.depth);
         const push = (min - d) * 0.5;
         if (push > 0 && !a.climbing && !b.climbing) {
