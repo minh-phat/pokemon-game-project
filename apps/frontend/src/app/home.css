@@ -757,20 +757,29 @@ body:has(.fantasy-app) {
   width: 57%;
   height: 10.5%;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 1.6cqw;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.8cqw;
 }
 .player-bottom-nav button {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.6cqh;
-  padding: 0.6cqh 0.4cqw;
+  min-width: 0;
+  gap: 0.4cqh;
+  padding: 0.4cqh 0.3cqw;
+}
+.player-bottom-nav .fantasy-emblem {
+  font-size: clamp(20px, 2.5cqw, 42px);
 }
 .player-bottom-nav button > span:last-child {
-  font-size: clamp(10px, 1.3cqw, 22px);
-  white-space: nowrap;
+  font-size: clamp(9px, 1.05cqw, 18px);
+  line-height: 1.15;
+  min-height: 2.3em;
+  display: grid;
+  align-items: center;
+  text-align: center;
+  white-space: normal;
 }
 .rotate-hint {
   display: none;
@@ -1055,20 +1064,20 @@ body:has(.fantasy-app) .dialog-content .dialog-close {
     padding: 1.2cqh 0.3cqw;
   }
   .player-side-nav .fantasy-emblem {
-    font-size: 3cqw;
+    font-size: 2.5cqw;
   }
   .player-side-nav span:not(.fantasy-emblem) {
     font-size: 1.2cqw;
   }
   .player-bottom-nav {
-    height: 13%;
+    height: 14%;
     bottom: max(9px, env(safe-area-inset-bottom));
   }
   .player-bottom-nav .fantasy-emblem {
-    font-size: 3cqw;
+    font-size: 2.5cqw;
   }
   .player-bottom-nav button > span:last-child {
-    font-size: 1.4cqw;
+    font-size: 1.15cqw;
   }
   .dragon-event strong {
     font-size: 1.5cqw;
@@ -1234,7 +1243,7 @@ body:has(.fantasy-app) .dialog-content .dialog-close {
   }
   .player-main-menu {
     top: auto;
-    bottom: 100px;
+    bottom: 132px;
     height: 42%;
     width: 73%;
     gap: 12px;
@@ -1287,9 +1296,9 @@ body:has(.fantasy-app) .dialog-content .dialog-close {
     width: auto;
     right: 16px;
     left: 16px;
-    height: 58px;
-    bottom: 25px;
-    gap: 10px;
+    height: 72px;
+    bottom: max(48px, calc(36px + env(safe-area-inset-bottom)));
+    gap: 4px;
   }
   .player-bottom-nav button > span:last-child {
     font-size: 9px;
@@ -2527,5 +2536,353 @@ body:has(.fantasy-app) .dialog-content.pets-dialog {
   }
   .pet-detail-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Combat handbook: keep the reading area independently scrollable. */
+.handbook-entry {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 12px;
+  color: #ffdf95;
+  font-size: clamp(12px, 1.15vw, 19px);
+  font-weight: 700;
+}
+.handbook-entry svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.handbook-entry svg:last-child {
+  margin-left: auto;
+  width: 15px;
+}
+body:has(.fantasy-app) .dialog-content.combat-handbook {
+  width: min(960px, calc(100% - 24px));
+  max-width: 960px;
+  max-height: calc(100dvh - 24px);
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: #fff3dc;
+  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+}
+.combat-handbook .dialog-title {
+  padding-right: 36px;
+  font-size: clamp(22px, 3vw, 30px);
+}
+.combat-handbook > .muted {
+  flex-shrink: 0;
+}
+.handbook-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 18px 0 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #a78b5266;
+  flex-shrink: 0;
+}
+.combat-handbook button {
+  touch-action: manipulation;
+  cursor: pointer;
+}
+.handbook-tabs button,
+.handbook-types button,
+.handbook-direction button,
+.handbook-link {
+  min-height: 44px;
+  border: 1px solid #59637d;
+  background: #192b49;
+  border-radius: 5px;
+  color: #e0e9fa;
+  padding: 8px 12px;
+  font: inherit;
+}
+.handbook-tabs button {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 700;
+}
+.combat-handbook button[aria-pressed='true'] {
+  border-color: #e7bd66;
+  background: #453b2b;
+  color: #ffe1a1;
+}
+.combat-handbook :is(button, input, select, summary, [tabindex]):focus-visible,
+.handbook-entry:focus-visible {
+  outline: 3px solid #94dcff;
+  outline-offset: 2px;
+}
+.handbook-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 6px 6px 0;
+  line-height: 1.65;
+  font-size: 15px;
+  scrollbar-gutter: stable;
+}
+.handbook-body h3 {
+  margin: 20px 0 10px;
+  font-size: 18px;
+  color: #ffdf95;
+}
+.handbook-note {
+  background: #20314c;
+  padding: 12px 16px;
+  border-left: 3px solid #a4c4e9;
+  margin: 0 0 16px;
+  color: #d5e0f0;
+}
+.handbook-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.handbook-legend > span {
+  border: 1px solid currentColor;
+  padding: 3px 9px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.combat-handbook .advantage {
+  color: #9ee9b4;
+}
+.combat-handbook .resisted {
+  color: #ffb6a0;
+}
+.combat-handbook .neutral {
+  color: #c0cce1;
+}
+.handbook-types {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+.handbook-element {
+  white-space: nowrap;
+  font-weight: 700;
+}
+.handbook-direction {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+.handbook-direction button {
+  flex: 1;
+}
+.handbook-matchups {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 20px;
+}
+.handbook-matchups > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: #192a44;
+  border: 1px solid #4e6076;
+  border-radius: 4px;
+  padding: 12px;
+}
+.handbook-matchups strong {
+  white-space: nowrap;
+}
+.handbook-details {
+  border: 1px solid #716243;
+  padding: 12px;
+  margin: 16px 0;
+  border-radius: 4px;
+}
+.handbook-details summary {
+  cursor: pointer;
+  color: #ffdf95;
+  min-height: 44px;
+  align-content: center;
+  font-weight: 700;
+}
+.handbook-details p {
+  color: #bdcbe1;
+  font-size: 14px;
+}
+.handbook-table-scroll {
+  overflow-x: auto;
+}
+.handbook-table-scroll table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.handbook-table-scroll th,
+.handbook-table-scroll td {
+  padding: 12px 8px;
+  border: 1px solid #43516a;
+}
+.handbook-table-scroll th {
+  background: #20314b;
+}
+.handbook-table-scroll caption {
+  font-size: 13px;
+  padding-bottom: 8px;
+  text-align: left;
+}
+.handbook-formula {
+  padding: 16px;
+  border: 1px solid #a88a4d;
+  background: #2a2a30;
+  color: #ffe1a1;
+  border-radius: 4px;
+}
+.handbook-formula strong {
+  display: block;
+  margin-top: 6px;
+  font-family: monospace;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+.handbook-definitions {
+  margin: 16px 0;
+}
+.handbook-definitions > div {
+  display: grid;
+  grid-template-columns: 50px 1fr;
+  padding: 12px 0;
+  border-bottom: 1px solid #3d4b63;
+  gap: 12px;
+}
+.handbook-definitions dt {
+  color: #ffe1a1;
+  font-weight: 700;
+}
+.handbook-definitions dd {
+  margin: 0;
+}
+.handbook-rules {
+  padding-left: 22px;
+}
+.handbook-rules li {
+  margin: 12px 0;
+}
+.handbook-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.handbook-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #d0dcf0;
+  font-size: 14px;
+}
+.handbook-fields :is(input, select) {
+  width: 100%;
+  min-height: 48px;
+  min-width: 0;
+  border: 1px solid #6e7b95;
+  border-radius: 4px;
+  padding: 10px;
+  background: #0e192c;
+  color: #fff3dc;
+  font: inherit;
+  font-size: 16px;
+}
+.handbook-check {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 48px;
+  cursor: pointer;
+}
+.handbook-check input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: #e9c171;
+}
+.handbook-result {
+  margin: 16px 0;
+  padding: 20px;
+  background: radial-gradient(at top, #214960, #15263b);
+  border: 1px solid #d6b66d;
+  text-align: center;
+  border-radius: 5px;
+}
+.handbook-result > strong {
+  display: block;
+  font-size: 36px;
+  color: #ffe1a1;
+}
+.handbook-result p {
+  overflow-wrap: anywhere;
+  font-family: monospace;
+}
+.handbook-result small {
+  color: #bfcee1;
+}
+@media (orientation: portrait) {
+  .handbook-entry {
+    font-size: 13px;
+    padding: 8px;
+    gap: 6px;
+  }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .handbook-entry {
+    min-height: 36px;
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+}
+@media (max-width: 620px) {
+  body:has(.fantasy-app) .dialog-content.combat-handbook {
+    padding: 18px 14px;
+    width: calc(100% - 16px);
+    max-height: calc(100dvh - 16px);
+  }
+  .handbook-tabs {
+    gap: 4px;
+    margin-top: 12px;
+  }
+  .handbook-tabs button {
+    font-size: 12px;
+    padding: 8px 5px;
+  }
+  .handbook-types,
+  .handbook-matchups {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .handbook-fields {
+    gap: 12px;
+  }
+  .handbook-body {
+    font-size: 14px;
+  }
+}
+.guest-handbook-entry {
+  margin: 12px auto 0;
+  width: fit-content;
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .handbook-entry {
+    min-height: 44px;
+    font-size: 11px;
+    gap: 4px;
+  }
+  .handbook-entry svg {
+    width: 16px;
+  }
+  .guest-handbook-entry {
+    margin-top: 6px;
+    min-height: 36px;
+    padding: 4px 12px;
   }
 }

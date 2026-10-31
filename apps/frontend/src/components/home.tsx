@@ -18,6 +18,7 @@ import { useGame } from '@/lib/store';
 import { useLanguage } from '@/lib/i18n';
 import { Dialog } from './ui/dialog';
 import { PetsDialog } from './pets';
+import { CombatHandbook } from './combat-handbook';
 
 export function LanguagePicker() {
   const { language } = useLanguage();
@@ -91,6 +92,7 @@ export function Home({
   const [info, setInfo] = useState<'about' | 'features' | null>(null);
   const [petView, setPetView] = useState<'pets' | 'summon' | null>(null);
   const [rotateDismissed, setRotateDismissed] = useState(false);
+  const [handbookOpen, setHandbookOpen] = useState(false);
   const unavailable = (feature: string) =>
     set({
       notice: t(
@@ -185,6 +187,14 @@ export function Home({
                 {t('Chơi Ngay', 'Play Now')}
               </button>
             </div>
+            <button
+              className="fantasy-frame handbook-entry guest-handbook-entry"
+              onClick={() => setHandbookOpen(true)}
+            >
+              <BookOpen aria-hidden="true" />
+              <span>{t('Cơ chế chiến đấu', 'Combat Handbook')}</span>
+              <ChevronRight aria-hidden="true" />
+            </button>
           </section>
           <button
             className="fantasy-frame moon-event"
@@ -429,6 +439,11 @@ export function Home({
               },
               { icon: '📖', label: t('Thư Viện', 'Library'), action: () => go('codex') },
               { icon: '💬', label: t('Cộng Đồng', 'Community'), action: community },
+              {
+                icon: '⚔️',
+                label: t('Cơ chế chiến đấu', 'Combat Handbook'),
+                action: () => setHandbookOpen(true),
+              },
             ].map((item) => (
               <button className="fantasy-frame" key={item.icon} onClick={item.action}>
                 <Emblem>{item.icon}</Emblem>
@@ -441,6 +456,7 @@ export function Home({
       {user && petView && (
         <PetsDialog key={user.id} view={petView} onClose={() => setPetView(null)} />
       )}
+      {handbookOpen && <CombatHandbook onClose={() => setHandbookOpen(false)} />}
       {!rotateDismissed && (
         <div className="rotate-hint" role="status">
           <Smartphone />
