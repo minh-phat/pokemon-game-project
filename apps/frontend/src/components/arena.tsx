@@ -282,13 +282,13 @@ export function ArenaScreen() {
             </div>
             <button
               className="fantasy-frame arena-continue"
-              disabled={tactical || players !== 1 || pets === 'all'}
+              disabled={tactical || players !== 1}
               onClick={() => {
                 if (!user) {
                   set({ accountView: 'login' });
                   return;
                 }
-                if (pets !== 'all') void findMatch(mode, pets);
+                void findMatch(mode, pets);
               }}
             >
               <Swords size={18} />
@@ -296,8 +296,8 @@ export function ArenaScreen() {
             </button>
             <p className="arena-help">
               {t(
-                'Đối kháng 1vs1 với 3 hoặc 6 thú. Sau khi ghép trận, bạn có 15 giây chọn đội hình; sau 60 giây tìm trận sẽ gặp máy nếu chưa có đối thủ.',
-                'Play 1v1 with 3 or 6 companions. After matching, you have 15 seconds to choose your team; a bot joins if no opponent is found after 60 seconds.',
+                'Đối kháng 1vs1: chọn 3, 6 hoặc toàn bộ thú. Với toàn bộ thú, mỗi bên tự triệu hồi mỗi 0,5 giây và gặp máy sau 30 giây nếu chưa có đối thủ. Trận 3 hoặc 6 thú có 15 giây chọn đội hình và chờ tối đa 60 giây.',
+                'Play 1v1 with 3, 6, or all companions. Full rosters summon every 0.5 seconds and face a bot after 30 seconds. Matches with 3 or 6 companions allow 15 seconds to choose a team and wait up to 60 seconds.',
               )}
             </p>
           </section>

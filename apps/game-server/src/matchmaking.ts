@@ -2,7 +2,7 @@ import { calculatePetStats, combatPower, POKEMON } from '@arena/game-data';
 import type { OwnedPet } from '@arena/shared-types';
 
 export type MatchMode = 'casual' | 'ranked';
-export type MatchSize = 3 | 6;
+export type MatchSize = 3 | 6 | 'all';
 export type Rank = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond';
 export const MATCH_WAIT_MS = 60_000;
 // The difference is symmetric: neither player is more than 20% stronger than the other.
@@ -25,11 +25,12 @@ export function pointsAfterMatch(points: number, result: 'win' | 'loss' | 'draw'
 export function strongestPets(pets: OwnedPet[], size: MatchSize) {
   if (new Set(pets.map((pet) => pet.id)).size !== pets.length)
     throw new Error('Duplicate owned pet');
-  if (pets.length < size) throw new Error(`At least ${size} owned pets are required`);
+  if (!pets.length || (size !== 'all' && pets.length < size))
+    throw new Error('Not enough owned pets');
   return pets
     .map((pet) => ({ pet, power: combatPower(calculatePetStats(POKEMON[pet.species], pet)) }))
     .sort((a, b) => b.power - a.power || a.pet.id.localeCompare(b.pet.id))
-    .slice(0, size);
+    .slice(0, size === 'all' ? undefined : size);
 }
 
 export interface SearchEntry {
@@ -98,7 +99,8 @@ export class MatchmakingQueue {
               x.startedAt - y.startedAt,
         )[0];
       if (candidate) createMatch(a, candidate);
-      else if (now - a.startedAt >= MATCH_WAIT_MS) createMatch(a, null);
+      else if (now - a.startedAt >= (a.size === 'all' ? 30_000 : MATCH_WAIT_MS))
+        createMatch(a, null);
     }
     return result;
   }

@@ -1,4 +1,5 @@
 import { initializeBattle, type BattleEngine } from '@arena/game-core';
+import { FULL_ROSTER_ARENA } from '@arena/game-data';
 import {
   DEFAULT_RULES,
   PlayerNameSchema,
@@ -23,9 +24,11 @@ export class BattleSession {
     code: string,
     rules: unknown = DEFAULT_RULES,
     readonly seed = 1,
+    readonly fullRoster = false,
   ) {
     this.lobby = {
       code,
+      ...(fullRoster ? { fullRoster: true } : {}),
       hostId: '',
       rules: RulesSchema.parse(rules),
       players: [],
@@ -54,11 +57,20 @@ export class BattleSession {
   startPreparedMatched(teams: [OwnedPet[], OwnedPet[]]) {
     this.matchedTeams = teams;
     for (const [index, player] of this.lobby.players.entries()) {
-      this.select(
-        player.id,
-        teams[index].map((pet) => pet.species),
-      );
-      this.ready(player.id, true);
+      if (this.fullRoster) {
+        player.team = teams[index].map((pet) => pet.species);
+        player.ready = true;
+      } else {
+        this.select(
+          player.id,
+          teams[index].map((pet) => pet.species),
+        );
+        this.ready(player.id, true);
+      }
+    }
+    if (this.fullRoster) {
+      this.lobby.phase = 'countdown';
+      this.lobby.countdown = 3;
     }
   }
   join(id: string, name: unknown) {
@@ -136,7 +148,7 @@ export class BattleSession {
   }
   manualMode(id: string, value: unknown) {
     this.player(id);
-    if (typeof value !== 'boolean' || !this.engine?.setManualMode(id, value))
+    if (this.fullRoster || typeof value !== 'boolean' || !this.engine?.setManualMode(id, value))
       throw new Error('Manual mode is unavailable');
   }
   selectFighter(id: string, value: unknown) {
@@ -157,6 +169,8 @@ export class BattleSession {
         this.engine = initializeBattle(
           {
             rules: this.lobby.rules,
+            fullRoster: this.fullRoster,
+            ...(this.fullRoster ? { arenaDefinition: FULL_ROSTER_ARENA } : {}),
             players: [a.id, b.id],
             teams: [a.team, b.team],
             ...(this.matchedTeams
@@ -171,8 +185,8 @@ export class BattleSession {
           this.seed,
         );
         this.engine.startBattle();
-        this.engine.setManualMode(a.id, true);
-        if (!this.botId) this.engine.setManualMode(b.id, true);
+        if (!this.fullRoster) this.engine.setManualMode(a.id, true);
+        if (!this.botId && !this.fullRoster) this.engine.setManualMode(b.id, true);
         this.lobby.phase = 'battle';
       }
     }

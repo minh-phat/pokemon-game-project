@@ -33,6 +33,7 @@ import {
   ARENAS,
   DIFFICULTY,
   SKILL_BY_ID,
+  battleSkill,
   HYDRO_CROSSFIRE,
   createHydroDrop,
   hydroDropPosition,
@@ -105,9 +106,10 @@ export class BattleEngine {
     const rules = RulesSchema.parse(
       config.worldEncounter ? { ...config.rules, teamSize: 1, activeSize: 1 } : config.rules,
     );
-    if (config.worldEncounter) {
+    if (config.worldEncounter || config.fullRoster) {
       if (!config.teams?.every((team) => team.length > 0)) throw new Error('Empty world roster');
-      rules.teamSize = rules.activeSize = Math.max(...config.teams.map((team) => team.length));
+      if (config.worldEncounter)
+        rules.teamSize = rules.activeSize = Math.max(...config.teams.map((team) => team.length));
       rules.duplicates = true;
     }
     this.config = { ...config, rules };
@@ -117,6 +119,7 @@ export class BattleEngine {
   }
   private emptyState(): BattleSnapshot {
     return {
+      fullRoster: this.config.fullRoster || undefined,
       seed: this.seed,
       tick: 0,
       elapsed: 0,
@@ -136,9 +139,10 @@ export class BattleEngine {
   submitTeamSelection(playerId: string, team: SpeciesId[]) {
     if (this.state.phase !== 'selection') throw new Error('Selection is closed');
     if (!this.config.players.includes(playerId)) throw new Error('Unknown player');
-    const selected = this.config.worldEncounter
-      ? team.map((species) => validateTeam([species], { ...this.config.rules, teamSize: 1 })[0])
-      : validateTeam(team, this.config.rules);
+    const selected =
+      this.config.worldEncounter || this.config.fullRoster
+        ? team.map((species) => validateTeam([species], { ...this.config.rules, teamSize: 1 })[0])
+        : validateTeam(team, this.config.rules);
     if (!selected.length) throw new Error('Empty world roster');
     this.selections.set(playerId, selected);
   }
@@ -337,7 +341,9 @@ export class BattleEngine {
     if (this.state.result) return this.state.result;
     const rosters = [0, 1].map((team) => this.state.fighters.filter((f) => f.team === team));
     if (!rosters[0].length || !rosters[1].length) return null;
-    const survivors = rosters.map((fs) => fs.filter((f) => f.hp > 0).length);
+    const survivors = rosters.map(
+      (fs) => fs.filter((f) => f.hp > 0 && (!this.config.fullRoster || f.active)).length,
+    );
     const scores = rosters.map((fs) =>
       fs.reduce((sum, f) => sum + Math.max(0, f.hp) / fighterDefinition(f).hp, 0),
     ) as [number, number];
@@ -550,7 +556,14 @@ export class BattleEngine {
     this.beamTick();
     this.groundHazardTick(dt);
     this.projectileTick(dt);
-    this.deployReserves();
+    if (this.config.fullRoster) {
+      if (this.state.tick % 30 === 0) {
+        for (const team of [0, 1]) {
+          const next = this.state.fighters.find((f) => f.team === team && f.hp > 0 && !f.active);
+          if (next) this.deploy(next);
+        }
+      }
+    } else this.deployReserves();
     this.ensureControlledFighters();
     const result = this.determineWinner();
     if (result) {
@@ -741,7 +754,7 @@ export class BattleEngine {
     f.sprinting = false;
     this.setGuard(f, false);
     const def = fighterDefinition(f);
-    const speed = def.speed * staminaSpeedMultiplier(f);
+    const speed = def.speed * staminaSpeedMultiplier(f) * (this.config.fullRoster ? 0.6 : 1);
     f.moveIntent = 0;
     f.moveDepth = 0;
     f.vDepth = depthDirection * speed * (mode === 'dash' ? 2.8 : mode === 'jump' ? 1 : 0);
@@ -760,8 +773,10 @@ export class BattleEngine {
       this.animate(f, 'crouch');
     } else {
       f.vx = direction * speed * 2.8;
-      this.dashRemaining.set(f.id, DASH_DISTANCE);
-      f.actionTime = DASH_DISTANCE / Math.hypot(f.vx, f.vDepth) + FIXED_DELTA;
+      this.dashRemaining.set(f.id, DASH_DISTANCE * (this.config.fullRoster ? 0.65 : 1));
+      f.actionTime =
+        (DASH_DISTANCE * (this.config.fullRoster ? 0.65 : 1)) / Math.hypot(f.vx, f.vDepth) +
+        FIXED_DELTA;
       f.invulnerable = Math.min(0.13, DASH_DISTANCE / Math.hypot(f.vx, f.vDepth));
       f.state = 'Dodge';
       this.animate(f, Math.sign(direction) === f.facing ? 'dash' : 'backstep');
@@ -776,7 +791,7 @@ export class BattleEngine {
   }
   beginSkill(f: Fighter, skillId: string, autoBasic = false): boolean {
     const def = fighterDefinition(f),
-      s = def.skills.find((s) => s.id === skillId);
+      s = def.skills.find((s) => s.id === skillId) && battleSkill(skillId, this.config.fullRoster);
     if (
       !s ||
       f.hp <= 0 ||
@@ -855,7 +870,7 @@ export class BattleEngine {
   }
   private castTick(f: Fighter, dt: number) {
     const cast = f.cast!,
-      s = SKILL_BY_ID[cast.skillId];
+      s = battleSkill(cast.skillId, this.config.fullRoster);
     cast.elapsed += dt;
     if (f.species === 'eevee' && this.eeveeCastTick(f, cast, s)) return;
     if (s.id === 'cursed-scroll-bind' || s.id === 'liquid-wrap') {
@@ -1272,7 +1287,7 @@ export class BattleEngine {
     const beams: BattleBeam[] = [];
     for (const f of this.state.fighters) {
       if (!f.active || f.hp <= 0 || !f.cast) continue;
-      const skill = SKILL_BY_ID[f.cast.skillId];
+      const skill = battleSkill(f.cast.skillId, this.config.fullRoster);
       if (
         !skill.beam ||
         f.cast.elapsed < skill.startup ||
@@ -1306,7 +1321,7 @@ export class BattleEngine {
     }
     for (const beam of beams) {
       const owner = this.state.fighters.find((f) => f.id === beam.ownerId)!;
-      const skill = SKILL_BY_ID[beam.skillId];
+      const skill = battleSkill(beam.skillId, this.config.fullRoster);
       const dx = (beam.endX - beam.startX) / skill.range,
         dz = (beam.endDepth - beam.startDepth) / skill.range;
       let nearest =
@@ -1388,7 +1403,7 @@ export class BattleEngine {
       const owner = this.state.fighters.find((f) => f.id === beam.ownerId)!;
       const cast = owner.cast;
       if (!cast) continue;
-      const skill = SKILL_BY_ID[beam.skillId];
+      const skill = battleSkill(beam.skillId, this.config.fullRoster);
       const interval = skill.beam!.interval;
       while (
         (cast.channelTicks ?? 0) * interval < skill.active - 1e-9 &&
@@ -1516,9 +1531,12 @@ export class BattleEngine {
     if (f.stamina < f.maxStamina * STAMINA_RULES.lowThreshold) f.sprinting = false;
     const speed =
       (f.sprinting ? def.sprintSpeed : def.speed) *
+      (this.config.fullRoster ? 0.6 : 1) *
       staminaScale *
       (terrainWater(this.arena, f) ? 0.68 : 1);
-    const movement = f.cast ? SKILL_BY_ID[f.cast.skillId].movement : undefined;
+    const movement = f.cast
+      ? battleSkill(f.cast.skillId, this.config.fullRoster).movement
+      : undefined;
     if (
       movement &&
       f.cast!.elapsed >= (movement.delay ?? 0) &&
@@ -1641,7 +1659,8 @@ export class BattleEngine {
           b = fs[j];
         if (!overlaps(fighterBox(a), fighterBox(b))) continue;
         const min =
-          (fighterDefinition(a).collision.width + fighterDefinition(b).collision.width) / 2;
+          ((fighterDefinition(a).collision.width + fighterDefinition(b).collision.width) / 2) *
+          (this.config.fullRoster ? 0.6 : 1);
         const d = Math.hypot(a.x - b.x, a.depth - b.depth);
         const push = (min - d) * 0.5;
         if (push > 0 && !a.climbing && !b.climbing) {
@@ -1663,7 +1682,7 @@ export class BattleEngine {
     const left = this.arena.worldTerrain ? this.arena.bounds[0] - 50 : -50;
     const right = this.arena.worldTerrain ? this.arena.bounds[1] + 50 : this.arena.width + 50;
     for (const p of this.state.projectiles) {
-      const skill = SKILL_BY_ID[p.skillId];
+      const skill = battleSkill(p.skillId, this.config.fullRoster);
       if (!(p.age ?? 0)) {
         const origin = this.state.fighters.find((f) => f.id === p.ownerId);
         if (
@@ -1781,7 +1800,7 @@ export class BattleEngine {
     );
   }
   private createGroundHazard(p: BattleSnapshot['projectiles'][number], x: number, depth: number) {
-    const config = SKILL_BY_ID[p.skillId].groundHazard;
+    const config = battleSkill(p.skillId, this.config.fullRoster).groundHazard;
     if (!config) return;
     const arena = this.arena;
     this.state.groundHazards.push({
@@ -1798,7 +1817,7 @@ export class BattleEngine {
   }
   private groundHazardTick(dt: number) {
     for (const hazard of this.state.groundHazards) {
-      const skill = SKILL_BY_ID[hazard.skillId];
+      const skill = battleSkill(hazard.skillId, this.config.fullRoster);
       const config = skill.groundHazard!;
       hazard.duration = Math.max(0, hazard.duration - dt);
       hazard.pulse += dt;
@@ -2036,11 +2055,14 @@ export class BattleEngine {
       this.arena.id === 'ruins' || this.config.arenaDefinition
         ? this.arena.spawns[team]
         : team === 0
-          ? 100 + allies.length * 65
-          : 1100 - allies.length * 65;
+          ? 100 + (this.config.fullRoster ? 0 : allies.length * 65)
+          : 1100 - (this.config.fullRoster ? 0 : allies.length * 65);
     f.depth =
       (this.arena.spawnDepth ?? -100) +
-      (allies.length - (this.config.rules.activeSize - 1) / 2) * (this.arena.spawnSpacing ?? 65);
+      (this.config.fullRoster
+        ? (f.slot % 3) - 1
+        : allies.length - (this.config.rules.activeSize - 1) / 2) *
+        (this.arena.spawnSpacing ?? 65);
     f.moveIntent = 0;
     f.moveDepth = 0;
     f.vDepth = 0;

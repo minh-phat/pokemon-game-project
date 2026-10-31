@@ -3,10 +3,12 @@ import { useEffect, useRef } from 'react';
 import type { MatchRules } from '@arena/shared-types';
 export function BattleCanvas({
   arena,
+  fullRoster = false,
   onReady,
   onError,
 }: {
   arena: MatchRules['arena'];
+  fullRoster?: boolean;
   onReady: () => void;
   onError: (message: string) => void;
 }) {
@@ -24,6 +26,9 @@ export function BattleCanvas({
           arena,
           () => callbacks.current.onReady(),
           (message) => callbacks.current.onError(message),
+          undefined,
+          undefined,
+          fullRoster,
         );
         game = new Phaser.Game({
           // This scene uses sprites and 2D paths only. Canvas avoids GPU readback
@@ -67,6 +72,6 @@ export function BattleCanvas({
       resizeObserver?.disconnect();
       game?.destroy(true);
     };
-  }, [arena]);
+  }, [arena, fullRoster]);
   return <div className="battle-canvas" ref={container} data-testid="battle-canvas" />;
 }

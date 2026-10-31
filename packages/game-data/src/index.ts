@@ -633,6 +633,29 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
 };
 export const ROSTER = Object.values(POKEMON);
 export const SKILL_BY_ID = Object.fromEntries(Object.values(SKILLS).map((s) => [s.id, s]));
+
+/** Shorter reach and slower travelling effects for the full-roster battlefield. */
+const FULL_ROSTER_SKILLS = Object.fromEntries(
+  Object.values(SKILLS).map((skill) => [
+    skill.id,
+    {
+      ...skill,
+      range: skill.range * 0.65,
+      projectileSpeed: skill.projectileSpeed * 0.7,
+      usage: { ...skill.usage, minRange: skill.usage.minRange * 0.65 },
+      movement: skill.movement && { ...skill.movement, speed: skill.movement.speed * 0.6 },
+      beam: skill.beam && { ...skill.beam, width: skill.beam.width * 0.7 },
+      groundHazard: skill.groundHazard && {
+        ...skill.groundHazard,
+        radius: skill.groundHazard.radius * 0.7,
+      },
+    },
+  ]),
+);
+export function battleSkill(id: string, fullRoster = false): SkillDefinition {
+  return (fullRoster ? FULL_ROSTER_SKILLS : SKILL_BY_ID)[id];
+}
+
 export const ELEMENTS: Record<Element, { label: string; color: string; symbol: string }> = {
   normal: { label: 'Normal', color: '#c6c3b9', symbol: '◈' },
   electric: { label: 'Electric', color: '#f6cf55', symbol: 'ϟ' },
@@ -647,6 +670,24 @@ export const EFFECTIVENESS: Partial<Record<Element, Partial<Record<Element, numb
   water: { fire: 1.4, grass: 0.75, water: 0.75 },
   grass: { water: 1.4, fire: 0.75, grass: 0.75 },
   poison: { grass: 1.4 },
+};
+/** Long two-base battlefield reserved for automatic full-roster duels. */
+export const FULL_ROSTER_ARENA: ArenaDefinition = {
+  id: 'forest',
+  name: 'Đấu trường hai thành',
+  subtitle: 'Đối kháng toàn bộ thú',
+  color: '#88bca2',
+  width: 2400,
+  height: 760,
+  ground: 520,
+  bounds: [230, 2170],
+  depthBounds: [-210, -50],
+  spawns: [330, 2070],
+  spawnDepth: -130,
+  spawnSpacing: 45,
+  background: '/assets/arenas/full-roster-battlefield.webp',
+  layers: [],
+  ambient: '/assets/forest.wav',
 };
 export const ARENAS: ArenaDefinition[] = [
   {

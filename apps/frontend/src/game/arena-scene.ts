@@ -9,6 +9,7 @@ import * as Phaser from 'phaser';
 import { ANIMATIONS, type Fighter, type MatchRules } from '@arena/shared-types';
 import {
   ARENAS,
+  FULL_ROSTER_ARENA,
   ASSETS,
   ELEMENTS,
   POKEMON,
@@ -53,6 +54,7 @@ export function createArenaScene(
   onError: (message: string) => void,
   worldSource?: WorldArenaSource,
   worldView: WorldArenaView = { ...WORLD_ARENA_VIEW },
+  fullRoster = false,
 ) {
   return class ArenaScene extends Phaser.Scene {
     private actors = new Map<string, Visual>();
@@ -66,7 +68,7 @@ export function createArenaScene(
       super('arena');
     }
     preload() {
-      const arena = ARENAS.find((a) => a.id === arenaId)!;
+      const arena = fullRoster ? FULL_ROSTER_ARENA : ARENAS.find((a) => a.id === arenaId)!;
       this.load.image('electro-ball-art', '/assets/electro-ball-art.png');
       this.load.image('aqua-barrage-orb', '/assets/aqua-barrage-orb.png');
       this.load.image('water-slime-wrap-art', '/assets/water-slime-wrap.png');
@@ -117,7 +119,10 @@ export function createArenaScene(
         art.generateTexture('training-dummy', 160, 160);
         art.destroy();
       }
-      if (!worldSource && arenaId !== 'ruins') {
+      if (!worldSource && fullRoster) {
+        this.add.image(1200, 380, 'arena-background').setDisplaySize(2400, 760).setDepth(-10);
+      }
+      if (!worldSource && !fullRoster && arenaId !== 'ruins') {
         for (let i = 0; i < 4; i++)
           this.layers.push(
             this.add
@@ -129,7 +134,7 @@ export function createArenaScene(
         const floor = this.add.graphics().setDepth(-5);
         const groundColor =
           arenaId === 'volcano' ? 0x66514b : arenaId === 'lake' ? 0x7bbaa7 : 0x779b62;
-        const arena = ARENAS.find((a) => a.id === arenaId)!;
+        const arena = fullRoster ? FULL_ROSTER_ARENA : ARENAS.find((a) => a.id === arenaId)!;
         const left = arena.bounds[0],
           right = arena.bounds[1];
         const top = arena.ground + arena.depthBounds[0];
@@ -152,10 +157,10 @@ export function createArenaScene(
             );
         }
       }
-      const arena = ARENAS.find((a) => a.id === arenaId)!;
-      if (!worldSource && arenaId === 'ruins') drawRuins(this, arena);
-      if (!worldSource && arenaId !== 'ruins') {
-        const arena = ARENAS.find((a) => a.id === arenaId)!;
+      const arena = fullRoster ? FULL_ROSTER_ARENA : ARENAS.find((a) => a.id === arenaId)!;
+      if (!worldSource && !fullRoster && arenaId === 'ruins') drawRuins(this, arena);
+      if (!worldSource && !fullRoster && arenaId !== 'ruins') {
+        const arena = fullRoster ? FULL_ROSTER_ARENA : ARENAS.find((a) => a.id === arenaId)!;
         for (const o of arena.obstacles ?? []) {
           const shelf = this.add
             .graphics()
@@ -203,7 +208,7 @@ export function createArenaScene(
       this.skillVfx = new SkillVfx(this);
       const particleColor =
         arenaId === 'volcano' ? 0xf6aa72 : arenaId === 'lake' ? 0xd2edee : 0xc9df94;
-      for (let i = 0; i < (worldSource || arenaId === 'ruins' ? 0 : 25); i++) {
+      for (let i = 0; i < (worldSource || fullRoster || arenaId === 'ruins' ? 0 : 25); i++) {
         this.leaves.push({
           dot: this.add
             .ellipse(
@@ -359,7 +364,7 @@ export function createArenaScene(
       );
       const targetId = controlled && snapshot.manualTeams[myTeam] ? controlled.targetId : null;
       const camera = this.cameras.main;
-      const arena = ARENAS.find((a) => a.id === arenaId)!;
+      const arena = fullRoster ? FULL_ROSTER_ARENA : ARENAS.find((a) => a.id === arenaId)!;
       if (!worldSource) {
         const frame = automaticCameraFrame(snapshot, myTeam, arena, camera.width, camera.height);
         const blend = settings.reducedMotion ? 1 : 1 - Math.exp(-delta / 180);
@@ -508,7 +513,9 @@ export function createArenaScene(
                 Math.max(0, f.cast!.elapsed - SKILL_BY_ID['cursed-scroll-bind'].startup) / 0.12,
               )
           : 1;
-        const baseScale = f.species === 'eevee' ? 0.66 : f.species === 'runedrake' ? 0.9 : 0.82;
+        const rosterScale = fullRoster ? 0.5 : 1;
+        const baseScale =
+          (f.species === 'eevee' ? 0.66 : f.species === 'runedrake' ? 0.9 : 0.82) * rosterScale;
         v.direction = fighterDirection(f, v.direction);
         if (!settings.paused && !settings.reducedMotion) v.locomotionClock += delta / 1000;
         const locomotion =
@@ -614,7 +621,7 @@ export function createArenaScene(
         v.shadow
           .setVisible(!hidden && !liquidBinding && (hoverHeight > 0 ? faintAlpha > 0 : !faint))
           .setPosition(x, ground - (f.groundHeight ?? 0) + 2)
-          .setScale(Math.max(0.45, 1 - (altitude - (f.groundHeight ?? 0)) / 300))
+          .setScale(rosterScale * Math.max(0.45, 1 - (altitude - (f.groundHeight ?? 0)) / 300))
           .setAlpha(
             hoverHeight > 0
               ? Math.max(0, 1 - (altitude - (f.groundHeight ?? 0)) / 260) * faintAlpha
@@ -630,13 +637,17 @@ export function createArenaScene(
             targeted ? 0xff4949 : selected ? 0xffe88c : f.team === 0 ? 0xf3d36e : 0xeeb4a2,
             selected || targeted ? 0.95 : 0.55,
           )
-          .setScale(selected || targeted ? 1.35 : 1);
+          .setScale(rosterScale * (selected || targeted ? 1.35 : 1));
         v.label
           .setVisible(!faint && !hidden && !liquidBinding)
-          .setPosition(x, ground - 96 - altitude);
-        v.targetMarker.setVisible(targeted).setPosition(x, ground - 119 - altitude);
+          .setPosition(x, ground - 96 * rosterScale - altitude)
+          .setScale(fullRoster ? 0.7 : 1);
+        v.targetMarker.setVisible(targeted).setPosition(x, ground - 119 * rosterScale - altitude);
         const def = fighterDefinition(f);
         v.bars.clear();
+        v.bars
+          .setScale(rosterScale)
+          .setPosition(x * (1 - rosterScale), (ground - altitude) * (1 - rosterScale));
         if (!faint && !hidden && !liquidBinding) {
           v.bars
             .fillStyle(0x172e2b, 0.75)

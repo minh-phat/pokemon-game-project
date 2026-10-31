@@ -373,6 +373,8 @@ export interface BattleEvent {
   depth?: number;
 }
 export interface BattleConfig {
+  /** Automatically deploy a full roster at half-second intervals. */
+  fullRoster?: boolean;
   /** Server-verified open-world rosters may have unequal, unrestricted sizes. */
   worldEncounter?: boolean;
   arenaDefinition?: ArenaDefinition;
@@ -390,6 +392,7 @@ export interface BattleResult {
   scores: [number, number];
 }
 export interface BattleSnapshot {
+  fullRoster?: boolean;
   arenaDefinition?: ArenaDefinition;
   seed: number;
   tick: number;
@@ -414,6 +417,7 @@ export interface LobbyPlayer {
   rematch: boolean;
 }
 export interface LobbySnapshot {
+  fullRoster?: boolean;
   code: string;
   hostId: string;
   rules: MatchRules;

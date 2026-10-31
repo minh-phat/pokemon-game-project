@@ -14,7 +14,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { initializeBattle } from '@arena/game-core';
-import { ARENAS, POKEMON } from '@arena/game-data';
+import { ARENAS, FULL_ROSTER_ARENA, POKEMON } from '@arena/game-data';
 import type { Fighter, ManualBattleCommand } from '@arena/shared-types';
 import { useGame } from '@/lib/store';
 import { battleFeed } from '@/lib/battle-feed';
@@ -124,7 +124,9 @@ export function BattleScreen() {
   const [offlineManual, setOfflineManual] = useState(true);
   const online = state.mode === 'online';
   const snapshot = state.snapshot;
-  const arena = ARENAS.find((a) => a.id === state.rules.arena)!;
+  const arena = state.lobby?.fullRoster
+    ? FULL_ROSTER_ARENA
+    : ARENAS.find((a) => a.id === state.rules.arena)!;
   useEffect(() => {
     if (online) return;
     battleFeed.clear();
@@ -237,7 +239,14 @@ export function BattleScreen() {
             <Button
               variant={manual ? 'default' : 'outline'}
               size="sm"
-              disabled={!ready || !snapshot || finished || disconnected || displayCountdown > 0}
+              disabled={
+                Boolean(state.lobby?.fullRoster) ||
+                !ready ||
+                !snapshot ||
+                finished ||
+                disconnected ||
+                displayCountdown > 0
+              }
               aria-pressed={manual}
               onClick={changeMode}
             >
@@ -304,7 +313,12 @@ export function BattleScreen() {
             <span className="team-color" />
           </div>
         </div>
-        <BattleCanvas arena={arena.id} onReady={() => setReady(true)} onError={setLoadError} />
+        <BattleCanvas
+          arena={arena.id}
+          fullRoster={state.lobby?.fullRoster}
+          onReady={() => setReady(true)}
+          onError={setLoadError}
+        />
         {manual && snapshot && (
           <ManualControls
             snapshot={snapshot}

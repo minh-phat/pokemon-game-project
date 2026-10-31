@@ -21,7 +21,7 @@ export function LobbyScreen() {
             state.connection === 'lost'
               ? c('Return home to create or join a new room.')
               : state.matchmade
-                ? 'Đang tìm đối thủ phù hợp. Sau 60 giây, bạn sẽ đấu với máy.'
+                ? 'Đang tìm đối thủ phù hợp. Nếu chưa tìm được người chơi, bạn sẽ đấu với máy.'
                 : c('Connecting to the game server.')
           }
         />

@@ -1,5 +1,5 @@
 import type { MatchSelectionSnapshot, OwnedPet } from '@arena/shared-types';
-import { strongestPets, type MatchSize } from './matchmaking';
+import { strongestPets } from './matchmaking';
 
 export const SELECTION_MS = 15_000;
 type Participant = { id: string; pets: OwnedPet[]; bot?: boolean };
@@ -10,7 +10,7 @@ export class MatchSelection {
   readonly deadline: number;
   private choices: [Choice, Choice];
   constructor(
-    readonly size: MatchSize,
+    readonly size: 3 | 6,
     participants: [Participant, Participant],
     now: number,
   ) {

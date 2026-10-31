@@ -12,6 +12,7 @@ import {
   DIFFICULTY,
   EFFECTIVENESS,
   SKILL_BY_ID,
+  battleSkill,
 } from '@arena/game-data';
 
 /** Predict a projectile crossing a fighter on the arena plane, in seconds. */
@@ -140,8 +141,16 @@ export function decideAction(
     f.actionTime > 0
   )
     return { type: 'wait' };
-  const def = fighterDefinition(f),
-    tuning = DIFFICULTY[difficulty];
+  const original = fighterDefinition(f);
+  const def = state.fullRoster
+    ? {
+        ...original,
+        attackRange: original.attackRange * 0.65,
+        ai: { ...original.ai, preferredDistance: original.ai.preferredDistance * 0.65 },
+        skills: original.skills.map((skill) => battleSkill(skill.id, true)),
+      }
+    : original;
+  const tuning = DIFFICULTY[difficulty];
   const enemies = state.fighters.filter(
     (v) => v.active && v.hp > 0 && v.team !== f.team && !isConcealed(v),
   );
@@ -190,7 +199,7 @@ export function decideAction(
   const meleeDanger =
     target.cast &&
     SKILL_BY_ID[target.cast.skillId]?.behavior === 'melee' &&
-    distance < SKILL_BY_ID[target.cast.skillId].range + 25;
+    distance < battleSkill(target.cast.skillId, state.fullRoster).range + 25;
   if (difficulty === 'hard') {
     const escape = (x: number, depth: number): AIAction => {
       // Pick the perpendicular direction with room for a full dash, including depth edges.
@@ -281,7 +290,7 @@ export function decideAction(
       }
     }
     // Read ranged startup and leave the firing line while the enemy commits to the cast.
-    const windup = target.cast && SKILL_BY_ID[target.cast.skillId];
+    const windup = target.cast && battleSkill(target.cast.skillId, state.fullRoster);
     if (
       !threat &&
       windup &&

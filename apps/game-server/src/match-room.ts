@@ -57,7 +57,7 @@ export class MatchRoom extends Room {
       typeof options.token !== 'string' ||
       !/^[a-f0-9]{64}$/.test(options.token) ||
       (options.mode !== 'casual' && options.mode !== 'ranked') ||
-      (options.size !== 3 && options.size !== 6)
+      (options.size !== 3 && options.size !== 6 && options.size !== 'all')
     )
       throw new Error('Invalid matchmaking request');
     const db = await database();
@@ -92,7 +92,7 @@ export class MatchRoom extends Room {
       experience: p.experience ?? 0,
       acquiredAt: p.createdAt.toISOString(),
     }));
-    if (pets.length < options.size)
+    if (!pets.length || (options.size !== 'all' && pets.length < options.size))
       throw new Error(`Bạn cần ít nhất ${options.size} thú triệu hồi.`);
     return {
       userId: user._id,
@@ -131,12 +131,14 @@ export class MatchRoom extends Room {
           randomUUID(),
           {
             ...DEFAULT_RULES,
-            teamSize: a.size,
+            teamSize: a.size === 'all' ? 1 : a.size,
             activeSize: 1,
-            arena: match.arena,
+            arena: a.size === 'all' ? 'forest' : match.arena,
             duplicates: true,
+            ...(a.size === 'all' ? { duration: 0, switching: false } : {}),
           },
           randomInt(1, 2147483647),
+          a.size === 'all',
         );
         const botId = `bot-${randomUUID()}`;
         session.prepareMatched(
@@ -146,14 +148,19 @@ export class MatchRoom extends Room {
           ],
           !b,
         );
-        const selection = new MatchSelection(
-          a.size,
-          [
-            { id: a.playerId, pets: one.pets },
-            { id: b?.playerId ?? botId, pets: two?.pets ?? a.pets, bot: !b },
-          ],
-          Date.now(),
-        );
+        const selection =
+          a.size === 'all'
+            ? null
+            : new MatchSelection(
+                a.size,
+                [
+                  { id: a.playerId, pets: one.pets },
+                  { id: b?.playerId ?? botId, pets: two?.pets ?? a.pets, bot: !b },
+                ],
+                Date.now(),
+              );
+        if (a.size === 'all')
+          session.startPreparedMatched([a.pets, b?.pets ?? generateBotTeam(a.pets)]);
         const users = new Map([
           [a.playerId, one],
           ...(b && two ? [[b.playerId, two] as [string, Identity]] : []),

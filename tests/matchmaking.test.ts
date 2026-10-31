@@ -255,3 +255,61 @@ describe('random bot teams', () => {
     expect(Math.max(...totals)).toBeLessThanOrEqual(Math.min(...totals) * 1.2);
   });
 });
+
+describe('full roster matchmaking', () => {
+  it('matches by total roster power and falls back after 30 seconds', () => {
+    const queue = new MatchmakingQueue();
+    queue.enqueue(entry('a', { size: 'all' }));
+    queue.enqueue(entry('b', { size: 'all', pets: pets().slice(0, 3) }));
+    expect(queue.poll(29_999)).toEqual([]);
+    expect(queue.poll(30_000).map((match) => match.players[1])).toEqual([null, null]);
+  });
+  it('summons one pet per side every half second with unequal rosters', async () => {
+    const { BattleSession } = await import('../apps/game-server/src/session');
+    const { DEFAULT_RULES } = await import('@arena/shared-types');
+    const session = new BattleSession(
+      'full',
+      {
+        ...DEFAULT_RULES,
+        teamSize: 1,
+        activeSize: 1,
+        duration: 0,
+        duplicates: true,
+        switching: false,
+      },
+      1,
+      true,
+    );
+    session.startMatched(
+      [
+        { id: 'a', name: 'Player', pets: pets() },
+        { id: 'b', name: 'Bot', pets: pets().slice(0, 3) },
+      ],
+      true,
+    );
+    session.lobby.countdown = 0;
+    session.tick(0);
+    const engine = session.engine!;
+    expect(engine.state.fighters.filter((f) => f.active)).toHaveLength(2);
+    expect(engine.state.arenaDefinition?.width).toBe(2400);
+    expect(engine.state.fighters.filter((f) => f.active).map((f) => f.x)).toEqual([330, 2070]);
+    for (let i = 0; i < 29; i++) engine.updateBattle(1 / 60);
+    expect(engine.state.fighters.filter((f) => f.active)).toHaveLength(2);
+    engine.updateBattle(1 / 60);
+    expect(engine.state.fighters.filter((f) => f.active)).toHaveLength(4);
+    engine.state.fighters
+      .filter((f) => f.team === 0 && f.active)
+      .forEach((f) => {
+        f.hp = 0;
+      });
+    expect(engine.determineWinner()?.winner).toBe(1);
+  });
+});
+
+it('uses shorter skill reach and slower projectiles only in full-roster battles', async () => {
+  const { battleSkill, SKILL_BY_ID } = await import('@arena/game-data');
+  const id = Object.keys(SKILL_BY_ID)[0];
+  expect(battleSkill(id, true).range).toBeCloseTo(battleSkill(id).range * 0.65);
+  expect(battleSkill(id, true).projectileSpeed).toBeCloseTo(battleSkill(id).projectileSpeed * 0.7);
+  expect(battleSkill(id)).toBe(SKILL_BY_ID[id]);
+});

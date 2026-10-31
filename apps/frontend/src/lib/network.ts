@@ -116,7 +116,7 @@ export async function connectRoom(kind: 'create' | 'join') {
     });
   }
 }
-export async function findMatch(mode: 'casual' | 'ranked', size: 3 | 6) {
+export async function findMatch(mode: 'casual' | 'ranked', size: 3 | 6 | 'all') {
   const generation = ++searchGeneration;
   useGame.getState().set({
     connection: 'connecting',
