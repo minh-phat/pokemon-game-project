@@ -2518,7 +2518,7 @@ body:has(.fantasy-app) .dialog-content.pets-dialog {
   margin-top: 0;
 }
 .pet-detail-skills .element-badge {
-  margin-left: 8px;
+  margin-left: 0;
 }
 .pet-detail-skills small {
   color: #d5bb8c;

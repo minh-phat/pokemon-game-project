@@ -8,6 +8,7 @@ import { useGame } from '@/lib/store';
 import { advanceSkillTraining, createSkillTraining, TRAINING_HP } from '@/lib/skill-training';
 import { Dialog } from './ui/dialog';
 import { Button } from './ui/button';
+import { ElementBadge } from './common';
 
 export function SkillTraining({
   species,
@@ -156,6 +157,10 @@ export function SkillTraining({
           )}
         </div>
         <div className="skill-training-info">
+          <div className="skill-name-and-element">
+            <strong>{c(skill.name)}</strong>
+            <ElementBadge element={skill.element} />
+          </div>
           <div className="skill-training-stats">
             <div>
               <Swords size={16} />

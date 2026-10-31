@@ -423,12 +423,15 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
               <div className="skill-row" key={s.id}>
                 <span className={`skill-number element-${s.element}`}>0{i + 1}</span>
                 <div>
-                  <button
-                    className="skill-test-name"
-                    onClick={() => setTraining({ species: selected.id, skillId: s.id })}
-                  >
-                    <strong>{c(s.name)}</strong>
-                  </button>
+                  <div className="skill-name-and-element">
+                    <button
+                      className="skill-test-name"
+                      onClick={() => setTraining({ species: selected.id, skillId: s.id })}
+                    >
+                      <strong>{c(s.name)}</strong>
+                    </button>
+                    <ElementBadge element={s.element} />
+                  </div>
                   <p>{s.description}</p>
                   <small>
                     {s.damagePercent}% {c('Attack')} · {s.energy} {c('energy')} · {s.cooldown}s{' '}

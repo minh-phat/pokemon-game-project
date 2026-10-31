@@ -750,19 +750,73 @@ small {
   font-size: 9px;
   color: #a1aa96;
 }
-.element-badge {
-  font-size: 8px;
-  letter-spacing: 0.2px;
+span.element-badge {
+  --element-ink: #eee9db;
+  --element-rgb: 199, 195, 169;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.25px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 7px;
-  border-radius: 5px;
+  gap: 6px;
+  padding: 3px 10px 3px 3px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--element-rgb), 0.4);
+  color: var(--element-ink);
+  background:
+    linear-gradient(115deg, rgba(var(--element-rgb), 0.23), rgba(var(--element-rgb), 0.08)), #172027;
+  box-shadow:
+    inset 0 1px 0 #ffffff0d,
+    0 2px 5px #00000018;
   white-space: nowrap;
   line-height: 1.4;
+  vertical-align: middle;
+  flex-shrink: 0;
 }
-.element-badge > span {
-  font-size: 12px;
+.element-badge .element-badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  background: linear-gradient(
+    145deg,
+    rgba(var(--element-rgb), 0.95),
+    rgba(var(--element-rgb), 0.6)
+  );
+  color: #152127;
+  box-shadow: inset 0 1px 1px #ffffff50;
+}
+.element-badge.element-electric {
+  --element-ink: #ffe292;
+  --element-rgb: 246, 207, 85;
+}
+.element-badge.element-fire {
+  --element-ink: #ffc3a5;
+  --element-rgb: 242, 150, 109;
+}
+.element-badge.element-water {
+  --element-ink: #b5e7ff;
+  --element-rgb: 121, 200, 232;
+}
+.element-badge.element-grass {
+  --element-ink: #c0efb4;
+  --element-rgb: 145, 205, 163;
+}
+.element-badge.element-poison {
+  --element-ink: #e5c4ff;
+  --element-rgb: 189, 123, 231;
+}
+.skill-name-and-element {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+.skill-name-and-element > .skill-test-name {
+  min-width: 0;
+  text-align: left;
 }
 .element-electric {
   color: #e1c56e;
@@ -3609,6 +3663,10 @@ select option {
 }
 .skill-training-info {
   margin-top: 16px;
+}
+.skill-training-info > .skill-name-and-element {
+  grid-column: 1 / -1;
+  margin-bottom: 10px;
 }
 .skill-training-stats {
   display: grid;

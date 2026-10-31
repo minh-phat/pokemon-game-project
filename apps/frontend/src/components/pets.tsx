@@ -381,8 +381,10 @@ function OwnedPetDetails({ pet, onBack }: { pet: OwnedPet; onBack: () => void })
       <div className="pet-detail-skills">
         {definition.skills.map((skill) => (
           <article key={skill.id}>
-            <strong>{c(skill.name)}</strong>
-            <ElementBadge element={skill.element} />
+            <div className="skill-name-and-element">
+              <strong>{c(skill.name)}</strong>
+              <ElementBadge element={skill.element} />
+            </div>
             <p>{skill.description}</p>
             <small>
               {skill.damagePercent}% {t('tấn công', 'attack')} · {skill.energy}{' '}

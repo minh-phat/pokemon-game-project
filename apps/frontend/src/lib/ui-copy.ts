@@ -1,4 +1,5 @@
 export const vietnameseCopy: Record<string, string> = {
+  Element: 'Hệ',
   'Cursed Scroll Bind': 'Trầm Mộc Chấn Lực',
   'Hydro Crossfire': 'Thập Tự Thủy Kích',
   'Hydro Crossfire · guarded': 'Thập Tự Thủy Kích · đỡ đòn',

@@ -1,6 +1,16 @@
 'use client';
 import { useCopy } from '@/lib/i18n';
-import { ArrowLeft, Check, ChevronRight } from 'lucide-react';
+import {
+  ArrowLeft,
+  Check,
+  ChevronRight,
+  CircleDot,
+  Droplets,
+  Flame,
+  Leaf,
+  Skull,
+  Zap,
+} from 'lucide-react';
 import type { Element, SpeciesId } from '@arena/shared-types';
 import { ASSETS, ELEMENTS, POKEMON } from '@arena/game-data';
 import { Button } from './ui/button';
@@ -8,10 +18,20 @@ import { useGame } from '@/lib/store';
 export function ElementBadge({ element }: { element: Element }) {
   const c = useCopy();
   const e = ELEMENTS[element];
+  const Icon = {
+    normal: CircleDot,
+    electric: Zap,
+    fire: Flame,
+    water: Droplets,
+    grass: Leaf,
+    poison: Skull,
+  }[element];
   return (
-    <span className={`element-badge element-${element}`}>
-      <span aria-hidden="true">{e.symbol}</span>
-      {c(e.label)}
+    <span className={`element-badge element-${element}`} title={c('Element') + ': ' + c(e.label)}>
+      <span className="element-badge-icon" aria-hidden="true">
+        <Icon size={14} strokeWidth={2.3} />
+      </span>
+      <span className="element-badge-label">{c(e.label)}</span>
     </span>
   );
 }
