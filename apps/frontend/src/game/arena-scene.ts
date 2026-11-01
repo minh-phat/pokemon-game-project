@@ -23,6 +23,7 @@ import { BattleAudio } from './audio';
 import { easeHover, hoverTarget } from './hover';
 import { SkillVfx } from './skill-vfx';
 import { DashWind } from './dash-wind';
+import { RosterBars } from './roster-bars';
 import { automaticCameraFrame } from './arena-camera';
 import { constrainCamera, zoomCamera, type CameraView } from './manual-arena-camera';
 import { creatureLocomotion, fighterDirection } from './creature-locomotion';
@@ -33,6 +34,7 @@ type Visual = {
   sprite: Phaser.GameObjects.Sprite;
   shadow: Phaser.GameObjects.Ellipse;
   bars: Phaser.GameObjects.Graphics;
+  rosterBars?: RosterBars;
   label: Phaser.GameObjects.Text;
   ring: Phaser.GameObjects.Ellipse;
   targetMarker: Phaser.GameObjects.Text;
@@ -40,6 +42,7 @@ type Visual = {
   hoverLift: number;
   direction: Direction;
   locomotionClock: number;
+  culled: boolean;
 };
 /** External snapshots render on a transparent world layer; the world remains the sole simulation owner. */
 export type WorldArenaSource = () => {
@@ -364,6 +367,7 @@ export function createArenaScene(
           .setScale(f.species === 'eevee' ? 0.66 : f.species === 'runedrake' ? 0.9 : 0.82)
           .setDepth(5),
         bars: this.add.graphics().setDepth(15),
+        rosterBars: fullRoster && !worldSource ? new RosterBars(this, f.team) : undefined,
         label: this.add
           .text(
             f.x,
@@ -385,6 +389,7 @@ export function createArenaScene(
         hoverLift: POKEMON[f.species].hoverHeight ?? 0,
         direction: f.facing < 0 ? 'west' : 'east',
         locomotionClock: f.slot * 1.37,
+        culled: false,
       };
       this.actors.set(f.id, visual);
       if (!worldSource && !fullRoster)
@@ -505,6 +510,16 @@ export function createArenaScene(
         });
       const hoverByFighter = new Map<string, number>();
       const previousFighters = previous && new Map(previous.fighters.map((f) => [f.id, f]));
+      const binders = new Map<string, Fighter>();
+      for (const fighter of snapshot.fighters) {
+        if (
+          fighter.cast?.skillId === 'cursed-scroll-bind' &&
+          fighter.cast.bound &&
+          fighter.cast.targetId &&
+          !binders.has(fighter.cast.targetId)
+        )
+          binders.set(fighter.cast.targetId, fighter);
+      }
       for (const f of snapshot.fighters) {
         let v = this.actors.get(f.id);
         if (!f.active && f.hp > 0) {
@@ -515,6 +530,7 @@ export function createArenaScene(
             v.targetMarker.setVisible(false);
             v.label.setVisible(false);
             v.bars.clear();
+            v.rosterBars?.setVisible(false);
             v.wind.update(
               0,
               0,
@@ -530,13 +546,48 @@ export function createArenaScene(
           }
           continue;
         }
-        if (!v) v = this.createActor(f);
         const old = previousFighters?.get(f.id);
         const x = old && old.active === f.active ? Phaser.Math.Linear(old.x, f.x, alpha) : f.x;
         const y = old && old.active === f.active ? Phaser.Math.Linear(old.y, f.y, alpha) : f.y;
         const depth =
           old && old.active === f.active ? Phaser.Math.Linear(old.depth, f.depth, alpha) : f.depth;
         const ground = 520 + depth;
+        // Keep a generous margin for large sprites, jumps, labels and dash trails.
+        // The manual camera is already constrained above, so it is safe to use its
+        // world-space bounds even before Phaser refreshes camera.worldView.
+        if (fullRoster && !worldSource && this.manualCamera) {
+          const view = this.manualCamera;
+          const halfW = camera.width / (2 * view.zoom) + 350;
+          const halfH = camera.height / (2 * view.zoom) + 350;
+          const actorY = ground - y;
+          if (Math.abs(x - view.x) > halfW || Math.abs(actorY - view.y) > halfH) {
+            if (v && !v.culled) {
+              v.sprite.setVisible(false);
+              v.shadow.setVisible(false);
+              v.ring.setVisible(false);
+              v.targetMarker.setVisible(false);
+              v.label.setVisible(false);
+              v.bars.clear();
+              v.rosterBars?.setVisible(false);
+              v.wind.update(
+                0,
+                0,
+                0,
+                0,
+                0,
+                false,
+                false,
+                delta,
+                settings.paused,
+                settings.reducedMotion,
+              );
+              v.culled = true;
+            }
+            continue;
+          }
+          if (v) v.culled = false;
+        }
+        if (!v) v = this.createActor(f);
         const faint = f.hp <= 0;
         const hidden = !faint && f.team !== myTeam && isConcealed(f);
         const opacity = slimeOpacity(f, f.team === myTeam);
@@ -599,12 +650,7 @@ export function createArenaScene(
           f.cast?.skillId === 'ember-glyph' && f.cast.elapsed < SKILL_BY_ID['ember-glyph'].startup;
         const glyphWobble =
           glyphCasting && !settings.reducedMotion ? Math.sin(f.cast!.elapsed * 35) * 0.025 : 0;
-        const binder = snapshot.fighters.find(
-          (other) =>
-            other.cast?.skillId === 'cursed-scroll-bind' &&
-            other.cast.bound &&
-            other.cast.targetId === f.id,
-        );
+        const binder = binders.get(f.id);
         const bindAge = binder?.cast
           ? Math.max(0, binder.cast.elapsed - SKILL_BY_ID['cursed-scroll-bind'].startup)
           : 0;
@@ -756,30 +802,36 @@ export function createArenaScene(
           .setPosition(x, ground - 96 * rosterScale - altitude)
           .setScale(1);
         v.targetMarker.setVisible(targeted).setPosition(x, ground - 119 * rosterScale - altitude);
-        const def = fighterDefinition(f);
         v.bars.clear();
         v.bars
           .setScale(rosterScale)
           .setPosition(x * (1 - rosterScale), (ground - altitude) * (1 - rosterScale));
-        if (!faint && !hidden && !liquidBinding) {
-          v.bars
-            .fillStyle(0x172e2b, 0.75)
-            .fillRoundedRect(x - 31, ground - 84 - altitude, 62, 7, 3);
-          v.bars
-            .fillStyle(f.team === 0 ? 0xd5e6a9 : 0xf0b0a1)
-            .fillRoundedRect(x - 30, ground - 83 - altitude, 60 * (f.hp / def.hp), 5, 2);
-          v.bars
-            .fillStyle(0xa1d9e1, 0.85)
-            .fillRect(x - 30, ground - 74 - altitude, (60 * f.energy) / def.energy, 2);
-          v.bars.fillStyle(0x292b24, 0.8).fillRect(x - 30, ground - 70 - altitude, 60, 3);
-          v.bars
-            .fillStyle(f.stamina < f.maxStamina * 0.2 ? 0xee9777 : 0xe0be70, 0.95)
-            .fillRect(
-              x - 30,
-              ground - 70 - altitude,
-              60 * Math.max(0, Math.min(1, f.stamina / f.maxStamina)),
-              3,
-            );
+        const showBars = !faint && !hidden && !liquidBinding;
+        v.rosterBars?.setVisible(showBars);
+        if (showBars) {
+          if (v.rosterBars) {
+            v.rosterBars.update(f, x, ground - altitude);
+          } else {
+            const def = fighterDefinition(f);
+            v.bars
+              .fillStyle(0x172e2b, 0.75)
+              .fillRoundedRect(x - 31, ground - 84 - altitude, 62, 7, 3);
+            v.bars
+              .fillStyle(f.team === 0 ? 0xd5e6a9 : 0xf0b0a1)
+              .fillRoundedRect(x - 30, ground - 83 - altitude, 60 * (f.hp / def.hp), 5, 2);
+            v.bars
+              .fillStyle(0xa1d9e1, 0.85)
+              .fillRect(x - 30, ground - 74 - altitude, (60 * f.energy) / def.energy, 2);
+            v.bars.fillStyle(0x292b24, 0.8).fillRect(x - 30, ground - 70 - altitude, 60, 3);
+            v.bars
+              .fillStyle(f.stamina < f.maxStamina * 0.2 ? 0xee9777 : 0xe0be70, 0.95)
+              .fillRect(
+                x - 30,
+                ground - 70 - altitude,
+                60 * Math.max(0, Math.min(1, f.stamina / f.maxStamina)),
+                3,
+              );
+          }
           if (f.cast) {
             const skill = SKILL_BY_ID[f.cast.skillId];
             const progress = Math.min(1, f.cast.elapsed / skill.startup);

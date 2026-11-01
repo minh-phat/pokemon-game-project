@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef } from 'react';
 import type { MatchRules } from '@arena/shared-types';
+import { battleRenderer } from '@/game/battle-renderer';
 export function BattleCanvas({
   arena,
   fullRoster = false,
@@ -31,9 +32,7 @@ export function BattleCanvas({
           fullRoster,
         );
         game = new Phaser.Game({
-          // This scene uses sprites and 2D paths only. Canvas avoids GPU readback
-          // stalls on software-rendered browsers while preserving every effect.
-          type: Phaser.CANVAS,
+          ...battleRenderer(Phaser, fullRoster),
           parent: container.current,
           width: container.current.clientWidth,
           height: container.current.clientHeight,
