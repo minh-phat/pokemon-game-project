@@ -399,8 +399,8 @@ export function CombatHandbook({ onClose }: { onClose: () => void }) {
               </summary>
               <p>
                 {t(
-                  'Cấp 1, phẩm chất C; dùng chỉ số thực tế nếu pet đã phát triển.',
-                  'Level 1, quality C; use current stats for progressed pets.',
+                  'Cấp 1, phẩm chất F; dùng chỉ số thực tế nếu pet đã phát triển.',
+                  'Level 1, quality F; use current stats for progressed pets.',
                 )}
               </p>
               <div className="handbook-matchups">

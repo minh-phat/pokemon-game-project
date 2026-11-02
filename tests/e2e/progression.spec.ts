@@ -17,12 +17,12 @@ test('library previews level and quality for every pet and handles invalid level
   const quality = detail.getByLabel('Phẩm chất', { exact: true });
   await expect(detail.getByRole('heading', { name: 'Pikachu', exact: true })).toBeVisible();
   await expect(level).toHaveValue('1');
-  await expect(quality).toHaveValue('C');
+  await expect(quality).toHaveValue('F');
   await level.fill('10');
   await quality.selectOption('A');
   await expect(detail.getByRole('status')).toHaveText('Pikachu · Cấp độ 10 · Phẩm chất A');
-  await expect(detail.locator('.stat b')).toHaveText(['333', '49', '27', '321,3', '401,7', '136']);
-  await expect(detail.locator('.combat-power-panel > strong')).toHaveText('1.572');
+  await expect(detail.locator('.stat b')).toHaveText(['467', '69', '38', '353,5', '441,8', '191']);
+  await expect(detail.locator('.combat-power-panel > strong')).toHaveText('1.988');
   await detail
     .locator('.pet-progression')
     .screenshot({ path: 'test-results/library-progression.png' });
@@ -31,7 +31,7 @@ test('library previews level and quality for every pet and handles invalid level
       .locator('.roster-card')
       .filter({ has: page.getByRole('heading', { name: 'Pikachu', exact: true }) })
       .locator('.combat-power-badge'),
-  ).toContainText('1.572');
+  ).toContainText('1.988');
   await level.fill('101');
   await expect(level).toHaveAttribute('aria-invalid', 'true');
   await expect(detail.getByRole('alert')).toBeVisible();
@@ -48,7 +48,7 @@ test('library previews level and quality for every pet and handles invalid level
   }
   await detail.getByRole('button', { name: 'Về chỉ số gốc' }).click();
   await expect(level).toHaveValue('1');
-  await expect(quality).toHaveValue('C');
+  await expect(quality).toHaveValue('F');
   for (const [width, height] of [
     [390, 844],
     [844, 390],

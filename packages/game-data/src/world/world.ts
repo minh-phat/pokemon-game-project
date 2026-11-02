@@ -40,7 +40,25 @@ export function wildProgression(world: World, id: number, position: Point): PetP
       distance < 10
         ? 1
         : Math.min(60, 1 + Math.floor(distance / 180) + Math.floor(hash(id, 992, world.seed) * 4)),
-    quality: roll < 0.6 ? 'C' : roll < 0.85 ? 'B' : roll < 0.96 ? 'A' : roll < 0.998 ? 'S' : 'SS',
+    // F/E/D/C: 15% each; B: 25%; A: 11%; S: 3.8%; SS: 0.19%; SSS: 0.01%.
+    quality:
+      roll < 0.15
+        ? 'F'
+        : roll < 0.3
+          ? 'E'
+          : roll < 0.45
+            ? 'D'
+            : roll < 0.6
+              ? 'C'
+              : roll < 0.85
+                ? 'B'
+                : roll < 0.96
+                  ? 'A'
+                  : roll < 0.998
+                    ? 'S'
+                    : roll < 0.9999
+                      ? 'SS'
+                      : 'SSS',
   };
 }
 

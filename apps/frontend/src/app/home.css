@@ -2376,6 +2376,22 @@ body:has(.fantasy-app) .dialog-content.pets-dialog {
   font-weight: 800;
   margin: 4px;
 }
+.quality-F {
+  color: #8993a1;
+}
+.quality-E {
+  color: #a99e93;
+}
+.quality-D {
+  color: #c5b39a;
+}
+.quality-SSS {
+  color: #ff91ac;
+}
+.pet-border-SSS {
+  border-color: #ff91ac;
+  box-shadow: inset 0 0 25px #ff91ac33;
+}
 .quality-C {
   color: #bec8d5;
 }
@@ -2403,7 +2419,7 @@ body:has(.fantasy-app) .dialog-content.pets-dialog {
 }
 .summon-guarantees {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 8px;
 }
 .summon-guarantees > div {

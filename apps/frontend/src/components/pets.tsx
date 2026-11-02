@@ -237,8 +237,8 @@ export function PetsDialog({ view, onClose }: { view: 'pets' | 'summon'; onClose
             </div>
             <p className="pets-note">
               {t(
-                'Mỗi lượt đều nhận 1 thú cấp 1. Càng triệu hồi nhiều, cơ hội ra phẩm chất cao càng tăng (đạt tối đa sau 1.000 lượt). Bảo đảm lặp lại: mỗi 11 lượt ≥ A, 101 lượt ≥ S, 1.001 lượt SS. Ra phẩm chất cao sớm không đặt lại bộ đếm. Trùng mốc nhận bảo đảm cao nhất.',
-                'Every summon grants a level 1 companion. Higher-quality chances grow with total summons (capped after 1,000). Repeating guarantees: every 11 summons ≥ A, 101 ≥ S, 1,001 SS. Early lucky rolls do not reset counters. Overlapping milestones use the highest guarantee.',
+                'Mỗi lượt đều nhận 1 thú cấp 1. Càng triệu hồi nhiều, cơ hội ra phẩm chất cao càng tăng (đạt tối đa sau 1.000 lượt). Bảo đảm lặp lại: mỗi 11 lượt ≥ A, 101 lượt ≥ S, 1.001 lượt ≥ SS, 10.001 lượt SSS. Ra phẩm chất cao sớm không đặt lại bộ đếm. Trùng mốc nhận bảo đảm cao nhất.',
+                'Every summon grants a level 1 companion. Higher-quality chances grow with total summons (capped after 1,000). Repeating guarantees: every 11 summons ≥ A, 101 ≥ S, 1,001 ≥ SS, 10,001 SSS. Early lucky rolls do not reset counters. Overlapping milestones use the highest guarantee.',
               )}
             </p>
             <button

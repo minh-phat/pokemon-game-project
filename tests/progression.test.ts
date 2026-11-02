@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { calculatePetStats, combatPower, POKEMON, ROSTER, PET_QUALITIES } from '@arena/game-data';
 
 describe('summoned pet progression', () => {
-  it.each(ROSTER)('$name starts with its existing stats at level 1 / C', (pet) => {
+  it.each(ROSTER)('$name starts with its existing stats at level 1 / F', (pet) => {
     const stats = calculatePetStats(pet);
     for (const key of Object.keys(stats) as (keyof typeof stats)[])
       expect(stats[key]).toBe(pet[key]);
@@ -10,7 +10,7 @@ describe('summoned pet progression', () => {
   });
 
   it('calculates Pikachu at level 10 and applies quality A before rounding', () => {
-    expect(calculatePetStats(POKEMON.pikachu, { level: 10, quality: 'C' })).toEqual({
+    expect(calculatePetStats(POKEMON.pikachu, { level: 10, quality: 'F' })).toEqual({
       hp: 267,
       attack: 39,
       defense: 22,
@@ -20,14 +20,14 @@ describe('summoned pet progression', () => {
     });
     const stats = calculatePetStats(POKEMON.pikachu, { level: 10, quality: 'A' });
     expect(stats).toEqual({
-      hp: 333,
-      attack: 49,
-      defense: 27,
-      speed: 321.3,
-      sprintSpeed: 401.7,
-      maxStamina: 136,
+      hp: 467,
+      attack: 69,
+      defense: 38,
+      speed: 353.5,
+      sprintSpeed: 441.8,
+      maxStamina: 191,
     });
-    expect(combatPower(stats)).toBe(1572);
+    expect(combatPower(stats)).toBe(1988);
   });
 
   it.each(ROSTER)('$name grows monotonically across every level and quality', (pet) => {
@@ -43,7 +43,7 @@ describe('summoned pet progression', () => {
         previous = stats;
       }
     }
-    let previous = calculatePetStats(pet, { level: 10, quality: 'C' });
+    let previous = calculatePetStats(pet, { level: 10, quality: PET_QUALITIES[0] });
     for (const quality of PET_QUALITIES.slice(1)) {
       const stats = calculatePetStats(pet, { level: 10, quality });
       for (const key of Object.keys(stats) as (keyof typeof stats)[])
@@ -51,6 +51,17 @@ describe('summoned pet progression', () => {
       previous = stats;
     }
     expect(pet).toEqual(original);
+  });
+
+  it.each(ROSTER)('$name keeps level-100 SSS movement at 2.99 times base', (pet) => {
+    const strongest = calculatePetStats(pet, { level: 100, quality: 'SSS' });
+    const weakest = calculatePetStats(pet, { level: 1, quality: 'F' });
+    for (const key of ['speed', 'sprintSpeed'] as const) {
+      expect(strongest[key]).toBeCloseTo(pet[key] * 1.495 * 2, 0);
+      expect(strongest[key] / weakest[key]).toBeCloseTo(2.99, 3);
+    }
+    expect(strongest.hp).toBe(Math.round(pet.hp * 8.92 * 3));
+    expect(strongest.attack).toBe(Math.round(pet.attack * 5.95 * 3));
   });
 
   it.each([0, -1, 101, 1.5, NaN, Infinity])('rejects invalid level %s', (level) => {

@@ -11,8 +11,18 @@ export {
   type PetProgression,
   type PetQuality,
 } from '@arena/shared-types';
-export const PET_QUALITY_MULTIPLIERS = { C: 1, B: 1.1, A: 1.25, S: 1.5, SS: 2 } as const;
-export const DEFAULT_PET_PROGRESSION: PetProgression = { level: 1, quality: 'C' };
+export const PET_QUALITY_MULTIPLIERS = {
+  F: 1,
+  E: 1.15,
+  D: 1.3,
+  C: 1.5,
+  B: 1.6,
+  A: 1.75,
+  S: 2,
+  SS: 2.5,
+  SSS: 3,
+} as const;
+export const DEFAULT_PET_PROGRESSION: PetProgression = { level: 1, quality: 'F' };
 
 /** XP is the remainder toward the next level, never a currency. */
 export function experienceToNextLevel(level: number): number {
@@ -45,9 +55,11 @@ export const PET_STAT_GROWTH = {
   sprintSpeed: 0.005,
   maxStamina: 0.01,
 } as const;
+/** Movement receives only 50% of the quality bonus: F ×1 through SSS ×2. */
+export const PET_SPEED_QUALITY_BONUS_SCALE = 0.5;
 export type PetStats = Pick<PokemonDefinition, keyof typeof PET_STAT_GROWTH>;
 
-/** Level 1 / C reproduces the base stats exactly. Never mutates the species definition. */
+/** Level 1 / F reproduces the base stats exactly. Never mutates the species definition. */
 export function calculatePetStats(
   base: PetStats,
   progression: PetProgression = DEFAULT_PET_PROGRESSION,
@@ -55,11 +67,13 @@ export function calculatePetStats(
   const { level, quality } = PetProgressionSchema.parse(progression);
   const multiplier = PET_QUALITY_MULTIPLIERS[quality];
   const stat = (key: keyof PetStats) => {
-    if (level === 1 && quality === 'C') return base[key];
-    const value = base[key] * (1 + (level - 1) * PET_STAT_GROWTH[key]) * multiplier;
-    return key === 'speed' || key === 'sprintSpeed'
-      ? Math.round(value * 10) / 10
-      : Math.round(value);
+    if (level === 1 && multiplier === 1) return base[key];
+    const movement = key === 'speed' || key === 'sprintSpeed';
+    const qualityMultiplier = movement
+      ? 1 + (multiplier - 1) * PET_SPEED_QUALITY_BONUS_SCALE
+      : multiplier;
+    const value = base[key] * (1 + (level - 1) * PET_STAT_GROWTH[key]) * qualityMultiplier;
+    return movement ? Math.round(value * 10) / 10 : Math.round(value);
   };
   return {
     hp: stat('hp'),

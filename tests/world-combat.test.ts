@@ -9,8 +9,12 @@ import {
   experienceToNextLevel,
   wildBattleExperience,
 } from '@arena/game-data';
-import { createWorld } from '@arena/game-data/world';
-import type { WorldEncounterTicket, WorldBattleAction } from '@arena/shared-types';
+import { createWorld, wildProgression } from '@arena/game-data/world';
+import {
+  PET_QUALITIES,
+  type WorldEncounterTicket,
+  type WorldBattleAction,
+} from '@arena/shared-types';
 import { finishWorldBattle, startWorldBattle, withWorldLock } from '../apps/backend/src/world';
 import type { PetDocument } from '../apps/backend/src/pets';
 
@@ -48,15 +52,15 @@ describe('world battle and progression', () => {
     expect(gainExperience({ level: 100 }, 500)).toEqual({ level: 100, experience: 0 });
     for (const amount of [-1, NaN, Infinity, 0.5])
       expect(() => gainExperience({ level: 1 }, amount)).toThrow();
-    expect(wildBattleExperience({ level: 1, quality: 'C' }, true)).toBe(50);
-    expect(wildBattleExperience({ level: 1, quality: 'C' }, false)).toBe(13);
+    expect(wildBattleExperience({ level: 1, quality: 'C' }, true)).toBe(75);
+    expect(wildBattleExperience({ level: 1, quality: 'C' }, false)).toBe(19);
   });
   it('scales each fighter independently even when both are the same species', () => {
     const engine = createWorldEncounter(ticket);
     const [pet, wild] = engine.state.fighters;
     expect(pet.hp).toBe(fighterDefinition(pet).hp);
     expect(pet.hp).toBeGreaterThan(wild.hp);
-    expect(wild.hp).toBe(POKEMON.pikachu.hp);
+    expect(wild.hp).toBe(233);
     expect(POKEMON.pikachu.hp).toBe(155);
   });
   it('stops below 10% without killing a capturable wild Pokémon, including lethal hits', () => {
@@ -99,13 +103,25 @@ describe('world battle and progression', () => {
     expect(() => replayWorldEncounter(ticket, [...actions].reverse(), state.tick)).toThrow('order');
     expect(() => replayWorldEncounter(ticket, actions, state.tick + 1)).toThrow('already ended');
   });
+  it('spawns every quality from F to SSS reproducibly across wild IDs', () => {
+    const world = createWorld(42);
+    const qualities = new Set<string>();
+    for (let id = 0; id < 100000; id++) {
+      const pet = wildProgression(world, id, world.spawn);
+      qualities.add(pet.quality);
+      if (pet.quality === 'SSS') {
+        expect(wildProgression(world, id, world.spawn)).toEqual(pet);
+      }
+    }
+    expect([...qualities].sort()).toEqual([...PET_QUALITIES].sort());
+  });
   it('generates reproducible level and quality with safe level-1 camp wildlife', () => {
     const world = createWorld(42),
       second = createWorld(42);
     expect(world.wildlife).toEqual(second.wildlife);
     expect(
       world.wildlife.every(
-        (p) => p.level >= 1 && p.level <= 60 && ['C', 'B', 'A', 'S', 'SS'].includes(p.quality),
+        (p) => p.level >= 1 && p.level <= 60 && PET_QUALITIES.includes(p.quality),
       ),
     ).toBe(true);
     expect(
@@ -208,15 +224,15 @@ describe('server verified world rewards', () => {
       'xác minh',
     );
     const first = await withWorldLock(ownerId, () => finishWorldBattle(db, ownerId, payload));
-    expect(first.experience).toBe(50);
-    expect(first.pet.experience).toBe(50);
+    expect(first.experience).toBe(75);
+    expect(first.pet.experience).toBe(75);
     expect(first.captured).toBeNull();
     const [a, b] = await Promise.all(
       [1, 2].map(() =>
         withWorldLock(ownerId, () => finishWorldBattle(db, ownerId, { ...payload, capture: true })),
       ),
     );
-    expect(a.pet.experience).toBe(50);
+    expect(a.pet.experience).toBe(75);
     expect(b).toEqual(a);
     expect(a.captured).toMatchObject({
       level: wild.level,

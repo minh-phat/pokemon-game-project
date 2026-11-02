@@ -1049,7 +1049,17 @@ export class OpenWorldEngine {
       x,
       y,
       text: `Lv.${actor.level} · ${actor.quality}`,
-      color: actor.quality === 'SS' ? '#ffbe63' : actor.quality === 'S' ? '#e7a4ff' : '#f4edcc',
+      color: {
+        F: '#8993a1',
+        E: '#a99e93',
+        D: '#c5b39a',
+        C: '#f4edcc',
+        B: '#8de0ad',
+        A: '#8bcaff',
+        S: '#e7a4ff',
+        SS: '#ffbe63',
+        SSS: '#ff91ac',
+      }[actor.quality],
     });
   }
 

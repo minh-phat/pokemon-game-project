@@ -93,7 +93,7 @@ describe('account summons', () => {
     for (let attempts = 1; attempts < 1000; attempts++) {
       if (SUMMON_GUARANTEES.some(({ interval }) => (attempts + 1) % interval === 0)) continue;
       const current = summonQualityOdds(attempts);
-      for (const quality of ['A', 'S', 'SS'] as const)
+      for (const quality of ['A', 'S', 'SS', 'SSS'] as const)
         expect(current[quality]).toBeGreaterThanOrEqual(previous[quality]);
       previous = current;
     }
@@ -110,19 +110,22 @@ describe('account summons', () => {
       [1000, 'SS'],
       [2001, 'SS'],
       [1110, 'S'],
+      [10000, 'SSS'],
+      [20001, 'SSS'],
+      [110010, 'SSS'],
     ] as const) {
       expect(rollSummonQuality(attempts, 0)).toBe(minimum);
-      expect(rollSummonQuality(attempts, 9999)).toBe('SS');
+      expect(rollSummonQuality(attempts, 9999)).toBe('SSS');
       const odds = summonQualityOdds(attempts);
       for (const quality of PET_QUALITIES.slice(0, PET_QUALITIES.indexOf(minimum)))
         expect(odds[quality]).toBe(0);
     }
-    expect(rollSummonQuality(9, 0)).toBe('C');
-    expect(rollSummonQuality(11, 0)).toBe('C');
+    expect(rollSummonQuality(9, 0)).toBe('F');
+    expect(rollSummonQuality(11, 0)).toBe('F');
     expect(() => rollSummonQuality(0, 10000)).toThrow();
   });
   it('maps every roll to exactly one quality with the advertised distribution', () => {
-    const counts = { C: 0, B: 0, A: 0, S: 0, SS: 0 };
+    const counts = { F: 0, E: 0, D: 0, C: 0, B: 0, A: 0, S: 0, SS: 0, SSS: 0 };
     for (let roll = 0; roll < 10000; roll++) counts[rollSummonQuality(0, roll)]++;
     expect(counts).toEqual(summonQualityOdds(0));
   });
@@ -156,6 +159,7 @@ describe('account summons', () => {
         { quality: 'A', remaining: 11 },
         { quality: 'S', remaining: 101 },
         { quality: 'SS', remaining: 1001 },
+        { quality: 'SSS', remaining: 10001 },
       ],
       cost: 0,
     });
@@ -206,8 +210,8 @@ describe('account summons', () => {
     vi.mocked(randomInt).mockReturnValue(0 as never);
     const first = await new AuthController().summon(req, res());
     const second = await new AuthController().summon(req, res());
-    expect(first.received).toMatchObject({ species: 'pikachu', quality: 'C', level: 1 });
-    expect(second.received).toMatchObject({ species: 'pikachu', quality: 'C', level: 1 });
+    expect(first.received).toMatchObject({ species: 'pikachu', quality: 'F', level: 1 });
+    expect(second.received).toMatchObject({ species: 'pikachu', quality: 'F', level: 1 });
     expect(first.received.id).not.toBe(second.received.id);
     expect(second.pets).toHaveLength(2);
     expect(second.attempts).toBe(2);
@@ -227,6 +231,7 @@ describe('account summons', () => {
       { quality: 'A', remaining: 9 },
       { quality: 'S', remaining: 101 },
       { quality: 'SS', remaining: 900 },
+      { quality: 'SSS', remaining: 9900 },
     ]);
     expect((await new AuthController().pets(req, res())).pets).toEqual(result.pets);
   });

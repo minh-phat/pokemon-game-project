@@ -34,7 +34,7 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
   const [element, setElement] = useState('all');
   const [level, setLevel] = useState(1);
   const [levelInput, setLevelInput] = useState('1');
-  const [quality, setQuality] = useState<PetQuality>('C');
+  const [quality, setQuality] = useState<PetQuality>('F');
   const validLevel =
     levelInput.trim() !== '' &&
     Number.isInteger(Number(levelInput)) &&
@@ -300,7 +300,7 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
                   onClick={() => {
                     setLevel(1);
                     setLevelInput('1');
-                    setQuality('C');
+                    setQuality('F');
                   }}
                 >
                   {c('Reset to base')}
@@ -309,10 +309,15 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
               <p role="status">
                 {selected.name} · {c('Level')} {level} · {c('Quality')} {quality}
               </p>
-              <p>{c('Preview only. Battle stats currently use level 1 / C.')}</p>
+              <p>{c('Preview only. Battle stats currently use level 1 / F.')}</p>
               <details>
                 <summary>{c('Level and quality formula')}</summary>
                 <p>{c('Stat = base × (1 + (level − 1) × growth) × quality multiplier.')}</p>
+                <p>
+                  {c(
+                    'Speed and sprint use 1 + (quality multiplier − 1) × 50% instead of the full quality multiplier.',
+                  )}
+                </p>
                 <p>
                   {c('Growth per level')}: {c('Health')} +{PET_STAT_GROWTH.hp * 100}%; {c('Attack')}{' '}
                   / {c('Defense')} +{PET_STAT_GROWTH.attack * 100}%; {c('Speed')} /{' '}

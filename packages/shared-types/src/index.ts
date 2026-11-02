@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const MIN_PET_LEVEL = 1;
 export const MAX_PET_LEVEL = 100;
-export const PET_QUALITIES = ['C', 'B', 'A', 'S', 'SS'] as const;
+export const PET_QUALITIES = ['F', 'E', 'D', 'C', 'B', 'A', 'S', 'SS', 'SSS'] as const;
 export const PetProgressionSchema = z.object({
   level: z.number().int().min(MIN_PET_LEVEL).max(MAX_PET_LEVEL),
   quality: z.enum(PET_QUALITIES),
@@ -492,6 +492,7 @@ export const SUMMON_GUARANTEES = [
   { quality: 'A', interval: 11 },
   { quality: 'S', interval: 101 },
   { quality: 'SS', interval: 1001 },
+  { quality: 'SSS', interval: 10001 },
 ] as const;
 export interface OwnedPet {
   experience?: number;
@@ -516,13 +517,17 @@ export interface MatchSelectionSnapshot {
 export function summonQualityOdds(attempts: number): Record<PetQuality, number> {
   const progress = Math.min(1000, Math.max(0, attempts)) / 1000;
   const odds = {
+    F: Math.round(1500 - 1300 * progress),
+    E: Math.round(1500 - 1200 * progress),
+    D: Math.round(1000 - 600 * progress),
     C: 0,
     B: Math.round(3000 + 500 * progress),
     A: Math.round(1200 + 1800 * progress),
     S: Math.round(280 + 920 * progress),
     SS: Math.round(20 + 280 * progress),
+    SSS: Math.round(1 + 49 * progress),
   };
-  odds.C = 10000 - odds.B - odds.A - odds.S - odds.SS;
+  odds.C = 10000 - odds.F - odds.E - odds.D - odds.B - odds.A - odds.S - odds.SS - odds.SSS;
   const floor = SUMMON_GUARANTEES.filter(({ interval }) => (attempts + 1) % interval === 0).at(
     -1,
   )?.quality;
@@ -543,7 +548,7 @@ export function rollSummonQuality(attempts: number, roll: number): PetQuality {
     if (roll < odds[quality]) return quality;
     roll -= odds[quality];
   }
-  return 'SS';
+  return 'SSS';
 }
 export interface PetCollection {
   attempts: number;

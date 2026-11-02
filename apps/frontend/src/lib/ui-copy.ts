@@ -23,8 +23,10 @@ export const vietnameseCopy: Record<string, string> = {
   'Reset to base': 'Về chỉ số gốc',
   'Enter a whole level from 1 to 100. The preview keeps the last valid level.':
     'Nhập cấp độ nguyên từ 1 đến 100. Bảng chỉ số đang giữ cấp hợp lệ gần nhất.',
-  'Preview only. Battle stats currently use level 1 / C.':
-    'Đây là bản xem trước. Chỉ số trong trận hiện ở cấp 1 / phẩm chất C.',
+  'Preview only. Battle stats currently use level 1 / F.':
+    'Đây là bản xem trước. Chỉ số trong trận hiện ở cấp 1 / phẩm chất F.',
+  'Speed and sprint use 1 + (quality multiplier − 1) × 50% instead of the full quality multiplier.':
+    'Tốc độ thường và chạy nhanh dùng hệ số 1 + (hệ số phẩm chất − 1) × 50%.',
   'Level and quality formula': 'Công thức cấp độ và phẩm chất',
   'Stat = base × (1 + (level − 1) × growth) × quality multiplier.':
     'Chỉ số = gốc × (1 + (cấp − 1) × tăng trưởng) × hệ số phẩm chất.',
