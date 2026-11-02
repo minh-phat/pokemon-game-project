@@ -26,10 +26,10 @@ function attach(joined: Room) {
   useGame.getState().set({
     sessionId: joined.sessionId,
     connection: 'connected',
-    screen: 'lobby',
+    ...(useGame.getState().matchmade ? {} : { screen: 'lobby' as const }),
     error: '',
     roomCode: joined.roomId,
-    mode: 'online',
+    ...(useGame.getState().matchmade ? {} : { mode: 'online' as const }),
   });
   let lastLobby = '';
   joined.onMessage('lobby', (lobby: LobbySnapshot) => {
@@ -43,6 +43,8 @@ function attach(joined: Room) {
     const me = lobby.players.find((p) => p.id === joined.sessionId);
     current.set({
       lobby,
+      matchSearchStartedAt: null,
+      mode: 'online',
       rules: lobby.rules,
       ...(rulesChanged
         ? { team: [], notice: 'The host updated the rules. Choose your team again.' }
@@ -82,6 +84,7 @@ function attach(joined: Room) {
       sessionStorage.removeItem('arena-reconnect');
       useGame.getState().set({
         connection: 'lost',
+        matchSearchStartedAt: null,
         error: 'This room is no longer available. Return home to start a new match.',
       });
     }
@@ -93,6 +96,7 @@ function attach(joined: Room) {
   return joined;
 }
 export async function connectRoom(kind: 'create' | 'join') {
+  if (useGame.getState().matchSearchStartedAt !== null) cancelMatchSearch();
   const state = useGame.getState();
   sessionStorage.removeItem('arena-matchmade');
   state.set({ connection: 'connecting', error: '', matchmade: false });
@@ -117,15 +121,16 @@ export async function connectRoom(kind: 'create' | 'join') {
   }
 }
 export async function findMatch(mode: 'casual' | 'ranked', size: 3 | 6 | 'all') {
+  if (useGame.getState().matchSearchStartedAt !== null || room) return;
   const generation = ++searchGeneration;
   useGame.getState().set({
     connection: 'connecting',
     error: '',
     lobby: null,
     matchSelection: null,
-    mode: 'online',
     matchmade: true,
-    screen: 'lobby',
+    matchSearchStartedAt: Date.now(),
+    screen: 'home',
   });
   try {
     const response = await fetch(
@@ -151,6 +156,8 @@ export async function findMatch(mode: 'casual' | 'ranked', size: 3 | 6 | 'all') 
     if (generation !== searchGeneration) return;
     useGame.getState().set({
       connection: 'lost',
+      matchSearchStartedAt: null,
+      matchmade: false,
       error: error instanceof Error ? error.message : 'Không thể tìm trận.',
     });
   }
@@ -223,5 +230,12 @@ export function leaveRoom() {
     team: [],
     matchmade: false,
     matchSelection: null,
+    matchSearchStartedAt: null,
   });
+}
+
+export function cancelMatchSearch() {
+  const screen = useGame.getState().screen;
+  leaveRoom();
+  useGame.getState().set({ screen });
 }

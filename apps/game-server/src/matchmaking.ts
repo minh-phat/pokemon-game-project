@@ -4,7 +4,7 @@ import type { OwnedPet } from '@arena/shared-types';
 export type MatchMode = 'casual' | 'ranked';
 export type MatchSize = 3 | 6 | 'all';
 export type Rank = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond';
-export const MATCH_WAIT_MS = 60_000;
+export const MATCH_WAIT_MS = 30_000;
 // The difference is symmetric: neither player is more than 20% stronger than the other.
 export const MAX_POWER_RATIO = 1.2;
 
@@ -99,8 +99,7 @@ export class MatchmakingQueue {
               x.startedAt - y.startedAt,
         )[0];
       if (candidate) createMatch(a, candidate);
-      else if (now - a.startedAt >= (a.size === 'all' ? 30_000 : MATCH_WAIT_MS))
-        createMatch(a, null);
+      else if (now - a.startedAt >= MATCH_WAIT_MS) createMatch(a, null);
     }
     return result;
   }

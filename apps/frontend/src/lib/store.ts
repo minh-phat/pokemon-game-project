@@ -29,6 +29,7 @@ interface GameStore {
   screen: Screen;
   mode: 'ai' | 'online';
   matchmade: boolean;
+  matchSearchStartedAt: number | null;
   matchSelection: MatchSelectionSnapshot | null;
   rules: MatchRules;
   team: SpeciesId[];
@@ -63,6 +64,7 @@ export const useGame = create<GameStore>()(
       screen: 'home',
       mode: 'ai',
       matchmade: false,
+      matchSearchStartedAt: null,
       matchSelection: null,
       rules: { ...DEFAULT_RULES },
       team: [],

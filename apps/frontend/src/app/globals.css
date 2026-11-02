@@ -4048,3 +4048,57 @@ select option {
   text-align: center;
   pointer-events: none;
 }
+
+.match-search-popup {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(350px, calc(100vw - 32px));
+  padding: 14px;
+  border: 1px solid #c79b50;
+  border-radius: 14px;
+  background: #231d32;
+  color: #fff3d5;
+  box-shadow: 0 8px 28px #0005;
+}
+.match-search-popup > svg {
+  flex-shrink: 0;
+  animation: spin 1.5s linear infinite;
+}
+.match-search-popup > div {
+  flex: 1;
+}
+.match-search-popup [role='timer'] {
+  margin-left: 10px;
+  font-variant-numeric: tabular-nums;
+  color: #f0c66d;
+}
+.match-search-popup small {
+  display: block;
+  margin-top: 5px;
+  line-height: 1.4;
+}
+.match-search-popup button {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #c79b5066;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+@media (prefers-reduced-motion: reduce) {
+  .match-search-popup > svg {
+    animation: none;
+  }
+}
+.reduce-motion .match-search-popup > svg {
+  animation: none;
+}

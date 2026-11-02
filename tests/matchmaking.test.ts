@@ -45,15 +45,15 @@ describe('matchmaking policy', () => {
     expect(matches).toHaveLength(1);
     expect(matches[0].players.map((p) => p?.playerId)).toEqual(['a', 'b']);
     expect(matches[0].arena).toBe('ruins');
-    expect(queue.poll(60_000)).toEqual([]);
+    expect(queue.poll(30_000)).toEqual([]);
   });
-  it('separates sizes and ranks and waits a minute for fallback', () => {
+  it('separates sizes and ranks and waits 30 seconds for fallback', () => {
     const queue = new MatchmakingQueue();
     queue.enqueue(entry('a', { mode: 'ranked' }));
     queue.enqueue(entry('b', { mode: 'ranked', points: 300 }));
     queue.enqueue(entry('c', { mode: 'ranked', size: 6 }));
-    expect(queue.poll(59_999)).toEqual([]);
-    expect(queue.poll(60_000)).toHaveLength(3);
+    expect(queue.poll(29_999)).toEqual([]);
+    expect(queue.poll(30_000)).toHaveLength(3);
   });
   it.each([3, 6] as const)('matches ranked players with %i pets regardless of power', (size) => {
     const queue = new MatchmakingQueue();
@@ -66,14 +66,14 @@ describe('matchmaking policy', () => {
     const queue = new MatchmakingQueue();
     queue.enqueue(entry('a'));
     queue.enqueue(entry('b', { pets: pets(100) }));
-    expect(queue.poll(59_999)).toEqual([]);
-    expect(queue.poll(60_000).map((match) => match.players[1])).toEqual([null, null]);
+    expect(queue.poll(29_999)).toEqual([]);
+    expect(queue.poll(30_000).map((match) => match.players[1])).toEqual([null, null]);
   });
   it('supports cancellation and applies rank points with a floor', () => {
     const queue = new MatchmakingQueue();
     queue.enqueue(entry('a'));
     expect(queue.cancel('a')).toBe(true);
-    expect(queue.poll(60_000)).toEqual([]);
+    expect(queue.poll(30_000)).toEqual([]);
     expect(rankForPoints(300)).toBe('silver');
     expect(pointsAfterMatch(5, 'loss')).toBe(0);
     expect(pointsAfterMatch(290, 'win')).toBe(315);

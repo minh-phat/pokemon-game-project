@@ -14,6 +14,7 @@ import {
 import { useGame } from '@/lib/store';
 import { leaveRoom, restoreRoom } from '@/lib/network';
 import { battleFeed } from '@/lib/battle-feed';
+import { MatchSearchPopup } from './match-search-popup';
 import { ArenaScreen } from './arena';
 import { Home, LanguagePicker } from './home';
 import { useLanguage } from '@/lib/i18n';
@@ -74,7 +75,7 @@ export function GameShell() {
     }
   }
   function navigate(screen: 'home' | 'codex' | 'arenas') {
-    if (state.sessionId) leaveRoom();
+    if (state.sessionId && state.matchSearchStartedAt === null) leaveRoom();
     else battleFeed.clear();
     state.go(screen);
   }
@@ -225,6 +226,7 @@ export function GameShell() {
           </span>
         </footer>
       )}
+      <MatchSearchPopup />
       <Account />
       <Dialog
         open={state.settingsOpen}
