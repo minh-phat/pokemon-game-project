@@ -1,15 +1,16 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowDown, ArrowUp, Check, Clock3, GripVertical, Swords } from 'lucide-react';
-import { POKEMON, calculatePetStats, combatPower } from '@arena/game-data';
+import { POKEMON } from '@arena/game-data';
 import { useGame } from '@/lib/store';
 import { useLanguage } from '@/lib/i18n';
 import { leaveRoom, readyMatchPets, selectMatchPets, selectMatchSource } from '@/lib/network';
 import { Button } from './ui/button';
 import { Portrait } from './common';
+import { FormationPetFilters, FormationPetStats, useFormationPets } from './formation-pet-browser';
 
 export function MatchSelectionScreen() {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const state = useGame();
   const selection = state.matchSelection;
   const [now, setNow] = useState(() => Date.now());
@@ -18,16 +19,7 @@ export function MatchSelectionScreen() {
     const timer = setInterval(() => setNow(Date.now()), 200);
     return () => clearInterval(timer);
   }, []);
-  const pets = useMemo(
-    () =>
-      (selection?.pets ?? [])
-        .map((pet) => ({
-          pet,
-          power: combatPower(calculatePetStats(POKEMON[pet.species], pet)),
-        }))
-        .sort((a, b) => b.power - a.power || a.pet.id.localeCompare(b.pet.id)),
-    [selection?.pets],
-  );
+  const browser = useFormationPets(selection?.pets);
   if (!selection)
     return (
       <div className="page-wrap narrow">
@@ -208,12 +200,13 @@ export function MatchSelectionScreen() {
           );
         })}
       </ol>
+      <FormationPetFilters browser={browser} />
       <div
         className="match-selection-grid"
         role="group"
         aria-label={t('Thú của bạn', 'Your companions')}
       >
-        {pets.map(({ pet, power }) => {
+        {browser.visible.map(({ pet, power }) => {
           const index = selection.selected.indexOf(pet.id);
           return (
             <button
@@ -228,13 +221,7 @@ export function MatchSelectionScreen() {
                 <Portrait id={pet.species} />
               </span>
               <strong>{POKEMON[pet.species].name}</strong>
-              <span>
-                Lv.{pet.level} · {pet.quality}
-              </span>
-              <small>
-                {t('Chiến lực', 'Power')}{' '}
-                {power.toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US')}
-              </small>
+              <FormationPetStats pet={pet} power={power} />
               {index >= 0 && (
                 <b className="match-selection-number">
                   <Check size={13} /> {index + 1}

@@ -4176,3 +4176,23 @@ select option {
 .reduce-motion .match-search-popup > svg {
   animation: none;
 }
+
+.formation-pet-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0 8px;
+}
+.formation-pet-filters label {
+  display: grid;
+  gap: 4px;
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.formation-pet-filters select {
+  width: 100%;
+  margin: 0;
+}
+.match-selection-pet .pet-quality {
+  background: #182238;
+}

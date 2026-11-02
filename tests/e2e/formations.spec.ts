@@ -130,7 +130,7 @@ for (const size of [3, 6, 'all'] as const) {
     for (const id of ids) {
       await screen
         .locator('.match-selection-grid > button')
-        .filter({ has: page.getByText(`Lv.${Number(id.split('-')[1]) + 1} · C`, { exact: true }) })
+        .filter({ has: page.getByText(`Lv.${Number(id.split('-')[1]) + 1}`, { exact: true }) })
         .click();
     }
     await expect.poll(() => selection!.snapshot('player').selected).toEqual(ids);
@@ -181,7 +181,23 @@ for (const width of [1440, 390]) {
     const dialog = page.getByRole('dialog');
     const cards = dialog.locator('.formation-pets > button');
     const save = dialog.getByRole('button', { name: 'Lưu đội hình', exact: true });
+    await expect(cards.first()).toContainText('Phẩm chất C');
+    await expect(cards.first()).toContainText('Lực chiến');
+    await expect(cards.first().locator('.element-badge')).toBeVisible();
     await cards.nth(0).click();
+    await dialog.getByLabel('Phẩm chất', { exact: true }).selectOption('SS');
+    await expect(cards).toHaveCount(0);
+    await expect(dialog.getByText('Không có pet phù hợp với bộ lọc.')).toBeVisible();
+    await expect(dialog.locator('.formation-order li')).toHaveCount(1);
+    await dialog.getByLabel('Phẩm chất', { exact: true }).selectOption('all');
+    await dialog.getByLabel('Hệ', { exact: true }).selectOption('water');
+    await expect(cards).toHaveCount(0);
+    await dialog.getByLabel('Hệ', { exact: true }).selectOption('electric');
+    await expect(cards).toHaveCount(7);
+    await dialog.getByLabel('Sắp xếp theo', { exact: true }).selectOption('quality');
+    await expect(cards.first()).toContainText('Lv.1');
+    await dialog.getByLabel('Sắp xếp theo', { exact: true }).selectOption('power');
+    await expect(cards.first()).toContainText('Lv.7');
     await expect(save).toBeDisabled();
     await cards.nth(1).click();
     await cards.nth(2).click();
@@ -189,7 +205,7 @@ for (const width of [1440, 390]) {
     await dialog.getByRole('button', { name: 'Xuống Pikachu', exact: true }).first().click();
     await expect(dialog.locator('.formation-order li').first()).toHaveAttribute(
       'data-formation-id',
-      'pet-1',
+      'pet-5',
     );
     if (width === 1440) {
       await dialog
@@ -198,7 +214,7 @@ for (const width of [1440, 390]) {
         .dragTo(dialog.locator('.formation-order li').last());
       await expect(dialog.locator('.formation-order li').last()).toHaveAttribute(
         'data-formation-id',
-        'pet-1',
+        'pet-5',
       );
     }
     await dialog.getByRole('button', { name: '6 vs 6', exact: true }).click();
@@ -218,7 +234,7 @@ for (const width of [1440, 390]) {
     await dialog.getByRole('button', { name: 'Toàn trận', exact: true }).click();
     await expect(dialog.locator('.formation-order li').first()).toHaveAttribute(
       'data-formation-id',
-      'pet-6',
+      'pet-0',
     );
     await expect(dialog.locator('.formation-order li')).toHaveCount(2);
     await dialog.getByRole('button', { name: 'Bỏ chọn tất cả', exact: true }).click();
@@ -230,6 +246,6 @@ for (const width of [1440, 390]) {
     expect(stored['duel-all']).toEqual([]);
     expect(stored['duel-3']).toHaveLength(3);
     expect(stored['duel-6']).toHaveLength(6);
-    expect(stored['tactics-all']).toEqual(['pet-4']);
+    expect(stored['tactics-all']).toEqual(['pet-2']);
   });
 }

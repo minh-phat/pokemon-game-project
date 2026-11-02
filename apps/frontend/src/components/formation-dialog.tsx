@@ -8,6 +8,7 @@ import { useLanguage } from '@/lib/i18n';
 import { Dialog } from './ui/dialog';
 import { Button } from './ui/button';
 import { Portrait } from './common';
+import { FormationPetFilters, FormationPetStats, useFormationPets } from './formation-pet-browser';
 
 type FormationKey = 'duel-3' | 'duel-6' | 'duel-all' | 'tactics-all';
 export function FormationDialog({ userId, onClose }: { userId: string; onClose: () => void }) {
@@ -18,6 +19,7 @@ export function FormationDialog({ userId, onClose }: { userId: string; onClose: 
     () => useGame.getState().formations[userId] ?? {},
   );
   const [pets, setPets] = useState<OwnedPet[] | null>(null);
+  const browser = useFormationPets(pets);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -225,12 +227,13 @@ export function FormationDialog({ userId, onClose }: { userId: string; onClose: 
           )}
         </p>
       )}
+      {pets && pets.length > 0 && <FormationPetFilters browser={browser} />}
       <div
         className="match-selection-grid formation-pets"
         role="group"
         aria-label={t('Thú của bạn', 'Your companions')}
       >
-        {pets?.map((pet) => {
+        {browser.visible.map(({ pet, power }) => {
           const index = selected.indexOf(pet.id);
           return (
             <button
@@ -246,9 +249,7 @@ export function FormationDialog({ userId, onClose }: { userId: string; onClose: 
                 <Portrait id={pet.species} />
               </span>
               <strong>{POKEMON[pet.species].name}</strong>
-              <span>
-                Lv.{pet.level} · {pet.quality}
-              </span>
+              <FormationPetStats pet={pet} power={power} />
               {index >= 0 && <b className="match-selection-number">{index + 1}</b>}
             </button>
           );
