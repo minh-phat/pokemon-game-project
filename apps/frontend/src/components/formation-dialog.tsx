@@ -173,7 +173,7 @@ export function FormationDialog({ userId, onClose }: { userId: string; onClose: 
                 <GripVertical size={18} />
               </button>
               <b>{index + 1}</b>
-              <Portrait id={pet.species} />
+              <Portrait id={pet.species} quality={pet.quality} />
               <span>
                 <strong>{name}</strong>
                 <small>
@@ -246,7 +246,7 @@ export function FormationDialog({ userId, onClose }: { userId: string; onClose: 
               }
             >
               <span className="match-selection-portrait">
-                <Portrait id={pet.species} />
+                <Portrait id={pet.species} quality={pet.quality} />
               </span>
               <strong>{POKEMON[pet.species].name}</strong>
               <FormationPetStats pet={pet} power={power} />

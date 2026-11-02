@@ -3514,3 +3514,81 @@ body:has(.fantasy-app) .dialog-content.arena-dialog {
     width: 100%;
   }
 }
+
+/* Transparent quality frames share one canvas; the creature sits behind the ornament. */
+.quality-portrait {
+  position: relative;
+  display: inline-block;
+  width: 150px;
+  max-width: 100%;
+  aspect-ratio: 3 / 4;
+  flex: 0 0 auto;
+  vertical-align: middle;
+  isolation: isolate;
+}
+.quality-portrait > .quality-portrait-creature {
+  position: absolute;
+  inset: 32% 20% 23%;
+  display: grid;
+  place-items: center;
+}
+.quality-portrait .quality-portrait-creature > img,
+.quality-portrait .quality-portrait-creature > .sprite-preview {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  min-width: 0;
+  object-fit: contain;
+  margin: 0;
+}
+.quality-portrait > img.quality-portrait-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: contain;
+  margin: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+.quality-portrait-S > .quality-portrait-creature,
+.quality-portrait-SS > .quality-portrait-creature {
+  inset: 30% 25% 31%;
+}
+.quality-portrait-SSS > .quality-portrait-creature {
+  inset: 35% 30% 34%;
+}
+.summon-orb.has-result {
+  width: min(260px, 100%);
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  background: radial-gradient(ellipse, #568baa30, transparent 65%);
+  box-shadow: none;
+}
+.summon-orb.has-result > .quality-portrait {
+  width: 260px;
+}
+.pet-detail-hero > .quality-portrait {
+  width: 190px;
+}
+.formation-order li > .quality-portrait {
+  width: 54px;
+  flex: 0 0 54px;
+}
+.match-selection-pet > .quality-portrait {
+  width: 130px;
+}
+@media (max-width: 480px) {
+  .pet-detail-hero > .quality-portrait {
+    width: 125px;
+  }
+}
+.match-selection-portrait:has(> .quality-portrait) {
+  height: auto;
+  width: 100%;
+}
+.match-selection-portrait > .quality-portrait {
+  width: 130px;
+}

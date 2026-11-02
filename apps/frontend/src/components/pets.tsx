@@ -171,9 +171,12 @@ export function PetsDialog({ view, onClose }: { view: 'pets' | 'summon'; onClose
       {collection &&
         (tab === 'summon' ? (
           <div className="summon-panel">
-            <div className={`summon-orb ${busy ? 'is-summoning' : ''}`} aria-hidden="true">
+            <div
+              className={`summon-orb ${result ? 'has-result' : ''} ${busy ? 'is-summoning' : ''}`}
+              aria-hidden="true"
+            >
               {result?.received ? (
-                <Portrait id={result.received.species} />
+                <Portrait id={result.received.species} quality={result.received.quality} />
               ) : (
                 <Sparkles size={64} />
               )}
@@ -298,7 +301,7 @@ export function PetsDialog({ view, onClose }: { view: 'pets' | 'summon'; onClose
                     <span className="pet-level">
                       {t('Cấp', 'Level')} {pet.level}
                     </span>
-                    <Portrait id={pet.species} />
+                    <Portrait id={pet.species} quality={pet.quality} />
                     <h3>{POKEMON[pet.species].name}</h3>
                     <span className={`pet-quality quality-${pet.quality}`}>
                       {t('Phẩm chất', 'Quality')} {pet.quality}
@@ -355,7 +358,7 @@ function OwnedPetDetails({ pet, onBack }: { pet: OwnedPet; onBack: () => void })
         {t('Về bộ sưu tập', 'Back to collection')}
       </button>
       <div className="pet-detail-hero">
-        <Portrait id={pet.species} />
+        <Portrait id={pet.species} quality={pet.quality} />
         <div>
           <h3 ref={heading} tabIndex={-1}>
             {definition.name}

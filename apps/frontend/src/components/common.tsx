@@ -11,7 +11,7 @@ import {
   Skull,
   Zap,
 } from 'lucide-react';
-import type { Element, SpeciesId } from '@arena/shared-types';
+import type { Element, PetQuality, SpeciesId } from '@arena/shared-types';
 import { ASSETS, ELEMENTS, POKEMON } from '@arena/game-data';
 import { Button } from './ui/button';
 import { useGame } from '@/lib/store';
@@ -39,12 +39,32 @@ export function Portrait({
   id,
   className = '',
   animated = false,
+  quality,
 }: {
   id: SpeciesId;
   className?: string;
   animated?: boolean;
+  quality?: PetQuality;
 }) {
   const c = useCopy();
+  if (quality) {
+    return (
+      <span className={`quality-portrait quality-portrait-${quality} ${className}`}>
+        <span className="quality-portrait-creature">
+          <Portrait id={id} animated={animated} />
+        </span>
+        <img
+          className="quality-portrait-frame"
+          src={`/assets/quality-frames/${quality}.png`}
+          alt=""
+          aria-hidden="true"
+          width={420}
+          height={560}
+          draggable={false}
+        />
+      </span>
+    );
+  }
   return animated ? (
     <div
       role="img"

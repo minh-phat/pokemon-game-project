@@ -167,7 +167,7 @@ export function MatchSelectionScreen() {
                 </button>
               )}
               <b>{index + 1}</b>
-              <Portrait id={pet.species} />
+              <Portrait id={pet.species} quality={pet.quality} />
               <span>
                 <strong>{name}</strong>
                 <small>
@@ -218,7 +218,7 @@ export function MatchSelectionScreen() {
               onClick={() => toggle(pet.id)}
             >
               <span className="match-selection-portrait">
-                <Portrait id={pet.species} />
+                <Portrait id={pet.species} quality={pet.quality} />
               </span>
               <strong>{POKEMON[pet.species].name}</strong>
               <FormationPetStats pet={pet} power={power} />
