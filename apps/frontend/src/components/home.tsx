@@ -19,6 +19,7 @@ import { useLanguage } from '@/lib/i18n';
 import { Dialog } from './ui/dialog';
 import { PetsDialog } from './pets';
 import { CombatHandbook } from './combat-handbook';
+import { FormationDialog } from './formation-dialog';
 
 export function LanguagePicker() {
   const { language } = useLanguage();
@@ -102,6 +103,7 @@ export function Home({
   const [petView, setPetView] = useState<'pets' | 'summon' | null>(null);
   const [rotateDismissed, setRotateDismissed] = useState(false);
   const [handbookOpen, setHandbookOpen] = useState(false);
+  const [formationOpen, setFormationOpen] = useState(false);
   const unavailable = (feature: string) =>
     set({
       notice: t(
@@ -460,8 +462,7 @@ export function Home({
                 icon: '👥',
                 label: t('Đội Hình', 'Team'),
                 action: () => {
-                  set({ mode: 'ai', snapshot: null });
-                  go('roster');
+                  setFormationOpen(true);
                 },
               },
               {
@@ -487,6 +488,9 @@ export function Home({
       )}
       {user && petView && (
         <PetsDialog key={user.id} view={petView} onClose={() => setPetView(null)} />
+      )}
+      {user && formationOpen && (
+        <FormationDialog key={user.id} userId={user.id} onClose={() => setFormationOpen(false)} />
       )}
       {handbookOpen && <CombatHandbook onClose={() => setHandbookOpen(false)} />}
       {!rotateDismissed && (

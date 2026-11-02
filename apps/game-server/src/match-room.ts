@@ -6,6 +6,7 @@ import { BattleSession } from './session';
 import { MatchmakingQueue, type MatchMode, type MatchSize } from './matchmaking';
 import { MatchSelection } from './match-selection';
 import { generateBotTeam } from './bot-team';
+import { resolveFormation } from './formation';
 
 interface Identity {
   userId: ObjectId;
@@ -14,6 +15,7 @@ interface Identity {
   pets: OwnedPet[];
   mode: MatchMode;
   size: MatchSize;
+  formation: OwnedPet[];
 }
 interface Fight {
   id: string;
@@ -101,11 +103,23 @@ export class MatchRoom extends Room {
       pets,
       mode: options.mode,
       size: options.size,
+      formation: resolveFormation(pets, options.formation, options.size),
     } satisfies Identity;
   }
   onCreate() {
     this.onMessage('match-select', (client, value) => this.choose(client, value, false));
     this.onMessage('match-ready', (client) => this.choose(client, null, true));
+    this.onMessage('match-source', (client, source) => {
+      try {
+        const fight = this.fights.get(client.sessionId);
+        if (!fight?.selection) throw new Error('Đã kết thúc chọn đội hình.');
+        fight.session.rateLimit(client.sessionId);
+        fight.selection.selectSource(client.sessionId, source, Date.now());
+        this.publish(fight, true);
+      } catch (error) {
+        client.send('error', error instanceof Error ? error.message : 'Đội hình không hợp lệ.');
+      }
+    });
     this.onMessage('battle-command', (client, value) =>
       this.operation(client, (s) => {
         if (s.allowMovement(client.sessionId)) s.command(client.sessionId, value);
@@ -148,19 +162,19 @@ export class MatchRoom extends Room {
           ],
           !b,
         );
-        const selection =
-          a.size === 'all'
-            ? null
-            : new MatchSelection(
-                a.size,
-                [
-                  { id: a.playerId, pets: one.pets },
-                  { id: b?.playerId ?? botId, pets: two?.pets ?? a.pets, bot: !b },
-                ],
-                Date.now(),
-              );
-        if (a.size === 'all')
-          session.startPreparedMatched([a.pets, b?.pets ?? generateBotTeam(a.pets)]);
+        const selection = new MatchSelection(
+          a.size,
+          [
+            { id: a.playerId, pets: one.pets, formation: one.formation.map((p) => p.id) },
+            {
+              id: b?.playerId ?? botId,
+              pets: two?.pets ?? a.pets,
+              bot: !b,
+              formation: two?.formation.map((p) => p.id),
+            },
+          ],
+          Date.now(),
+        );
         const users = new Map([
           [a.playerId, one],
           ...(b && two ? [[b.playerId, two] as [string, Identity]] : []),

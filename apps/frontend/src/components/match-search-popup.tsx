@@ -33,12 +33,6 @@ export function MatchSearchPopup() {
             .padStart(2, '0')}
           :{(elapsed % 60).toString().padStart(2, '0')}
         </span>
-        <small>
-          {t(
-            'Gặp AI sau 30 giây nếu chưa có đối thủ.',
-            'AI opponent after 30 seconds without a match.',
-          )}
-        </small>
       </div>
       <button
         type="button"

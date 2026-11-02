@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { OwnedPet } from '@arena/shared-types';
 import {
   MatchmakingQueue,
@@ -109,6 +109,112 @@ describe('matched battle', () => {
 });
 
 describe('matched team selection', () => {
+  it.each([3, 6, 'all'] as const)(
+    'keeps a matched %s room in selection for 30 seconds before starting',
+    async (size) => {
+      const { MatchRoom } = await import('../apps/game-server/src/match-room');
+      const room = new MatchRoom();
+      let simulate!: (ms: number) => void;
+      const timer = vi.spyOn(room, 'setSimulationInterval').mockImplementation((callback) => {
+        if (!callback) throw new Error('Expected a simulation callback');
+        simulate = callback;
+      });
+      const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+      try {
+        room.onCreate();
+        const internal = room as unknown as {
+          queue: MatchmakingQueue;
+          identities: Map<string, unknown>;
+          fights: Map<
+            string,
+            {
+              selection: { deadline: number; size: number | string } | null;
+              session: { lobby: { phase: string } };
+            }
+          >;
+        };
+        const sent = vi.fn();
+        for (const id of ['a', 'b']) {
+          internal.identities.set(id, {
+            name: id,
+            pets: pets(),
+            formation: pets().slice(0, size === 'all' ? 2 : size),
+          });
+          internal.queue.enqueue(entry(id, { size, startedAt: 1000 }));
+          room.clients.push({ sessionId: id, send: sent } as never);
+        }
+        simulate(1000 / 60);
+        const fight = internal.fights.get('a')!;
+        expect(fight.selection?.size).toBe(size);
+        expect(fight.selection?.deadline).toBe(31000);
+        expect(fight.session.lobby.phase).toBe('lobby');
+        expect(sent.mock.calls.some(([type]) => type === 'battle')).toBe(false);
+        expect(sent.mock.calls.find(([type]) => type === 'match-selection')?.[1]).toMatchObject({
+          source: 'saved',
+          ready: false,
+        });
+        now.mockReturnValue(30999);
+        simulate(1000 / 60);
+        expect(fight.session.lobby.phase).toBe('lobby');
+        now.mockReturnValue(31000);
+        simulate(1000 / 60);
+        expect(fight.selection).toBeNull();
+        expect(fight.session.lobby.phase).toBe('countdown');
+      } finally {
+        now.mockRestore();
+        timer.mockRestore();
+      }
+    },
+  );
+  it('uses complete saved formations in order and keeps empty formations on the existing selection flow', async () => {
+    const { MatchSelection } = await import('../apps/game-server/src/match-selection');
+    for (const size of [3, 6, 'all'] as const) {
+      const ids = pets()
+        .slice(0, size === 'all' ? 4 : size)
+        .map((pet) => pet.id)
+        .reverse();
+      const selection = new MatchSelection(
+        size,
+        [
+          { id: 'saved', pets: pets(), formation: ids },
+          { id: 'empty', pets: pets(), formation: [] },
+        ],
+        0,
+      );
+      expect(selection.snapshot('saved').ready).toBe(false);
+      expect(selection.snapshot('saved').source).toBe('saved');
+      expect(selection.snapshot('saved').deadline).toBe(30_000);
+      expect(selection.teams()[0].map((pet) => pet.id)).toEqual(ids);
+      expect(selection.snapshot('empty').ready).toBe(false);
+      expect(selection.snapshot('empty').selected).toEqual([]);
+      expect(selection.complete(1)).toBe(false);
+      selection.ready('empty', 1);
+      expect(selection.complete(1)).toBe(false);
+      selection.ready('saved', 2);
+      expect(selection.complete(1)).toBe(true);
+    }
+  });
+  it('validates ownership, uniqueness and size of presets and preserves full-roster summon order', async () => {
+    const { resolveFormation } = await import('../apps/game-server/src/formation');
+    const roster = pets();
+    expect(resolveFormation(roster, ['4', '0', '2'], 'all').map((pet) => pet.id)).toEqual([
+      '4',
+      '0',
+      '2',
+    ]);
+    for (const ids of [
+      undefined,
+      [],
+      ['0'],
+      ['0', '0', '1'],
+      ['0', '1', 'foreign'],
+      [0, 1, 2],
+      'invalid',
+    ]) {
+      expect(resolveFormation(roster, ids, 3)).toEqual([]);
+    }
+    expect(resolveFormation(roster, ['0', 'foreign'], 'all')).toEqual([]);
+  });
   it('keeps each player’s choices private and fills missing slots with strongest owned pets', async () => {
     const { MatchSelection } = await import('../apps/game-server/src/match-selection');
     const first = pets().map((pet, i) => ({ ...pet, id: `a${i}`, level: i + 1 }));
@@ -125,13 +231,60 @@ describe('matched team selection', () => {
     selection.select('b', ['b1', 'b0'], 2000);
     expect(selection.snapshot('a', 2000).pets.every((pet) => pet.id.startsWith('a'))).toBe(true);
     expect(selection.snapshot('a', 2000).selected).toEqual(['a0']);
-    expect(selection.complete(15999)).toBe(false);
-    expect(selection.complete(16000)).toBe(true);
+    expect(selection.complete(30999)).toBe(false);
+    expect(selection.complete(31000)).toBe(true);
     expect(selection.teams().map((team) => team.map((pet) => pet.id))).toEqual([
       ['a0', 'a5', 'a4'],
       ['b1', 'b0', 'b5'],
     ]);
-    expect(() => selection.select('a', ['a1'], 16000)).toThrow();
+    expect(() => selection.select('a', ['a1'], 31000)).toThrow();
+  });
+  it.each([3, 6, 'all'] as const)(
+    'allows switching sources for %s after matching without resetting the 30 second deadline',
+    async (size) => {
+      const { MatchSelection } = await import('../apps/game-server/src/match-selection');
+      const saved = pets()
+        .slice(0, size === 'all' ? 2 : size)
+        .map((pet) => pet.id)
+        .reverse();
+      const selection = new MatchSelection(
+        size,
+        [
+          { id: 'player', pets: pets(), formation: saved },
+          { id: 'bot', pets: pets(), bot: true },
+        ],
+        1000,
+      );
+      expect(selection.complete(1001)).toBe(false);
+      selection.selectSource('player', 'new', 1001);
+      expect(selection.snapshot('player').selected).toEqual([]);
+      selection.select('player', ['5', '1'], 1002);
+      expect(selection.snapshot('player').source).toBe('new');
+      if (size === 'all') expect(selection.teams()[0].map((pet) => pet.id)).toEqual(['5', '1']);
+      selection.selectSource('player', 'saved', 1003);
+      expect(selection.snapshot('player').selected).toEqual(saved);
+      expect(selection.snapshot('player').deadline).toBe(31000);
+      expect(selection.snapshot('player').ready).toBe(false);
+      expect(selection.complete(30999)).toBe(false);
+      expect(selection.complete(31000)).toBe(true);
+      expect(selection.teams()[0].map((pet) => pet.id)).toEqual(saved);
+      expect(() => selection.selectSource('player', 'new', 31000)).toThrow();
+    },
+  );
+  it('retains the full-roster fallback when no saved or new companions are chosen', async () => {
+    const { MatchSelection } = await import('../apps/game-server/src/match-selection');
+    const selection = new MatchSelection(
+      'all',
+      [
+        { id: 'a', pets: pets(), formation: [] },
+        { id: 'b', pets: pets(), bot: true },
+      ],
+      0,
+    );
+    expect(selection.teams()[0]).toEqual(strongestPets(pets(), 'all').map(({ pet }) => pet));
+    expect(() => selection.selectSource('a', 'other', 1)).toThrow();
+    selection.ready('a', 1);
+    expect(() => selection.selectSource('a', 'new', 2)).toThrow();
   });
   it('rejects duplicate and unowned pets, locks ready players and lets both start early', async () => {
     const { MatchSelection } = await import('../apps/game-server/src/match-selection');
@@ -257,6 +410,39 @@ describe('random bot teams', () => {
 });
 
 describe('full roster matchmaking', () => {
+  it('summons only saved companions in their saved order with their owned progression', async () => {
+    const { BattleSession } = await import('../apps/game-server/src/session');
+    const { resolveFormation } = await import('../apps/game-server/src/formation');
+    const { DEFAULT_RULES } = await import('@arena/shared-types');
+    const roster = pets().map((pet, i) => ({ ...pet, level: i + 1 }));
+    const chosen = resolveFormation(roster, ['5', '0', '3'], 'all');
+    const session = new BattleSession(
+      'saved-full',
+      { ...DEFAULT_RULES, duplicates: true },
+      1,
+      true,
+    );
+    session.startMatched([
+      { id: 'a', name: 'Player', pets: chosen },
+      { id: 'b', name: 'Opponent', pets: roster },
+    ]);
+    session.lobby.countdown = 0;
+    session.tick(0);
+    const team = () => session.engine!.state.fighters.filter((fighter) => fighter.team === 0);
+    expect(team().map((fighter) => fighter.progression?.level)).toEqual([6, 1, 4]);
+    expect(
+      team()
+        .filter((fighter) => fighter.active)
+        .map((fighter) => fighter.progression?.level),
+    ).toEqual([6]);
+    session.engine!.updateBattle(0.25);
+    session.engine!.updateBattle(0.25);
+    expect(
+      team()
+        .filter((fighter) => fighter.active)
+        .map((fighter) => fighter.progression?.level),
+    ).toEqual([6, 1]);
+  });
   it('matches by total roster power and falls back after 30 seconds', () => {
     const queue = new MatchmakingQueue();
     queue.enqueue(entry('a', { size: 'all' }));

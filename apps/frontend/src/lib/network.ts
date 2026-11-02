@@ -49,9 +49,11 @@ function attach(joined: Room) {
       ...(rulesChanged
         ? { team: [], notice: 'The host updated the rules. Choose your team again.' }
         : {}),
-      ...(phaseChanged && lobby.phase === 'lobby' ? { screen: 'lobby', team: me?.team ?? [] } : {}),
+      ...(phaseChanged && lobby.phase === 'lobby'
+        ? { screen: current.matchmade ? 'match-selection' : 'lobby', team: me?.team ?? [] }
+        : {}),
       ...(lobby.phase === 'countdown' || lobby.phase === 'battle' || lobby.phase === 'finished'
-        ? { screen: 'battle' }
+        ? { screen: 'battle', matchSelection: null }
         : {}),
     });
     if (phaseChanged && lobby.phase === 'lobby') battleFeed.clear();
@@ -60,10 +62,12 @@ function attach(joined: Room) {
   joined.onMessage('match-selection', (selection: MatchSelectionSnapshot) => {
     const current = useGame.getState().matchSelection;
     useGame.getState().set({
+      screen: 'match-selection',
+      matchSearchStartedAt: null,
       matchSelection: {
         ...selection,
         ...(current && current.revision > selection.revision
-          ? { selected: current.selected, revision: current.revision }
+          ? { selected: current.selected, source: current.source, revision: current.revision }
           : {}),
         deadline: Date.now() + Math.max(0, selection.deadline - selection.serverNow),
       },
@@ -145,7 +149,14 @@ export async function findMatch(mode: 'casual' | 'ranked', size: 3 | 6 | 'all') 
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || 'Không thể bắt đầu tìm trận.');
     if (generation !== searchGeneration) return;
-    const joined = await getClient().joinOrCreate('matchmaking', { token: data.token, mode, size });
+    const state = useGame.getState();
+    const formation = state.user ? state.formations[state.user.id]?.[`duel-${size}`] : undefined;
+    const joined = await getClient().joinOrCreate('matchmaking', {
+      token: data.token,
+      mode,
+      size,
+      formation,
+    });
     if (generation !== searchGeneration) {
       void joined.leave();
       return;
@@ -188,6 +199,20 @@ export function sendRoom(type: 'rules' | 'team' | 'ready' | 'rematch', value: un
 }
 export function selectMatchPets(ids: string[]) {
   room?.send('match-select', ids);
+}
+export function selectMatchSource(source: 'saved' | 'new') {
+  const current = useGame.getState().matchSelection;
+  if (!current || current.ready || current.source === source || Date.now() >= current.deadline)
+    return;
+  useGame.getState().set({
+    matchSelection: {
+      ...current,
+      source,
+      selected: source === 'saved' ? [...current.formation] : [],
+      revision: current.revision + 1,
+    },
+  });
+  room?.send('match-source', source);
 }
 export function readyMatchPets() {
   room?.send('match-ready');

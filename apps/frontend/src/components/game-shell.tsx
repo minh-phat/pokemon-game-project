@@ -15,6 +15,7 @@ import { useGame } from '@/lib/store';
 import { leaveRoom, restoreRoom } from '@/lib/network';
 import { battleFeed } from '@/lib/battle-feed';
 import { MatchSearchPopup } from './match-search-popup';
+import { MatchSelectionScreen } from './match-selection';
 import { ArenaScreen } from './arena';
 import { Home, LanguagePicker } from './home';
 import { useLanguage } from '@/lib/i18n';
@@ -209,6 +210,7 @@ export function GameShell() {
         {state.screen === 'codex' && <RosterScreen inspectOnly />}
         {state.screen === 'online' && <OnlineAccess />}
         {state.screen === 'lobby' && <LobbyScreen />}
+        {state.screen === 'match-selection' && <MatchSelectionScreen />}
         {state.screen === 'battle' && <BattleScreen />}
         {state.screen === 'arenas' && <ArenasScreen />}
         {state.screen === 'world' && <OpenWorld />}

@@ -17,11 +17,16 @@ type Screen =
   | 'roster'
   | 'online'
   | 'lobby'
+  | 'match-selection'
   | 'battle'
   | 'world'
   | 'codex'
   | 'arenas';
 interface GameStore {
+  formations: Record<
+    string,
+    Partial<Record<'duel-3' | 'duel-6' | 'duel-all' | 'tactics-all', string[]>>
+  >;
   language: 'vi' | 'en';
   user: { id: string; email: string; name: string } | null;
   authLoading: boolean;
@@ -58,6 +63,7 @@ export const useGame = create<GameStore>()(
   persist(
     (set, get) => ({
       language: 'vi',
+      formations: {},
       user: null,
       authLoading: true,
       accountView: null,
@@ -98,6 +104,7 @@ export const useGame = create<GameStore>()(
       name: 'arena-preferences',
       skipHydration: true,
       partialize: (s) => ({
+        formations: s.formations,
         language: s.language,
         name: s.name,
         volume: s.volume,

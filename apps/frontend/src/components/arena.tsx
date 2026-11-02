@@ -296,8 +296,8 @@ export function ArenaScreen() {
             </button>
             <p className="arena-help">
               {t(
-                'Đối kháng 1vs1: chọn 3, 6 hoặc toàn bộ thú. Với toàn bộ thú, mỗi bên tự triệu hồi mỗi 0,5 giây và gặp máy sau 30 giây nếu chưa có đối thủ. Trận 3 hoặc 6 thú có 15 giây chọn đội hình và chờ tối đa 30 giây.',
-                'Play 1v1 with 3, 6, or all companions. Full rosters summon every 0.5 seconds and face a bot after 30 seconds. Matches with 3 or 6 companions allow 15 seconds to choose a team and wait up to 30 seconds.',
+                'Đối kháng 1vs1: chọn 3, 6 hoặc toàn bộ thú. Sau khi tìm được đối thủ, bạn có 30 giây để chọn từ đội hình đã lưu hoặc chọn mới. Toàn trận triệu hồi mỗi 0,5 giây.',
+                'Play 1v1 with 3, 6, or all companions. Once matched, you have 30 seconds to use a saved formation or choose a new team. Full rosters summon every 0.5 seconds.',
               )}
             </p>
           </section>

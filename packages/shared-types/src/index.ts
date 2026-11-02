@@ -504,12 +504,14 @@ export interface OwnedPet {
 export interface MatchSelectionSnapshot {
   pets: OwnedPet[];
   selected: string[];
+  source: 'saved' | 'new';
+  formation: string[];
   revision: number;
   ready: boolean;
   opponentReady: boolean;
   deadline: number;
   serverNow: number;
-  size: 3 | 6;
+  size: 3 | 6 | 'all';
 }
 export function summonQualityOdds(attempts: number): Record<PetQuality, number> {
   const progress = Math.min(1000, Math.max(0, attempts)) / 1000;
