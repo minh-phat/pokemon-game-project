@@ -23,6 +23,15 @@ export function fighterBox(f: Fighter): Rect {
     top: f.y + c.height * (f.crouched ? 0.42 : 1),
   };
 }
+/** Relative armor keeps mitigation stable when both combatants scale together.
+ * Defense equal to four times Attack halves damage; equal ATK/DEF retains 80%.
+ * The skill coefficient is intentionally excluded, so multi-hit moves keep their balance.
+ */
+export function armorDamageMultiplier(attack: number, defense: number): number {
+  if (attack <= 0) return 0;
+  return (4 * attack) / (4 * attack + Math.max(0, defense));
+}
+
 export function calculateDamage(
   damagePercent: number,
   attack: number,
@@ -37,7 +46,7 @@ export function calculateDamage(
     1,
     Math.round(
       ((attack * damagePercent) / 100) *
-        (100 / (100 + defense)) *
+        armorDamageMultiplier(attack, defense) *
         (enabled ? (EFFECTIVENESS[element]?.[target] ?? 1) : 1) *
         (1 - guard),
     ),

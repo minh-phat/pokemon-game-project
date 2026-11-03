@@ -75,7 +75,8 @@ describe('damage and hit geometry', () => {
         step(e, move.startup + 0.04);
         expect(hp - b.hp).toBe(
           Math.round(
-            (((attack * move.damagePercent) / 100) * 100) / (100 + POKEMON.charmander.defense),
+            (((attack * move.damagePercent) / 100) * (4 * attack)) /
+              (4 * attack + POKEMON.charmander.defense),
           ),
         );
       }

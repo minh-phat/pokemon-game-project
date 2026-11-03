@@ -35,21 +35,28 @@ for (const viewport of [
     await dialog.getByText('Bảng khắc hệ đầy đủ', { exact: true }).click();
     await expect(dialog.locator('tbody tr')).toHaveCount(6);
     await dialog.getByRole('button', { name: 'Cách tính sát thương', exact: true }).click();
-    await expect(dialog).toContainText('89.6 → 90 HP');
+    await expect(dialog).toContainText('119.47 → 119 HP');
     await dialog.getByRole('button', { name: 'Thử sát thương', exact: true }).click();
     const result = dialog.getByRole('status');
-    await expect(result).toContainText('93 HP');
+    await expect(result).toContainText('124 HP');
     await dialog.getByLabel('Hệ số kỹ năng (% ATK)', { exact: true }).fill('120');
     await dialog
       .getByRole('combobox', { name: 'Giảm sát thương mạnh nhất', exact: true })
       .selectOption('0.2');
-    await expect(result).toContainText('90 HP');
+    await expect(result).toContainText('119 HP');
     await dialog.getByLabel('Bật khắc hệ', { exact: true }).uncheck();
-    await expect(result).toContainText('64 HP');
+    await expect(result).toContainText('85 HP');
     await dialog.getByLabel('Đòn cường hóa sau né của Eevee · ×1.15', { exact: true }).check();
-    await expect(result).toContainText('74 HP');
+    await expect(result).toContainText('98 HP');
     await dialog.getByLabel('Tấn công (ATK)', { exact: true }).fill('0');
     await expect(result.locator('strong')).toHaveText('0 HP');
+    await dialog.getByRole('button', { name: '100 / SSS → 100 / SSS', exact: true }).click();
+    await expect(result).toContainText('270 HP');
+    await expect(result).toContainText('4.69% HP/đòn');
+    await expect(result).toContainText('22 đòn');
+    await dialog.getByRole('button', { name: '1 / F → 1 / F', exact: true }).click();
+    await expect(result).toContainText('15 HP');
+    await expect(result).toContainText('15 đòn');
     expect(await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
     const box = await dialog.boundingBox();
     expect(box!.y).toBeGreaterThanOrEqual(0);

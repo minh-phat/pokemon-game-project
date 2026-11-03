@@ -59,9 +59,11 @@ Skills consume energy and start cooldown on commitment, including interrupted ca
 Every offensive skill uses `damagePercent` (100 = 100% of the caster’s Attack). Initial percentages are four times the previous base damage, preserving relative move strengths. Zero-damage skills deal zero; positive damage is rounded and clamped to a minimum of one:
 
 ```text
-attack × (damagePercent / 100) × 100 / (100 + defense)
+attack × (damagePercent / 100) × (4 × attack) / (4 × attack + defense)
      × elementalMultiplier × (1 - guardReduction)
 ```
+
+Armor is relative to attacker ATK: equal ATK/DEF reduces damage by 20%, while DEF = 4 × ATK reduces it by 50%. The factor 4 preserves the old mitigation around base ATK 25. Scaling both sides equally preserves mitigation; skill power does not change armor penetration. HP growth remains 8% per level versus 5% for ATK/DEF, so equal-level high-level fights can still last about 1.5 times longer. Squirtle level 100 / SSS has HP 5753, ATK 393, DEF 714: a neutral unguarded 100% hit now deals 270 (22 hits from full HP), versus 48 (120 hits) under the old constant-100 formula. Burn and Leech remain unchanged. Combat power remains a stat summary, not a win probability.
 
 Every Pokémon has a basic Guard action that reduces damage by 20%, costs no skill energy, drains 10 stamina per second, and has no cooldown or maximum duration. The AI can maintain it across consecutive threats, independently of the dodge cooldown. Starting a skill, moving, or dodging releases guard; stun, fainting, switching, and battle completion clear it. Guard cannot start during a cast, recovery, stun, or while airborne. Ordinary hits preserve the guard animation, but guard does not prevent status effects. Guard and shield use the stronger reduction for direct hits; they do not stack. Guard also reduces Burn and Leech Seed damage while held. Invulnerability skips damage entirely. Burn and Leech Seed tick once per second; their `strength` is a percentage of the source’s Attack, rounded after Guard reduction. These status ticks bypass defense and elemental modifiers. Bind divides its total percentage over three pulses. Starfall Rush has a separate `finisherDamagePercent`; glyphs, counters, and combo hits all use the same damage formula. Slow reduces movement speed. Stun interrupts casting. Reserve Pokémon regenerate energy, and deployment clears residual statuses. Switching requires low health, an available healthy reserve, and a swap cooldown; faint replacement never depends on the optional switching rule.
 

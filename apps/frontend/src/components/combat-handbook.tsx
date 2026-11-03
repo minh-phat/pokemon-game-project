@@ -1,8 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { EFFECTIVENESS, ELEMENTS, ROSTER } from '@arena/game-data';
-import { calculateDamage } from '@arena/game-core';
+import {
+  EFFECTIVENESS,
+  ELEMENTS,
+  ROSTER,
+  POKEMON,
+  calculatePetStats,
+  combatPower,
+} from '@arena/game-data';
+import { armorDamageMultiplier, calculateDamage } from '@arena/game-core';
 import { BASIC_GUARD_REDUCTION, type Element } from '@arena/shared-types';
 import { useLanguage } from '@/lib/i18n';
 import { Dialog } from './ui/dialog';
@@ -16,6 +23,13 @@ const vietnamese: Record<Element, string> = {
   grass: 'Cỏ',
   poison: 'Độc',
 };
+const squirtleExamples = [
+  { label: '1 / F', stats: calculatePetStats(POKEMON.squirtle) },
+  {
+    label: '100 / SSS',
+    stats: calculatePetStats(POKEMON.squirtle, { level: 100, quality: 'SSS' }),
+  },
+];
 const multiplier = (attack: Element, defense: Element) => EFFECTIVENESS[attack]?.[defense] ?? 1;
 const multiplierClass = (value: number) =>
   value > 1 ? 'advantage' : value < 1 ? 'resisted' : 'neutral';
@@ -29,6 +43,7 @@ export function CombatHandbook({ onClose }: { onClose: () => void }) {
   const [targetElement, setTargetElement] = useState<Element>('grass');
   const [attack, setAttack] = useState(100);
   const [defense, setDefense] = useState(50);
+  const [targetHp, setTargetHp] = useState(215);
   const [power, setPower] = useState(100);
   const [guard, setGuard] = useState(0);
   const [enabled, setEnabled] = useState(true);
@@ -188,7 +203,7 @@ export function CombatHandbook({ onClose }: { onClose: () => void }) {
           <>
             <div className="handbook-formula">
               {t('Sát thương một đòn trúng', 'Damage per hit')}
-              <strong>ATK × (% / 100) × 100 / (100 + DEF) × H × (1 − G)</strong>
+              <strong>ATK × (% / 100) × (4 × ATK) / (4 × ATK + DEF) × H × (1 − G)</strong>
             </div>
             <dl className="handbook-definitions">
               <div>
@@ -213,8 +228,8 @@ export function CombatHandbook({ onClose }: { onClose: () => void }) {
                 <dt>DEF</dt>
                 <dd>
                   {t(
-                    'Phòng thủ của mục tiêu. DEF 50 giữ lại 66.67% sát thương; DEF 100 giữ lại 50%; DEF 200 giữ lại 33.33%.',
-                    'The target’s Defense. DEF 50 retains 66.67% damage; DEF 100 retains 50%; DEF 200 retains 33.33%.',
+                    'Giáp tương đối với ATK người đánh: DEF = ATK giảm 20%; DEF = 4 × ATK giảm 50%. Hai bên cùng tăng ATK/DEF thì tỷ lệ giảm giữ nguyên. Hệ số 4 giữ mức giáp gần cân bằng gốc (ATK khoảng 25).',
+                    'Armor is relative to attacker ATK: DEF = ATK reduces damage by 20%; DEF = 4 × ATK reduces it by 50%. Scaling both stats preserves mitigation. The factor 4 stays close to the original balance around 25 ATK.',
                   )}
                 </dd>
               </div>
@@ -245,7 +260,7 @@ export function CombatHandbook({ onClose }: { onClose: () => void }) {
               )}
             </p>
             <div className="handbook-formula">
-              <strong>100 × 1.2 × (100 / 150) × 1.4 × 0.8 = 89.6 → 90 HP</strong>
+              <strong>100 × 1.2 × (400 / 450) × 1.4 × 0.8 ≈ 119.47 → 119 HP</strong>
             </div>
             <h3>{t('Làm tròn và ngoại lệ', 'Rounding and special cases')}</h3>
             <ul className="handbook-rules">
@@ -299,6 +314,50 @@ export function CombatHandbook({ onClose }: { onClose: () => void }) {
                 'Estimate one direct hit using current ATK/DEF. This is not the total for a multi-hit move or damage-over-time effect.',
               )}
             </p>
+            <details className="handbook-details" open>
+              <summary>
+                {t('So sánh Squirtle theo cấp / phẩm chất', 'Compare Squirtle by level / quality')}
+              </summary>
+              <p>
+                {t(
+                  'Chọn cặp để nạp chỉ số. Lực chiến là điểm tổng hợp, không phải tỷ lệ thắng. Ví dụ dùng đòn 100% ATK, không đỡ và không khắc hệ.',
+                  'Choose a pair to load stats. Combat power is a summary score, not win probability. Examples use 100% ATK, no guard or type bonus.',
+                )}
+              </p>
+              <div className="handbook-matchups">
+                {squirtleExamples.map(({ label, stats }) => (
+                  <div key={label}>
+                    <span>Squirtle {label}</span>
+                    <span>
+                      HP {stats.hp} · ATK {stats.attack} · DEF {stats.defense} ·{' '}
+                      {t('Lực chiến', 'Power')} {combatPower(stats)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="handbook-types">
+                {squirtleExamples.flatMap((source) =>
+                  squirtleExamples.map((target) => (
+                    <button
+                      key={`${source.label}-${target.label}`}
+                      onClick={() => {
+                        setAttack(source.stats.attack);
+                        setDefense(target.stats.defense);
+                        setTargetHp(target.stats.hp);
+                        setAttackElement('water');
+                        setTargetElement('water');
+                        setPower(100);
+                        setGuard(0);
+                        setEnabled(false);
+                        setAdaptive(false);
+                      }}
+                    >
+                      {source.label} → {target.label}
+                    </button>
+                  )),
+                )}
+              </div>
+            </details>
             <div className="handbook-fields">
               <label>
                 {t('Hệ kỹ năng', 'Skill type')}
@@ -329,6 +388,7 @@ export function CombatHandbook({ onClose }: { onClose: () => void }) {
               {[
                 [t('Tấn công (ATK)', 'Attack (ATK)'), attack, setAttack],
                 [t('Phòng thủ (DEF)', 'Defense (DEF)'), defense, setDefense],
+                [t('HP tối đa mục tiêu', 'Target maximum HP'), targetHp, setTargetHp],
                 [t('Hệ số kỹ năng (% ATK)', 'Skill power (% ATK)'), power, setPower],
               ].map(([label, value, setter]) => (
                 <label key={String(label)}>
@@ -383,10 +443,32 @@ export function CombatHandbook({ onClose }: { onClose: () => void }) {
               <span>{t('Sát thương dự tính', 'Estimated damage')}</span>
               <strong>{damage.toLocaleString()} HP</strong>
               <p>
-                {attack} × {power / 100} × (100 / {100 + defense}) × {factor} × {1 - guard}
-                {adaptive ? ` → ${baseDamage} × 1.15` : ''}
+                {attack <= 0 || power <= 0
+                  ? t('ATK hoặc hệ số kỹ năng bằng 0 → 0 HP', 'Zero ATK or skill power → 0 HP')
+                  : `${attack} × ${power / 100} × (${4 * attack} / ${4 * attack + defense}) × ${factor} × ${1 - guard}${adaptive ? ` → ${baseDamage} × 1.15` : ''}`}
+              </p>
+              <p>
+                {t('Giáp giảm', 'Armor reduction')}:{' '}
+                {attack > 0
+                  ? `${((1 - armorDamageMultiplier(attack, defense)) * 100).toFixed(1)}%`
+                  : '—'}
+              </p>
+              <p>
+                {targetHp > 0 && damage > 0
+                  ? t(
+                      `${((Math.min(damage, targetHp) / targetHp) * 100).toFixed(2)}% HP/đòn · khoảng ${Math.ceil(targetHp / damage)} đòn để hạ mục tiêu đầy máu.`,
+                      `${((Math.min(damage, targetHp) / targetHp) * 100).toFixed(2)}% HP/hit · about ${Math.ceil(targetHp / damage)} hits to defeat a full-health target.`,
+                    )
+                  : t(
+                      'Nhập HP và sát thương lớn hơn 0 để ước tính số đòn.',
+                      'Enter positive HP and damage to estimate hits.',
+                    )}
               </p>
               <small>
+                {t(
+                  'Số đòn giả định mọi đòn đều trúng, không hồi máu hay đổi trạng thái. ',
+                  'Hit count assumes every hit lands, with no healing or state changes. ',
+                )}
                 {t(
                   'Đã làm tròn theo công thức game. HP mục tiêu không giảm xuống dưới 0.',
                   'Rounded using the game formula. Target HP cannot drop below 0.',
