@@ -489,10 +489,9 @@ export function isConcealed(f: Pick<Fighter, 'effects'>): boolean {
 
 /** Milestones repeat independently; early lucky rolls do not reset them. */
 export const SUMMON_GUARANTEES = [
-  { quality: 'A', interval: 11 },
-  { quality: 'S', interval: 101 },
-  { quality: 'SS', interval: 1001 },
-  { quality: 'SSS', interval: 10001 },
+  { quality: 'A', interval: 30 },
+  { quality: 'S', interval: 90 },
+  { quality: 'SSS', interval: 300 },
 ] as const;
 export interface OwnedPet {
   experience?: number;
@@ -515,28 +514,16 @@ export interface MatchSelectionSnapshot {
   size: 3 | 6 | 'all';
 }
 export function summonQualityOdds(attempts: number): Record<PetQuality, number> {
-  const progress = Math.min(1000, Math.max(0, attempts)) / 1000;
-  const odds = {
-    F: Math.round(1500 - 1300 * progress),
-    E: Math.round(1500 - 1200 * progress),
-    D: Math.round(1000 - 600 * progress),
-    C: 0,
-    B: Math.round(3000 + 500 * progress),
-    A: Math.round(1200 + 1800 * progress),
-    S: Math.round(280 + 920 * progress),
-    SS: Math.round(20 + 280 * progress),
-    SSS: Math.round(1 + 49 * progress),
-  };
-  odds.C = 10000 - odds.F - odds.E - odds.D - odds.B - odds.A - odds.S - odds.SS - odds.SSS;
+  // Weights are basis points (100 = 1%); ordinary odds never grow with attempts.
+  const odds = { F: 3000, E: 2500, D: 1800, C: 1200, B: 700, A: 400, S: 250, SS: 100, SSS: 50 };
   const floor = SUMMON_GUARANTEES.filter(({ interval }) => (attempts + 1) % interval === 0).at(
     -1,
   )?.quality;
   if (floor) {
-    for (const quality of PET_QUALITIES) {
-      if (quality === floor) break;
-      odds[floor] += odds[quality];
-      odds[quality] = 0;
-    }
+    for (const quality of PET_QUALITIES) odds[quality] = 0;
+    if (floor === 'SSS') odds.SSS = 10000;
+    else if (floor === 'S') Object.assign(odds, { S: 9000, SS: 900, SSS: 100 });
+    else Object.assign(odds, { A: 8000, S: 1500, SS: 400, SSS: 100 });
   }
   return odds;
 }

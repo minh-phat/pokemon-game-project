@@ -7,7 +7,6 @@ import type { Request, Response } from 'express';
 import {
   summonQualityOdds,
   rollSummonQuality,
-  PET_QUALITIES,
   speciesIds,
   SUMMON_GUARANTEES,
 } from '@arena/shared-types';
@@ -83,51 +82,48 @@ function database(
   return { db, user, users, sessions, pets, records };
 }
 describe('account summons', () => {
-  it('keeps quality probabilities normalized and increases rare chances between milestones', () => {
-    for (let attempts = 0; attempts <= 2000; attempts++) {
+  const ordinaryOdds = {
+    F: 3000,
+    E: 2500,
+    D: 1800,
+    C: 1200,
+    B: 700,
+    A: 400,
+    S: 250,
+    SS: 100,
+    SSS: 50,
+  };
+  it('keeps ordinary probabilities fixed and all distributions normalized', () => {
+    for (let attempts = 0; attempts <= 20000; attempts++) {
       const odds = summonQualityOdds(attempts);
       expect(Object.values(odds).reduce((a, b) => a + b, 0)).toBe(10000);
-      expect(Object.values(odds).every((n) => n >= 0)).toBe(true);
+      if (!SUMMON_GUARANTEES.some(({ interval }) => (attempts + 1) % interval === 0))
+        expect(odds).toEqual(ordinaryOdds);
     }
-    let previous = summonQualityOdds(0);
-    for (let attempts = 1; attempts < 1000; attempts++) {
-      if (SUMMON_GUARANTEES.some(({ interval }) => (attempts + 1) % interval === 0)) continue;
-      const current = summonQualityOdds(attempts);
-      for (const quality of ['A', 'S', 'SS', 'SSS'] as const)
-        expect(current[quality]).toBeGreaterThanOrEqual(previous[quality]);
-      previous = current;
-    }
-    expect(summonQualityOdds(99).S).toBeGreaterThan(summonQualityOdds(0).S);
-    expect(summonQualityOdds(99).SS).toBeGreaterThan(summonQualityOdds(0).SS);
-    expect(summonQualityOdds(1002)).toEqual(summonQualityOdds(1010));
   });
-  it('guarantees A on 11, S on 101, SS on 1001 and repeats without downgrading better rolls', () => {
-    for (const [attempts, minimum] of [
-      [10, 'A'],
-      [21, 'A'],
-      [100, 'S'],
-      [201, 'S'],
-      [1000, 'SS'],
-      [2001, 'SS'],
-      [1110, 'S'],
-      [10000, 'SSS'],
-      [20001, 'SSS'],
-      [110010, 'SSS'],
-    ] as const) {
-      expect(rollSummonQuality(attempts, 0)).toBe(minimum);
-      expect(rollSummonQuality(attempts, 9999)).toBe('SSS');
-      const odds = summonQualityOdds(attempts);
-      for (const quality of PET_QUALITIES.slice(0, PET_QUALITIES.indexOf(minimum)))
-        expect(odds[quality]).toBe(0);
-    }
-    expect(rollSummonQuality(9, 0)).toBe('F');
-    expect(rollSummonQuality(11, 0)).toBe('F');
-    expect(() => rollSummonQuality(0, 10000)).toThrow();
-  });
-  it('maps every roll to exactly one quality with the advertised distribution', () => {
+  it.each([
+    [0, ordinaryOdds],
+    [28, ordinaryOdds],
+    [29, { F: 0, E: 0, D: 0, C: 0, B: 0, A: 8000, S: 1500, SS: 400, SSS: 100 }],
+    [30, ordinaryOdds],
+    [59, { F: 0, E: 0, D: 0, C: 0, B: 0, A: 8000, S: 1500, SS: 400, SSS: 100 }],
+    [88, ordinaryOdds],
+    [89, { F: 0, E: 0, D: 0, C: 0, B: 0, A: 0, S: 9000, SS: 900, SSS: 100 }],
+    [90, ordinaryOdds],
+    [179, { F: 0, E: 0, D: 0, C: 0, B: 0, A: 0, S: 9000, SS: 900, SSS: 100 }],
+    [298, ordinaryOdds],
+    [299, { F: 0, E: 0, D: 0, C: 0, B: 0, A: 0, S: 0, SS: 0, SSS: 10000 }],
+    [300, ordinaryOdds],
+    [599, { F: 0, E: 0, D: 0, C: 0, B: 0, A: 0, S: 0, SS: 0, SSS: 10000 }],
+    [899, { F: 0, E: 0, D: 0, C: 0, B: 0, A: 0, S: 0, SS: 0, SSS: 10000 }],
+  ])('uses the exact advertised distribution after %i summons', (attempts, expected) => {
+    expect(summonQualityOdds(attempts)).toEqual(expected);
     const counts = { F: 0, E: 0, D: 0, C: 0, B: 0, A: 0, S: 0, SS: 0, SSS: 0 };
-    for (let roll = 0; roll < 10000; roll++) counts[rollSummonQuality(0, roll)]++;
-    expect(counts).toEqual(summonQualityOdds(0));
+    for (let roll = 0; roll < 10000; roll++) counts[rollSummonQuality(attempts, roll)]++;
+    expect(counts).toEqual(expected);
+  });
+  it('rejects invalid rolls', () => {
+    for (const roll of [-1, 10000, 0.5, NaN]) expect(() => rollSummonQuality(0, roll)).toThrow();
   });
   it('requires a session and rejects foreign origins', async () => {
     const db = vi.spyOn(authDatabase, 'db');
@@ -156,10 +152,9 @@ describe('account summons', () => {
       pets: [],
       qualityOdds: summonQualityOdds(0),
       guarantees: [
-        { quality: 'A', remaining: 11 },
-        { quality: 'S', remaining: 101 },
-        { quality: 'SS', remaining: 1001 },
-        { quality: 'SSS', remaining: 10001 },
+        { quality: 'A', remaining: 30 },
+        { quality: 'S', remaining: 90 },
+        { quality: 'SSS', remaining: 300 },
       ],
       cost: 0,
     });
@@ -222,31 +217,30 @@ describe('account summons', () => {
     expect(randomInt).toHaveBeenCalledWith(speciesIds.length);
   });
   it('preserves guarantee progress from existing accounts', async () => {
-    database(100);
+    database(89);
     vi.mocked(randomInt).mockReturnValue(0 as never);
     const result = await new AuthController().summon(req, res());
     expect(result.received).toMatchObject({ quality: 'S', level: 1 });
-    expect(result.attempts).toBe(101);
+    expect(result.attempts).toBe(90);
     expect(result.guarantees).toEqual([
-      { quality: 'A', remaining: 9 },
-      { quality: 'S', remaining: 101 },
-      { quality: 'SS', remaining: 900 },
-      { quality: 'SSS', remaining: 9900 },
+      { quality: 'A', remaining: 30 },
+      { quality: 'S', remaining: 90 },
+      { quality: 'SSS', remaining: 210 },
     ]);
     expect((await new AuthController().pets(req, res())).pets).toEqual(result.pets);
   });
   it('does not advance the guarantee if a pet insert fails', async () => {
-    const { pets } = database(10);
+    const { pets } = database(29);
     vi.mocked(randomInt).mockReturnValue(0 as never);
     pets.insertOne.mockRejectedValueOnce(new Error('storage unavailable'));
     await expect(new AuthController().summon(req, res())).rejects.toThrow('storage unavailable');
     const collection = await new AuthController().pets(req, res());
-    expect(collection.attempts).toBe(10);
+    expect(collection.attempts).toBe(29);
     expect(collection.pets).toEqual([]);
     expect((await new AuthController().summon(req, res())).received.quality).toBe('A');
   });
   it('prevents simultaneous summons consuming the same milestone', async () => {
-    const { records } = database(10);
+    const { records } = database(29);
     vi.mocked(randomInt).mockReturnValue(0 as never);
     const results = await Promise.allSettled([
       new AuthController().summon(req, res()),
@@ -255,7 +249,7 @@ describe('account summons', () => {
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
     expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
     expect(records.size).toBe(1);
-    expect((await new AuthController().pets(req, res())).attempts).toBe(11);
+    expect((await new AuthController().pets(req, res())).attempts).toBe(30);
   });
   it('filters both pets and summon history by owner', async () => {
     const { records, user, pets } = database();

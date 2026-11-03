@@ -240,8 +240,8 @@ export function PetsDialog({ view, onClose }: { view: 'pets' | 'summon'; onClose
             </div>
             <p className="pets-note">
               {t(
-                'Mỗi lượt đều nhận 1 thú cấp 1. Càng triệu hồi nhiều, cơ hội ra phẩm chất cao càng tăng (đạt tối đa sau 1.000 lượt). Bảo đảm lặp lại: mỗi 11 lượt ≥ A, 101 lượt ≥ S, 1.001 lượt ≥ SS, 10.001 lượt SSS. Ra phẩm chất cao sớm không đặt lại bộ đếm. Trùng mốc nhận bảo đảm cao nhất.',
-                'Every summon grants a level 1 companion. Higher-quality chances grow with total summons (capped after 1,000). Repeating guarantees: every 11 summons ≥ A, 101 ≥ S, 1,001 ≥ SS, 10,001 SSS. Early lucky rolls do not reset counters. Overlapping milestones use the highest guarantee.',
+                'Mỗi lượt đều nhận 1 thú cấp 1. Tỉ lệ thường cố định: F 30%, E 25%, D 18%, C 12%, B 7%, A 4%, S 2,5%, SS 1%, SSS 0,5%. Bảo đảm lặp lại: mỗi 30 lượt ≥ A (A 80%, S 15%, SS 4%, SSS 1%); mỗi 90 lượt ≥ S (S 90%, SS 9%, SSS 1%); mỗi 300 lượt chắc chắn SSS (100%). Ra phẩm chất cao sớm không đặt lại bộ đếm. Trùng mốc nhận bảo đảm cao nhất.',
+                'Every summon grants a level 1 companion. Fixed ordinary chances: F 30%, E 25%, D 18%, C 12%, B 7%, A 4%, S 2.5%, SS 1%, SSS 0.5%. Repeating guarantees: every 30 summons ≥ A (A 80%, S 15%, SS 4%, SSS 1%); every 90 summons ≥ S (S 90%, SS 9%, SSS 1%); every 300 summons guarantees SSS (100%). Early lucky rolls do not reset counters. Overlapping milestones use the highest guarantee.',
               )}
             </p>
             <button
