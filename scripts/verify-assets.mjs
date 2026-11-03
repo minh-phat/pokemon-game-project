@@ -9,7 +9,9 @@ const expected = [
     `${id}.wav`,
     ...['sky', 'far', 'near', 'ground'].map((layer) => `${id}-${layer}.svg`),
   ]),
-  ...['normal', 'electric', 'fire', 'water', 'grass'].map((id) => `${id}.wav`),
+  ...['normal', 'electric', 'fire', 'water', 'grass', 'wind-dash', 'wind-jump'].map(
+    (id) => `${id}.wav`,
+  ),
   'favicon.svg',
   'pikachu.png',
   'pikachu-sheet.png',

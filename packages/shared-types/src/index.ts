@@ -362,7 +362,18 @@ export interface BattleBeam {
 export interface BattleEvent {
   id: number;
   tick: number;
-  kind: 'damage' | 'dodge' | 'skill' | 'faint' | 'deploy' | 'heal' | 'switch' | 'guard';
+  kind:
+    | 'damage'
+    | 'dodge'
+    | 'skill'
+    | 'faint'
+    | 'deploy'
+    | 'heal'
+    | 'switch'
+    | 'guard'
+    | 'movement';
+  /** Sound cue emitted once when a dash or jump actually starts. */
+  movement?: 'dash' | 'jump';
   fighterId: string;
   targetId?: string;
   value?: number;

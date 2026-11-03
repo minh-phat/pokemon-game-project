@@ -36,7 +36,16 @@ export const ASSETS = {
   arenas: ['forest', 'volcano', 'lake'].flatMap((id) =>
     ['sky', 'far', 'near', 'ground'].map((layer) => `/assets/${id}-${layer}.svg`),
   ),
-  audio: ['normal', 'electric', 'fire', 'water', 'grass', 'forest', 'volcano', 'lake'].map(
-    (id) => `/assets/${id}.wav`,
-  ),
+  audio: [
+    'normal',
+    'electric',
+    'fire',
+    'water',
+    'grass',
+    'forest',
+    'volcano',
+    'lake',
+    'wind-dash',
+    'wind-jump',
+  ].map((id) => `/assets/${id}.wav`),
 };

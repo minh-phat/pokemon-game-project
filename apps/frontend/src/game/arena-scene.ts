@@ -862,6 +862,7 @@ export function createArenaScene(
         this.lastEvent = event.id;
         const eventFighter = eventFighters.get(event.fighterId);
         if (eventFighter && eventFighter.team !== myTeam && isConcealed(eventFighter)) continue;
+        this.ambience.playMovement(event);
         const eventHover = hoverByFighter.get(event.fighterId) ?? 0;
         this.skillVfx.event(event, eventHover);
         if (

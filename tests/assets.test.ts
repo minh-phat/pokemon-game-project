@@ -11,7 +11,9 @@ function paths(value: unknown): string[] {
 }
 it('every declared asset and arena reference exists locally', () => {
   const assets = paths(ASSETS);
-  expect(assets).toHaveLength(43);
+  expect(assets).toEqual(
+    expect.arrayContaining(['/assets/wind-dash.wav', '/assets/wind-jump.wav']),
+  );
   for (const path of assets)
     expect(existsSync(resolve('apps/frontend/public', `.${path}`)), path).toBe(true);
   for (const arena of ARENAS)

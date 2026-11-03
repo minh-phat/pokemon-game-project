@@ -400,10 +400,14 @@ export class BattleEngine {
     this.dashRemaining.clear();
     this.manualMovement.clear();
   }
-  private animate(f: Fighter, animation: AnimationName) {
+  private animate(f: Fighter, animation: AnimationName, movementCue = true) {
     if (f.animation !== animation) {
       f.animation = animation;
       f.animationTime = 0;
+      if (movementCue && ['dash', 'backstep', 'jump'].includes(animation)) {
+        const movement = animation === 'jump' ? 'jump' : 'dash';
+        this.event('movement', f, `${fighterDefinition(f).name} ${movement}`, { movement });
+      }
     }
   }
   private event(
@@ -771,7 +775,7 @@ export class BattleEngine {
       f.vx = direction * speed;
       f.state = 'Jump';
       f.actionTime = 0.32;
-      this.animate(f, 'jump');
+      this.animate(f, 'jump', false);
     } else if (mode === 'crouch') {
       f.crouched = true;
       f.vx = f.species === 'squirtle' ? f.facing * speed * 0.7 : 0;
@@ -784,12 +788,13 @@ export class BattleEngine {
       f.actionTime = DASH_DISTANCE / Math.hypot(f.vx, f.vDepth) + FIXED_DELTA;
       f.invulnerable = Math.min(0.13, DASH_DISTANCE / Math.hypot(f.vx, f.vDepth));
       f.state = 'Dodge';
-      this.animate(f, Math.sign(direction) === f.facing ? 'dash' : 'backstep');
+      this.animate(f, Math.sign(direction) === f.facing ? 'dash' : 'backstep', false);
     }
     this.event(
       'dodge',
       f,
       `${fighterDefinition(f).name} ${mode === 'jump' ? 'jumps' : mode === 'crouch' ? 'ducks' : 'dashes'}`,
+      mode === 'crouch' ? {} : { movement: mode },
     );
     f.thinkIn = 0.03; // Counterattack promptly after the defense ends.
     return true;

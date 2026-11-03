@@ -1,4 +1,5 @@
-import { useGame } from '@/lib/store';
+import type { BattleEvent } from '@arena/shared-types';
+import { useGame } from '../lib/store';
 export class BattleAudio {
   private ambient: HTMLAudioElement;
   private effects = new Set<HTMLAudioElement>();
@@ -18,17 +19,31 @@ export class BattleAudio {
   sync() {
     const { volume, muted, paused } = useGame.getState();
     this.ambient.volume = volume * 0.25;
+    for (const sound of this.effects) {
+      sound.volume = volume * 0.4;
+      if (muted || paused || this.externallyPaused) {
+        sound.pause();
+        sound.src = '';
+        this.effects.delete(sound);
+      }
+    }
     if (muted || paused || this.externallyPaused) this.ambient.pause();
     else void this.ambient.play().catch(() => {});
   }
   play(element: string) {
-    const { volume, muted } = useGame.getState();
-    if (muted || this.externallyPaused || this.effects.size > 6) return;
+    const { volume, muted, paused } = useGame.getState();
+    if (muted || paused || volume <= 0 || this.externallyPaused || this.effects.size >= 7) return;
     const sound = new Audio(`/assets/${element}.wav`);
     sound.volume = volume * 0.4;
     this.effects.add(sound);
     sound.onended = () => this.effects.delete(sound);
+    sound.onerror = () => this.effects.delete(sound);
     void sound.play().catch(() => this.effects.delete(sound));
+  }
+  playMovement(event: BattleEvent) {
+    if ((event.kind === 'dodge' || event.kind === 'movement') && event.movement) {
+      this.play(`wind-${event.movement}`);
+    }
   }
   destroy() {
     this.remove();

@@ -22,6 +22,7 @@
     "test:e2e": "playwright test",
     "assets": "node scripts/generate-assets.mjs && node scripts/build-eevee-assets.mjs && node scripts/build-eevee-vfx.mjs && node scripts/build-runedrake-assets.mjs && node scripts/build-water-slime-assets.mjs && node scripts/build-lam-quy-assets.mjs && node scripts/build-pikachu-assets.mjs && node scripts/build-charmander-assets.mjs && node scripts/build-bulbasaur-assets.mjs && node scripts/build-direction-assets.mjs",
     "verify:assets": "node scripts/verify-assets.mjs",
+    "assets:audio": "node scripts/build-movement-audio.mjs",
     "assets:world": "node scripts/build-world-assets.mjs",
     "benchmark": "tsx scripts/benchmark.ts",
     "format": "prettier --write apps/*/src packages/*/src scripts tests *.ts *.json docs README.md",

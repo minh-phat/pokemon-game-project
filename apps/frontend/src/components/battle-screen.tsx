@@ -413,6 +413,7 @@ export function BattleScreen() {
           {state.showEvents ? (
             <ol>
               {snapshot?.events
+                .filter((event) => event.kind !== 'movement')
                 .slice(-5)
                 .reverse()
                 .map((event) => (

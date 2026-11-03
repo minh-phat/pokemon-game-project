@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import './build-movement-audio.mjs';
 const out = resolve('apps/frontend/public/assets');
 mkdirSync(out, { recursive: true });
 const write = (name, text) => writeFileSync(resolve(out, name), text);
