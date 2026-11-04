@@ -181,6 +181,17 @@ for (const width of [1440, 390]) {
     const dialog = page.getByRole('dialog');
     const cards = dialog.locator('.formation-pets > button');
     const save = dialog.getByRole('button', { name: 'Lưu đội hình', exact: true });
+    const search = dialog.getByRole('searchbox', { name: 'Tìm thú' });
+    await search.fill('not-a-companion');
+    await expect(cards).toHaveCount(0);
+    await search.fill('  PIKA  ');
+    await expect(cards).toHaveCount(7);
+    await search.clear();
+    const cardBounds = await cards.first().boundingBox();
+    expect(cardBounds!.height).toBeLessThan(140);
+    expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+      true,
+    );
     await expect(cards.first()).toContainText('Phẩm chất C');
     await expect(cards.first()).toContainText('Lực chiến');
     await expect(cards.first().locator('.element-badge')).toBeVisible();

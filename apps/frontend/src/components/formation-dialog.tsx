@@ -79,36 +79,38 @@ export function FormationDialog({ userId, onClose }: { userId: string; onClose: 
         'Choose owned companions and their summon order. Empty formations use the existing battle selection.',
       )}
     >
-      <div className="formation-choices" role="group" aria-label={t('Lối chơi', 'Battle style')}>
-        {(['duel', 'tactics'] as const).map((value) => (
-          <Button
-            key={value}
-            variant={style === value ? 'default' : 'outline'}
-            aria-pressed={style === value}
-            onClick={() => setStyle(value)}
-          >
-            {value === 'duel' ? t('Đối kháng', 'Duel') : t('Chiến thuật', 'Tactics')}
-          </Button>
-        ))}
-      </div>
-      {style === 'duel' && (
-        <div
-          className="formation-choices"
-          role="group"
-          aria-label={t('Quy mô đội hình', 'Formation size')}
-        >
-          {([3, 6, 'all'] as const).map((value) => (
+      <div className="formation-toolbar">
+        <div className="formation-choices" role="group" aria-label={t('Lối chơi', 'Battle style')}>
+          {(['duel', 'tactics'] as const).map((value) => (
             <Button
               key={value}
-              variant={size === value ? 'default' : 'outline'}
-              aria-pressed={size === value}
-              onClick={() => setSize(value)}
+              variant={style === value ? 'default' : 'outline'}
+              aria-pressed={style === value}
+              onClick={() => setStyle(value)}
             >
-              {value === 'all' ? t('Toàn trận', 'Full roster') : `${value} vs ${value}`}
+              {value === 'duel' ? t('Đối kháng', 'Duel') : t('Chiến thuật', 'Tactics')}
             </Button>
           ))}
         </div>
-      )}
+        {style === 'duel' && (
+          <div
+            className="formation-choices"
+            role="group"
+            aria-label={t('Quy mô đội hình', 'Formation size')}
+          >
+            {([3, 6, 'all'] as const).map((value) => (
+              <Button
+                key={value}
+                variant={size === value ? 'default' : 'outline'}
+                aria-pressed={size === value}
+                onClick={() => setSize(value)}
+              >
+                {value === 'all' ? t('Toàn trận', 'Full roster') : `${value} vs ${value}`}
+              </Button>
+            ))}
+          </div>
+        )}
+      </div>
       {style === 'tactics' && (
         <p className="hint">
           {t(
@@ -117,143 +119,167 @@ export function FormationDialog({ userId, onClose }: { userId: string; onClose: 
           )}
         </p>
       )}
-      <div className="formation-summary">
-        <strong>
-          {t('Thứ tự ra trận', 'Summon order')} · {selected.length}
-          {limit !== Infinity && ` / ${limit}`}
-        </strong>
-        <Button size="sm" variant="outline" onClick={() => update([])}>
-          {t('Bỏ chọn tất cả', 'Clear selection')}
-        </Button>
-      </div>
-      <p className="hint">
-        {t(
-          'Kéo thả bằng tay nắm ⋮ hoặc dùng nút mũi tên để đổi thứ tự.',
-          'Drag the ⋮ handle or use the arrow buttons to reorder.',
-        )}
-      </p>
-      <ol className="formation-order" aria-label={t('Thứ tự ra trận', 'Summon order')}>
-        {selected.map((id, index) => {
-          const pet = owned.get(id)!;
-          const name = POKEMON[pet.species].name;
-          return (
-            <li
-              key={id}
-              data-formation-id={id}
-              className={dragging === id ? 'is-dragging' : ''}
-              draggable
-              onDragStart={(event) => {
-                event.dataTransfer.setData('text/plain', id);
-                setDragging(id);
-              }}
-              onDragEnd={() => setDragging(null)}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                move(event.dataTransfer.getData('text/plain'), id);
-                setDragging(null);
-              }}
-            >
-              <button
-                className="formation-grip"
-                aria-label={`${t('Di chuyển', 'Move')} ${name}`}
-                onPointerDown={(event) => {
-                  event.currentTarget.setPointerCapture(event.pointerId);
-                  setDragging(id);
-                }}
-                onPointerUp={(event) => {
-                  const target = document
-                    .elementFromPoint(event.clientX, event.clientY)
-                    ?.closest<HTMLElement>('[data-formation-id]');
-                  if (target?.dataset.formationId) move(id, target.dataset.formationId);
-                  setDragging(null);
-                }}
-                onPointerCancel={() => setDragging(null)}
-              >
-                <GripVertical size={18} />
-              </button>
-              <b>{index + 1}</b>
-              <Portrait id={pet.species} quality={pet.quality} />
-              <span>
-                <strong>{name}</strong>
-                <small>
-                  Lv.{pet.level} · {pet.quality}
-                </small>
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                disabled={index === 0}
-                aria-label={`${t('Lên', 'Move up')} ${name}`}
-                onClick={() => move(id, selected[index - 1])}
-              >
-                <ArrowUp size={16} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                disabled={index === selected.length - 1}
-                aria-label={`${t('Xuống', 'Move down')} ${name}`}
-                onClick={() => move(id, selected[index + 1])}
-              >
-                <ArrowDown size={16} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={`${t('Bỏ chọn', 'Remove')} ${name}`}
-                onClick={() => update(selected.filter((item) => item !== id))}
-              >
-                <X size={16} />
-              </Button>
-            </li>
-          );
-        })}
-      </ol>
-      {pets === null && !error && <p role="status">{t('Đang tải thú…', 'Loading companions…')}</p>}
-      {error && (
-        <p role="alert">
-          {error}{' '}
-          <Button variant="outline" size="sm" onClick={() => setAttempt((value) => value + 1)}>
-            {t('Thử lại', 'Retry')}
-          </Button>
-        </p>
-      )}
-      {pets?.length === 0 && (
-        <p>
-          {t(
-            'Bạn chưa có thú. Hãy triệu hồi thú trước.',
-            'You have no companions. Summon some first.',
+      <div className="formation-workspace">
+        <section className="formation-selected">
+          <div className="formation-summary">
+            <strong>
+              {t('Thứ tự ra trận', 'Summon order')} · {selected.length}
+              {limit !== Infinity && ` / ${limit}`}
+            </strong>
+            <Button size="sm" variant="outline" onClick={() => update([])}>
+              {t('Bỏ chọn tất cả', 'Clear selection')}
+            </Button>
+          </div>
+          <p className="hint">
+            {t(
+              'Kéo thả bằng tay nắm ⋮ hoặc dùng nút mũi tên để đổi thứ tự.',
+              'Drag the ⋮ handle or use the arrow buttons to reorder.',
+            )}
+          </p>
+          <details className="formation-roster" open>
+            <summary>
+              {t('Đội hình đã chọn', 'Selected team')} · {selected.length}
+              {limit !== Infinity && ` / ${limit}`}
+            </summary>
+            {selected.length === 0 && (
+              <p className="hint">
+                {t(
+                  'Chọn thú từ kho để thêm vào đội hình.',
+                  'Choose companions from the collection to add them.',
+                )}
+              </p>
+            )}
+            <ol className="formation-order" aria-label={t('Thứ tự ra trận', 'Summon order')}>
+              {selected.map((id, index) => {
+                const pet = owned.get(id)!;
+                const name = POKEMON[pet.species].name;
+                return (
+                  <li
+                    key={id}
+                    data-formation-id={id}
+                    className={dragging === id ? 'is-dragging' : ''}
+                    draggable
+                    onDragStart={(event) => {
+                      event.dataTransfer.setData('text/plain', id);
+                      setDragging(id);
+                    }}
+                    onDragEnd={() => setDragging(null)}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      move(event.dataTransfer.getData('text/plain'), id);
+                      setDragging(null);
+                    }}
+                  >
+                    <button
+                      className="formation-grip"
+                      aria-label={`${t('Di chuyển', 'Move')} ${name}`}
+                      onPointerDown={(event) => {
+                        event.currentTarget.setPointerCapture(event.pointerId);
+                        setDragging(id);
+                      }}
+                      onPointerUp={(event) => {
+                        const target = document
+                          .elementFromPoint(event.clientX, event.clientY)
+                          ?.closest<HTMLElement>('[data-formation-id]');
+                        if (target?.dataset.formationId) move(id, target.dataset.formationId);
+                        setDragging(null);
+                      }}
+                      onPointerCancel={() => setDragging(null)}
+                    >
+                      <GripVertical size={18} />
+                    </button>
+                    <b>{index + 1}</b>
+                    <Portrait id={pet.species} quality={pet.quality} />
+                    <span>
+                      <strong>{name}</strong>
+                      <small>
+                        Lv.{pet.level} · {pet.quality}
+                      </small>
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      disabled={index === 0}
+                      aria-label={`${t('Lên', 'Move up')} ${name}`}
+                      onClick={() => move(id, selected[index - 1])}
+                    >
+                      <ArrowUp size={16} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      disabled={index === selected.length - 1}
+                      aria-label={`${t('Xuống', 'Move down')} ${name}`}
+                      onClick={() => move(id, selected[index + 1])}
+                    >
+                      <ArrowDown size={16} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`${t('Bỏ chọn', 'Remove')} ${name}`}
+                      onClick={() => update(selected.filter((item) => item !== id))}
+                    >
+                      <X size={16} />
+                    </Button>
+                  </li>
+                );
+              })}
+            </ol>
+          </details>
+        </section>
+        <section className="formation-collection" aria-label={t('Kho thú', 'Collection')}>
+          {pets === null && !error && (
+            <p role="status">{t('Đang tải thú…', 'Loading companions…')}</p>
           )}
-        </p>
-      )}
-      {pets && pets.length > 0 && <FormationPetFilters browser={browser} />}
-      <div
-        className="match-selection-grid formation-pets"
-        role="group"
-        aria-label={t('Thú của bạn', 'Your companions')}
-      >
-        {browser.visible.map(({ pet, power }) => {
-          const index = selected.indexOf(pet.id);
-          return (
-            <button
-              key={pet.id}
-              className={`match-selection-pet ${index >= 0 ? 'is-selected' : ''}`}
-              aria-pressed={index >= 0}
-              disabled={index < 0 && selected.length >= limit}
-              onClick={() =>
-                update(index >= 0 ? selected.filter((id) => id !== pet.id) : [...selected, pet.id])
-              }
-            >
-              <span className="match-selection-portrait">
-                <Portrait id={pet.species} quality={pet.quality} />
-              </span>
-              <strong>{POKEMON[pet.species].name}</strong>
-              <FormationPetStats pet={pet} power={power} />
-              {index >= 0 && <b className="match-selection-number">{index + 1}</b>}
-            </button>
-          );
-        })}
+          {error && (
+            <p role="alert">
+              {error}{' '}
+              <Button variant="outline" size="sm" onClick={() => setAttempt((value) => value + 1)}>
+                {t('Thử lại', 'Retry')}
+              </Button>
+            </p>
+          )}
+          {pets?.length === 0 && (
+            <p>
+              {t(
+                'Bạn chưa có thú. Hãy triệu hồi thú trước.',
+                'You have no companions. Summon some first.',
+              )}
+            </p>
+          )}
+          {pets && pets.length > 0 && <FormationPetFilters browser={browser} />}
+          <div
+            className="match-selection-grid formation-pets"
+            role="group"
+            aria-label={t('Thú của bạn', 'Your companions')}
+          >
+            {browser.visible.map(({ pet, power }) => {
+              const index = selected.indexOf(pet.id);
+              return (
+                <button
+                  key={pet.id}
+                  className={`match-selection-pet ${index >= 0 ? 'is-selected' : ''}`}
+                  aria-pressed={index >= 0}
+                  disabled={index < 0 && selected.length >= limit}
+                  onClick={() =>
+                    update(
+                      index >= 0 ? selected.filter((id) => id !== pet.id) : [...selected, pet.id],
+                    )
+                  }
+                >
+                  <span className="match-selection-portrait">
+                    <Portrait id={pet.species} quality={pet.quality} />
+                  </span>
+                  <strong>{POKEMON[pet.species].name}</strong>
+                  <FormationPetStats pet={pet} power={power} />
+                  {index >= 0 && <b className="match-selection-number">{index + 1}</b>}
+                </button>
+              );
+            })}
+          </div>
+        </section>
       </div>
       {!valid && (
         <p role="status">

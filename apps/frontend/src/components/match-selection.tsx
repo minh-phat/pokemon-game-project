@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { ArrowDown, ArrowUp, Check, Clock3, GripVertical, Swords } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Clock3, GripVertical, Swords, X } from 'lucide-react';
 import { POKEMON } from '@arena/game-data';
 import { useGame } from '@/lib/store';
 import { useLanguage } from '@/lib/i18n';
@@ -133,103 +133,128 @@ export function MatchSelectionScreen() {
               'Choose companions and drag or use arrows to reorder. These choices apply to this match only.',
             )}
       </p>
-      <ol className="formation-order" aria-label={t('Thứ tự ra trận', 'Summon order')}>
-        {selection.selected.map((id, index) => {
-          const pet = selection.pets.find((pet) => pet.id === id)!;
-          const name = POKEMON[pet.species].name;
-          return (
-            <li
-              key={id}
-              data-formation-id={id}
-              draggable={editing}
-              onDragStart={(event) => event.dataTransfer.setData('text/plain', id)}
-              onDragOver={(event) => {
-                if (editing) event.preventDefault();
-              }}
-              onDrop={(event) => {
-                event.preventDefault();
-                if (editing) move(event.dataTransfer.getData('text/plain'), id);
-              }}
-            >
-              {editing && (
+      <div className="formation-workspace">
+        <section className="formation-selected">
+          <details className="formation-roster" open>
+            <summary>
+              {t('Đội hình đã chọn', 'Selected team')} · {selection.selected.length} /{' '}
+              {selection.size === 'all' ? t('Toàn bộ', 'All') : selection.size}
+            </summary>
+            {selection.selected.length === 0 && (
+              <p className="hint">{t('Chưa chọn thú nào.', 'No companions selected.')}</p>
+            )}
+            <ol className="formation-order" aria-label={t('Thứ tự ra trận', 'Summon order')}>
+              {selection.selected.map((id, index) => {
+                const pet = selection.pets.find((pet) => pet.id === id)!;
+                const name = POKEMON[pet.species].name;
+                return (
+                  <li
+                    key={id}
+                    data-formation-id={id}
+                    draggable={editing}
+                    onDragStart={(event) => event.dataTransfer.setData('text/plain', id)}
+                    onDragOver={(event) => {
+                      if (editing) event.preventDefault();
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      if (editing) move(event.dataTransfer.getData('text/plain'), id);
+                    }}
+                  >
+                    {editing && (
+                      <button
+                        className="formation-grip"
+                        aria-label={`${t('Di chuyển', 'Move')} ${name}`}
+                        onPointerDown={(event) =>
+                          event.currentTarget.setPointerCapture(event.pointerId)
+                        }
+                        onPointerUp={(event) => {
+                          const target = document
+                            .elementFromPoint(event.clientX, event.clientY)
+                            ?.closest<HTMLElement>('[data-formation-id]');
+                          if (target?.dataset.formationId) move(id, target.dataset.formationId);
+                        }}
+                      >
+                        <GripVertical size={18} />
+                      </button>
+                    )}
+                    <b>{index + 1}</b>
+                    <Portrait id={pet.species} quality={pet.quality} />
+                    <span>
+                      <strong>{name}</strong>
+                      <small>
+                        Lv.{pet.level} · {pet.quality}
+                      </small>
+                    </span>
+                    {editing && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={index === 0}
+                          aria-label={`${t('Lên', 'Move up')} ${name}`}
+                          onClick={() => move(id, selection.selected[index - 1])}
+                        >
+                          <ArrowUp size={16} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={index === selection.selected.length - 1}
+                          aria-label={`${t('Xuống', 'Move down')} ${name}`}
+                          onClick={() => move(id, selection.selected[index + 1])}
+                        >
+                          <ArrowDown size={16} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`${t('Bỏ chọn', 'Remove')} ${name}`}
+                          onClick={() => toggle(id)}
+                        >
+                          <X size={16} />
+                        </Button>
+                      </>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </details>
+        </section>
+        <section className="formation-collection" aria-label={t('Kho thú', 'Collection')}>
+          <FormationPetFilters browser={browser} />
+          <div
+            className="match-selection-grid"
+            role="group"
+            aria-label={t('Thú của bạn', 'Your companions')}
+          >
+            {browser.visible.map(({ pet, power }) => {
+              const index = selection.selected.indexOf(pet.id);
+              return (
                 <button
-                  className="formation-grip"
-                  aria-label={`${t('Di chuyển', 'Move')} ${name}`}
-                  onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)}
-                  onPointerUp={(event) => {
-                    const target = document
-                      .elementFromPoint(event.clientX, event.clientY)
-                      ?.closest<HTMLElement>('[data-formation-id]');
-                    if (target?.dataset.formationId) move(id, target.dataset.formationId);
-                  }}
+                  type="button"
+                  key={pet.id}
+                  className={`match-selection-pet ${index >= 0 ? 'is-selected' : ''}`}
+                  aria-pressed={index >= 0}
+                  disabled={!editing || (index < 0 && selection.selected.length >= limit)}
+                  onClick={() => toggle(pet.id)}
                 >
-                  <GripVertical size={18} />
+                  <span className="match-selection-portrait">
+                    <Portrait id={pet.species} quality={pet.quality} />
+                  </span>
+                  <strong>{POKEMON[pet.species].name}</strong>
+                  <FormationPetStats pet={pet} power={power} />
+                  {index >= 0 && (
+                    <b className="match-selection-number">
+                      <Check size={13} /> {index + 1}
+                    </b>
+                  )}
                 </button>
-              )}
-              <b>{index + 1}</b>
-              <Portrait id={pet.species} quality={pet.quality} />
-              <span>
-                <strong>{name}</strong>
-                <small>
-                  Lv.{pet.level} · {pet.quality}
-                </small>
-              </span>
-              {editing && (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    disabled={index === 0}
-                    aria-label={`${t('Lên', 'Move up')} ${name}`}
-                    onClick={() => move(id, selection.selected[index - 1])}
-                  >
-                    <ArrowUp size={16} />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    disabled={index === selection.selected.length - 1}
-                    aria-label={`${t('Xuống', 'Move down')} ${name}`}
-                    onClick={() => move(id, selection.selected[index + 1])}
-                  >
-                    <ArrowDown size={16} />
-                  </Button>
-                </>
-              )}
-            </li>
-          );
-        })}
-      </ol>
-      <FormationPetFilters browser={browser} />
-      <div
-        className="match-selection-grid"
-        role="group"
-        aria-label={t('Thú của bạn', 'Your companions')}
-      >
-        {browser.visible.map(({ pet, power }) => {
-          const index = selection.selected.indexOf(pet.id);
-          return (
-            <button
-              type="button"
-              key={pet.id}
-              className={`match-selection-pet ${index >= 0 ? 'is-selected' : ''}`}
-              aria-pressed={index >= 0}
-              disabled={!editing || (index < 0 && selection.selected.length >= limit)}
-              onClick={() => toggle(pet.id)}
-            >
-              <span className="match-selection-portrait">
-                <Portrait id={pet.species} quality={pet.quality} />
-              </span>
-              <strong>{POKEMON[pet.species].name}</strong>
-              <FormationPetStats pet={pet} power={power} />
-              {index >= 0 && (
-                <b className="match-selection-number">
-                  <Check size={13} /> {index + 1}
-                </b>
-              )}
-            </button>
-          );
-        })}
+              );
+            })}
+          </div>
+        </section>
       </div>
       {state.error && <p role="alert">{state.error}</p>}
       <div className="match-selection-actions">

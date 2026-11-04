@@ -8,6 +8,7 @@ import { ElementBadge } from './common';
 type Sort = 'power' | 'quality' | 'time';
 
 export function useFormationPets(pets: OwnedPet[] | null | undefined) {
+  const [search, setSearch] = useState('');
   const [sort, setSort] = useState<Sort>('power');
   const [quality, setQuality] = useState('all');
   const [element, setElement] = useState('all');
@@ -16,6 +17,9 @@ export function useFormationPets(pets: OwnedPet[] | null | undefined) {
       (pets ?? [])
         .filter(
           (pet) =>
+            POKEMON[pet.species].name
+              .toLocaleLowerCase()
+              .includes(search.trim().toLocaleLowerCase()) &&
             (quality === 'all' || pet.quality === quality) &&
             (element === 'all' || POKEMON[pet.species].element === element),
         )
@@ -33,10 +37,12 @@ export function useFormationPets(pets: OwnedPet[] | null | undefined) {
             a.pet.id.localeCompare(b.pet.id)
           );
         }),
-    [pets, sort, quality, element],
+    [pets, sort, quality, element, search],
   );
   return {
     visible,
+    search,
+    setSearch,
     sort,
     setSort,
     quality,
@@ -53,6 +59,15 @@ export function FormationPetFilters({ browser }: { browser: ReturnType<typeof us
   return (
     <>
       <div className="formation-pet-filters">
+        <label className="formation-search">
+          {t('Tìm thú', 'Find companions')}
+          <input
+            type="search"
+            placeholder={t('Tìm theo tên…', 'Search by name…')}
+            value={browser.search}
+            onChange={(event) => browser.setSearch(event.target.value)}
+          />
+        </label>
         <label>
           {t('Sắp xếp theo', 'Sort by')}
           <select
@@ -115,7 +130,8 @@ export function FormationPetStats({ pet, power }: { pet: OwnedPet; power: number
     <>
       <span>Lv.{pet.level}</span>
       <span className={`pet-quality quality-${pet.quality}`}>
-        {t('Phẩm chất', 'Quality')} {pet.quality}
+        <span className="formation-sr-only">{t('Phẩm chất', 'Quality')} </span>
+        {pet.quality}
       </span>
       <ElementBadge element={POKEMON[pet.species].element} />
       <small>
