@@ -364,7 +364,9 @@ export function createArenaScene(
         sprite: this.add
           .sprite(f.x, 520, f.species)
           .setOrigin(0.5, 0.84)
-          .setScale(f.species === 'eevee' ? 0.66 : f.species === 'runedrake' ? 0.9 : 0.82)
+          .setScale(
+            (160 * 0.82 * POKEMON[f.species].size) / this.textures.get(f.species).get(0).width,
+          )
           .setDepth(5),
         bars: this.add.graphics().setDepth(15),
         rosterBars: fullRoster && !worldSource ? new RosterBars(this, f.team) : undefined,
@@ -674,7 +676,7 @@ export function createArenaScene(
           : 1;
         const rosterScale = 1;
         const baseScale =
-          (f.species === 'eevee' ? 0.66 : f.species === 'runedrake' ? 0.9 : 0.82) * rosterScale;
+          (160 * 0.82 * POKEMON[f.species].size) / this.textures.get(f.species).get(0).width;
         v.direction = fighterDirection(f, v.direction);
         if (!settings.paused && !settings.reducedMotion) v.locomotionClock += delta / 1000;
         const locomotion =

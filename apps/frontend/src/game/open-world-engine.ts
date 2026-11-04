@@ -27,6 +27,7 @@ import {
 } from '@arena/shared-types';
 import { createWorldEncounter, applyWorldAction, type BattleEngine } from '@arena/game-core';
 import { createMotion, stepMotion, type Motion, type MotionAction } from './open-world-motion';
+import { stepFollower, type FollowerMotion } from './open-world-follower';
 import {
   insideCity,
   BIOMES,
@@ -148,10 +149,8 @@ export class OpenWorldEngine {
   }
   private followers = new Map<
     string,
-    {
-      motion: Motion;
-      path: Point[];
-      repath: number;
+    FollowerMotion & {
+      pose: { runClock: number; idleClock: number; movement: number };
       direction: Direction;
       moving: boolean;
       phase: number;
@@ -199,6 +198,9 @@ export class OpenWorldEngine {
         motion: createMotion(this.world, this.player),
         path: [],
         repath: 0,
+        following: false,
+        speed: 0,
+        pose: { runClock: 0, idleClock: index * 1.37, movement: 0 },
         direction: 'south',
         moving: false,
         phase: index * 1.37,
@@ -346,34 +348,27 @@ export class OpenWorldEngine {
         this.onEngage?.(this.target);
       }
       if (this.starting) return;
-      follower.repath -= dt;
-      if (follower.repath <= 0) {
-        follower.path = distance > 1.3 ? findPath(this.world, position, destination) : [];
-        follower.repath = 0.5;
-      }
-      while (
-        follower.path.length &&
-        Math.hypot(follower.path[0].x - position.x, follower.path[0].y - position.y) < 0.4
-      )
-        follower.path.shift();
-      const waypoint = follower.path[0] ?? destination;
       const before = { ...position };
-      stepMotion(
-        this.world,
-        follower.motion,
-        {
-          x: distance > 1.3 ? waypoint.x - position.x : 0,
-          y: distance > 1.3 ? waypoint.y - position.y : 0,
-          sprint: true,
-          climb: true,
-          jump: follower.motion.action === 'blocked',
-        },
-        dt,
-      );
+      stepFollower(this.world, follower, destination, dt, {
+        relaxed: !this.target && !this.moving && !this.input.reducedMotion,
+        phase: follower.phase,
+      });
       const dx = position.x - before.x,
         dy = position.y - before.y;
-      follower.moving = Math.hypot(dx, dy) > 0.0001;
-      if (follower.moving) follower.direction = worldMovementDirection(dx, dy, follower.direction);
+      const speed = Math.hypot(dx, dy) / Math.max(dt, 0.001);
+      follower.moving = speed > 0.04;
+      follower.pose.runClock += dt * Math.min(1.5, speed / 3);
+      follower.pose.idleClock += dt;
+      follower.pose.movement +=
+        ((follower.moving ? 1 : 0) - follower.pose.movement) * (1 - Math.exp(-14 * dt));
+      if (follower.moving)
+        follower.direction = worldMovementDirection(dx / dt, dy / dt, follower.direction);
+      else if (follower.idle?.lookAt)
+        follower.direction = worldMovementDirection(
+          follower.idle.lookAt.x - position.x,
+          follower.idle.lookAt.y - position.y,
+          follower.direction,
+        );
     }
   }
 
@@ -997,53 +992,66 @@ export class OpenWorldEngine {
     c.fillRect(x + (this.facing > 0 ? 2 : -3), y - 19, 1, 2);
   }
   private drawPokemon(
-    actor: Omit<WildPokemon, 'species'> & { species: SpeciesId },
+    actor: Omit<WildPokemon, 'species'> & {
+      species: SpeciesId;
+      pose?: { runClock: number; idleClock: number; movement: number };
+    },
     x: number,
     y: number,
   ) {
     const c = this.context;
+    const size = POKEMON[actor.species].size;
     c.fillStyle = '#214b4338';
     c.beginPath();
-    c.ellipse(x, y, 8, 3, 0, 0, Math.PI * 2);
+    c.ellipse(x, y, 8 * size, 3 * size, 0, 0, Math.PI * 2);
     c.fill();
     const sprite = this.sprites.get(actor.species);
     if (!sprite) {
       c.fillStyle = '#ebd083';
-      c.fillRect(x - 4, y - 8, 8, 8);
+      c.fillRect(x - 4 * size, y - 8 * size, 8 * size, 8 * size);
       return;
     }
-    const frameRate = POKEMON[actor.species].animations[actor.moving ? 'run' : 'idle'].frameRate;
+    const definition = POKEMON[actor.species];
     const direction =
       (ASSETS.locomotion[actor.species] && actor.direction) || (actor.facing < 0 ? 'west' : 'east');
-    const frame = locomotionFrame(
-      direction,
-      actor.moving,
-      this.time + actor.phase,
-      frameRate,
-      this.input.reducedMotion,
-    );
-    const bob = this.input.reducedMotion
-      ? 0
-      : Math.sin(this.time * (actor.moving ? 10 : 2) + actor.phase);
+    const clock = actor.pose?.idleClock ?? this.time + actor.phase;
+    const movement = this.input.reducedMotion
+      ? Number(actor.moving)
+      : (actor.pose?.movement ?? Number(actor.moving));
+    const resting = 1 - movement;
+    const bob = this.input.reducedMotion ? 0 : Math.sin(clock * 2) * 0.5 * resting;
     c.save();
-    c.translate(Math.round(x), Math.round(y + bob));
-    const breath =
-      this.input.reducedMotion || actor.moving
-        ? 1
-        : 1 + Math.sin(this.time * 2.4 + actor.phase) * 0.018;
+    c.translate(x, y + bob);
+    const breath = this.input.reducedMotion ? 1 : 1 + Math.sin(clock * 2.4) * 0.018 * resting;
     c.scale(directionFlipped(direction) ? -1 : 1, breath);
     const width = actor.species === 'runedrake' ? 320 : 160;
-    c.drawImage(
-      sprite,
-      (frame % 6) * width,
-      Math.floor(frame / 6) * 160,
-      width,
-      160,
-      -width / 10,
-      -28,
-      width / 5,
-      32,
-    );
+    const displayWidth = 32 * size;
+    const displayHeight = (displayWidth * 160) / width;
+    const alpha = c.globalAlpha;
+    const drawPose = (moving: boolean, weight: number) => {
+      if (weight < 0.001) return;
+      const frame = locomotionFrame(
+        direction,
+        moving,
+        moving ? (actor.pose?.runClock ?? clock) : clock,
+        definition.animations[moving ? 'run' : 'idle'].frameRate,
+        this.input.reducedMotion,
+      );
+      c.globalAlpha = alpha * weight;
+      c.drawImage(
+        sprite,
+        (frame % 6) * width,
+        Math.floor(frame / 6) * 160,
+        width,
+        160,
+        -displayWidth / 2,
+        -displayHeight * 0.875,
+        displayWidth,
+        displayHeight,
+      );
+    };
+    drawPose(false, resting);
+    drawPose(true, movement);
     c.restore();
     this.pokemonLabels.push({
       x,
@@ -1216,7 +1224,8 @@ export class OpenWorldEngine {
       const p = project(actor.x, actor.y, t.level),
         x = p.x - left,
         y = p.y - top;
-      if (x < -32 || x > w + 32 || y < -32 || y > h + 32) continue;
+      const margin = 32 * Math.max(1, POKEMON[actor.species].size);
+      if (x < -margin || x > w + margin || y < -margin || y > h + margin) continue;
       objects.push({
         depth: actor.x + actor.y,
         draw: () => {
@@ -1224,7 +1233,15 @@ export class OpenWorldEngine {
             c.strokeStyle = '#ffcc66';
             c.lineWidth = 1.5;
             c.beginPath();
-            c.ellipse(x, y, 13, 5, 0, 0, Math.PI * 2);
+            c.ellipse(
+              x,
+              y,
+              13 * POKEMON[actor.species].size,
+              5 * POKEMON[actor.species].size,
+              0,
+              0,
+              Math.PI * 2,
+            );
             c.stroke();
           }
           this.drawPokemon(actor, x, y);
@@ -1246,6 +1263,7 @@ export class OpenWorldEngine {
         group: -1,
         leader: -1,
         phase: follower.phase,
+        pose: follower.pose,
         moving: follower.moving,
         direction: follower.direction,
         facing: directionFlipped(follower.direction) ? -1 : 1,
@@ -1255,7 +1273,15 @@ export class OpenWorldEngine {
         draw: () => {
           c.strokeStyle = '#96ffe1';
           c.beginPath();
-          c.ellipse(p.x - left, p.y - top, 11, 4, 0, 0, Math.PI * 2);
+          c.ellipse(
+            p.x - left,
+            p.y - top,
+            11 * POKEMON[pet.species].size,
+            4 * POKEMON[pet.species].size,
+            0,
+            0,
+            Math.PI * 2,
+          );
           c.stroke();
           this.drawPokemon(actor, p.x - left, p.y - top);
         },

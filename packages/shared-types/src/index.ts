@@ -149,6 +149,8 @@ export interface PokemonDefinition {
   color: string;
   /** Visual height above the arena floor; combat hitboxes stay unchanged. */
   hoverHeight?: number;
+  /** Relative size in battle: scales both the sprite and body hitbox; 1 is standard size. */
+  size: number;
   hp: number;
   energy: number;
   maxStamina: number;

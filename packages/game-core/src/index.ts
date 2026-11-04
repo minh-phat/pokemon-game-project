@@ -855,8 +855,8 @@ export class BattleEngine {
         bindEligible:
           !!chosenTarget &&
           bindDistance <= s.range &&
-          fighterDefinition(chosenTarget).collision.width <= 90 &&
-          fighterDefinition(chosenTarget).collision.height <= 90,
+          POKEMON[chosenTarget.species].collision.width <= 90 &&
+          POKEMON[chosenTarget.species].collision.height <= 90,
       }),
       ...(autoBasic && { autoBasic: true }),
       lockX:
@@ -1148,9 +1148,14 @@ export class BattleEngine {
         target &&
         terrainContact(this.arena, f, target) === 1 &&
         target.invulnerable <= 0 &&
-        Math.hypot(target.x - f.x, target.depth - f.depth) <= 85 &&
-        fighterDefinition(target).collision.width <= 90 &&
-        fighterDefinition(target).collision.height <= 90
+        Math.hypot(target.x - f.x, target.depth - f.depth) <=
+          Math.max(
+            85,
+            (fighterDefinition(f).collision.width + fighterDefinition(target).collision.width) / 2 +
+              1,
+          ) &&
+        POKEMON[target.species].collision.width <= 90 &&
+        POKEMON[target.species].collision.height <= 90
       ) {
         cast.bound = true;
         if (s.id === 'liquid-wrap') {
@@ -1666,8 +1671,8 @@ export class BattleEngine {
       for (let j = i + 1; j < fs.length; j++) {
         const a = fs[i],
           b = fs[j];
-        const ac = POKEMON[a.species].collision;
-        const bc = POKEMON[b.species].collision;
+        const ac = fighterDefinition(a).collision;
+        const bc = fighterDefinition(b).collision;
         if (
           Math.abs(a.x - b.x) > (ac.width + bc.width) / 2 ||
           a.y > b.y + bc.height * (b.crouched ? 0.42 : 1) ||

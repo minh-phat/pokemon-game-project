@@ -386,6 +386,7 @@ function OwnedPetDetails({ pet, onBack }: { pet: OwnedPet; onBack: () => void })
       <h4>{t('Chỉ số', 'Stats')}</h4>
       <dl className="pet-detail-stats">
         {[
+          [t('Kích thước tương đối', 'Relative size'), `×${definition.size}`],
           [t('Sinh lực', 'Health'), stats.hp],
           [t('Tấn công', 'Attack'), stats.attack],
           [t('Phòng thủ', 'Defense'), stats.defense],

@@ -100,7 +100,7 @@ export function stepMotion(world: World, state: Motion, input: MotionInput, elap
     state.position.y = target.y;
     if (state.grounded) state.z = next.level;
   };
-  if (length > 0.01) {
+  if (length > 0) {
     attempt({ x: state.position.x + (input.x / length) * distance, y: state.position.y });
     if (!state.climbing)
       attempt({ x: state.position.x, y: state.position.y + (input.y / length) * distance });

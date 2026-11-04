@@ -235,6 +235,9 @@ export function RosterScreen({ inspectOnly = false }: { inspectOnly?: boolean })
           </div>
           <h2>{selected.name}</h2>
           <span className="detail-role">{selected.role}</span>
+          <p>
+            {t('Kích thước tương đối', 'Relative size')}: ×{selected.size}
+          </p>
           {inspectOnly && (
             <section className="pet-progression" aria-label={c('Stat preview')}>
               <h3>{c('Stat preview')}</h3>

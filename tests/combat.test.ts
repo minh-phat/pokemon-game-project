@@ -17,7 +17,7 @@ import {
   type SpeciesId,
   type Projectile,
 } from '@arena/shared-types';
-import { ARENAS, POKEMON, SKILLS } from '@arena/game-data';
+import { ARENAS, POKEMON, SKILLS, fighterDefinition } from '@arena/game-data';
 function battle(
   teams: [SpeciesId[], SpeciesId[]] = [['pikachu'], ['charmander']],
   rules: Partial<MatchRules> = {},
@@ -56,6 +56,32 @@ describe('rules and contracts', () => {
   });
 });
 describe('damage and hit geometry', () => {
+  it.each([0.5, 1, 2])('scales body width, height and hit detection with size %s', (size) => {
+    const f = battle().state.fighters[0];
+    const base = POKEMON[f.species];
+    const originalSize = base.size;
+    try {
+      base.size = size;
+      f.y = 0;
+      const box = fighterBox(f);
+      expect(box.right - box.left).toBeCloseTo(base.collision.width * size);
+      expect(box.top - box.bottom).toBeCloseTo(base.collision.height * size);
+      const sideShot = { left: f.x + 15, right: f.x + 16, bottom: 1, top: 2 };
+      const highShot = { left: f.x, right: f.x + 1, bottom: 40, top: 41 };
+      expect(overlaps(box, sideShot)).toBe(size >= 1);
+      expect(overlaps(box, highShot)).toBe(size >= 1);
+      f.crouched = true;
+      expect(fighterBox(f).top).toBeCloseTo(base.collision.height * size * 0.42);
+      f.progression = { level: 10, quality: 'F' };
+      expect(fighterDefinition(f).collision.width).toBeCloseTo(base.collision.width * size);
+      base.size = size * 2;
+      expect(fighterDefinition(f).collision.width).toBeCloseTo(base.collision.width * size * 2);
+      expect(base.collision.width).toBe(40);
+    } finally {
+      base.size = originalSize;
+    }
+  });
+
   it.each(speciesIds)('%s basic attack uses its own Attack percentage', (species) => {
     const definition = POKEMON[species];
     const originalAttack = definition.attack;

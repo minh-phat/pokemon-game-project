@@ -4,7 +4,7 @@ import {
   type SkillDefinition,
   type Element,
 } from '@arena/shared-types';
-import { EFFECTIVENESS, POKEMON } from '@arena/game-data';
+import { EFFECTIVENESS, fighterDefinition } from '@arena/game-data';
 export interface Rect {
   left: number;
   right: number;
@@ -15,7 +15,7 @@ export function overlaps(a: Rect, b: Rect) {
   return a.left <= b.right && a.right >= b.left && a.bottom <= b.top && a.top >= b.bottom;
 }
 export function fighterBox(f: Fighter): Rect {
-  const c = POKEMON[f.species].collision;
+  const c = fighterDefinition(f).collision;
   return {
     left: f.x - c.width / 2,
     right: f.x + c.width / 2,

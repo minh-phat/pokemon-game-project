@@ -411,6 +411,7 @@ const bulbasaurAnimations: PokemonDefinition['animations'] = {
 export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
   'water-slime': {
     id: 'water-slime',
+    size: 0.5,
     name: 'Water Slime',
     number: 'X02',
     element: 'water',
@@ -441,6 +442,7 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
   },
   pikachu: {
     id: 'pikachu',
+    size: 1,
     name: 'Pikachu',
     number: '025',
     element: 'electric',
@@ -472,6 +474,7 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
   },
   charmander: {
     id: 'charmander',
+    size: 1,
     name: 'Charmander',
     number: '004',
     element: 'fire',
@@ -503,6 +506,7 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
   },
   squirtle: {
     id: 'squirtle',
+    size: 1,
     name: 'Squirtle',
     number: '007',
     element: 'water',
@@ -534,6 +538,7 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
   },
   bulbasaur: {
     id: 'bulbasaur',
+    size: 1,
     name: 'Bulbasaur',
     number: '001',
     element: 'grass',
@@ -565,6 +570,7 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
   },
   eevee: {
     id: 'eevee',
+    size: 1,
     name: 'Eevee',
     number: '133',
     element: 'normal',
@@ -601,6 +607,7 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
   },
   runedrake: {
     id: 'runedrake',
+    size: 3,
     name: 'Runedrake',
     number: 'X01',
     element: 'fire',
@@ -808,13 +815,27 @@ export function fighterDefinition(
   f: Pick<import('@arena/shared-types').Fighter, 'species' | 'progression'>,
 ): PokemonDefinition {
   const base = POKEMON[f.species];
-  if (!f.progression) return base;
+  if (!f.progression) return sizedDefinition(base);
   const key = `${f.species}:${f.progression.level}:${f.progression.quality}`;
   let definition = fighterDefinitions.get(key);
   if (!definition) {
     definition = { ...base, ...calculatePetStats(base, f.progression) };
     fighterDefinitions.set(key, definition);
   }
-  return definition;
+  return sizedDefinition(definition, base);
+}
+/** Scale the body once from the species base dimensions, alongside its visual size. */
+function sizedDefinition(
+  definition: PokemonDefinition,
+  base: PokemonDefinition = definition,
+): PokemonDefinition {
+  return {
+    ...definition,
+    size: base.size,
+    collision: {
+      width: base.collision.width * base.size,
+      height: base.collision.height * base.size,
+    },
+  };
 }
 const fighterDefinitions = new Map<string, PokemonDefinition>();
