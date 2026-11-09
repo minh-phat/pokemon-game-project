@@ -375,6 +375,58 @@ describe('manual battle commands', () => {
     expect(a.vx).toBeLessThan(0);
     expect(a.vDepth).toBe(0);
   });
+  it('jumps in chosen direction or straight up when stationary instead of facing opponent', () => {
+    const e = engine();
+    const [a, b] = e.state.fighters;
+    b.thinkIn = 100;
+    a.thinkIn = 100;
+    a.x = 200;
+    b.x = 500;
+    a.facing = 1; // Facing towards opponent
+    e.setManualMode('alice', true);
+
+    // 1. Stationary jump: should jump straight up without moving towards opponent
+    expect(e.command('alice', { type: 'dodge', fighterId: a.id, mode: 'jump' })).toBe(true);
+    expect(a.vy).toBeGreaterThan(0);
+    expect(a.vx).toBe(0);
+    expect(a.vDepth).toBe(0);
+
+    // Reset fighter after landing
+    step(e, 70);
+    expect(a.y).toBe(0);
+    a.stamina = 100;
+
+    // 2. Directional jump away from opponent (direction: -1)
+    expect(
+      e.command('alice', {
+        type: 'dodge',
+        fighterId: a.id,
+        mode: 'jump',
+        direction: -1,
+        depthDirection: 0,
+      }),
+    ).toBe(true);
+    expect(a.vy).toBeGreaterThan(0);
+    expect(a.vx).toBeLessThan(0);
+    expect(a.vDepth).toBe(0);
+
+    // Reset fighter after landing
+    step(e, 70);
+    expect(a.y).toBe(0);
+    a.stamina = 100;
+
+    // 3. Jump while moving inherits active movement direction
+    e.command('alice', {
+      type: 'move',
+      fighterId: a.id,
+      direction: -1,
+      depthDirection: 0.5,
+    });
+    expect(e.command('alice', { type: 'dodge', fighterId: a.id, mode: 'jump' })).toBe(true);
+    expect(a.vy).toBeGreaterThan(0);
+    expect(a.vx).toBeLessThan(0);
+    expect(a.vDepth).toBeGreaterThan(0);
+  });
   it.each(['dash', 'jump', 'crouch'] as const)(
     'lets a player %s interrupt an AI basic attack immediately',
     (mode) => {

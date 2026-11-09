@@ -265,7 +265,15 @@ export function ManualControls({
       const dodgeMode = code === 'Space' ? 'jump' : code === 'KeyC' ? 'crouch' : null;
       if (dodgeMode) {
         event.preventDefault();
-        if (canDodge) send({ type: 'dodge', mode: dodgeMode });
+        if (canDodge) {
+          const dir = movementDirection();
+          send({
+            type: 'dodge',
+            mode: dodgeMode,
+            direction: dir.direction,
+            depthDirection: dir.depthDirection,
+          });
+        }
         return;
       }
       if (event.shiftKey) {
@@ -421,7 +429,15 @@ export function ManualControls({
             aria-label="Dash · 15"
             title="Dash · 15 stamina · Shift + WASD or arrow keys to choose a direction"
             disabled={!canDodge}
-            onClick={() => send({ type: 'dodge', mode: 'dash', ...stick.current })}
+            onClick={() => {
+              const dir = movementDirection();
+              send({
+                type: 'dodge',
+                mode: 'dash',
+                direction: dir.direction,
+                depthDirection: dir.depthDirection,
+              });
+            }}
           >
             <Wind className="manual-touch-icon" aria-hidden="true" />
             <span>Dash</span> <kbd aria-hidden="true">Shift+WASD/↑↓←→</kbd>
@@ -434,7 +450,15 @@ export function ManualControls({
             aria-label="Jump · 15"
             title="Jump · 15 stamina · Space"
             disabled={!canDodge}
-            onClick={() => send({ type: 'dodge', mode: 'jump' })}
+            onClick={() => {
+              const dir = movementDirection();
+              send({
+                type: 'dodge',
+                mode: 'jump',
+                direction: dir.direction,
+                depthDirection: dir.depthDirection,
+              });
+            }}
           >
             <ArrowUp className="manual-touch-icon" aria-hidden="true" />
             <span>Jump</span> <kbd aria-hidden="true">Space</kbd>

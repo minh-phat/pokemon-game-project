@@ -325,14 +325,27 @@ export class BattleEngine {
     }
     if (command.type === 'guard') return this.setGuard(f, command.active);
     if (command.type === 'dodge') {
-      const x = command.mode === 'dash' ? (command.direction ?? f.facing) : f.facing;
-      const depth = command.mode === 'dash' ? (command.depthDirection ?? 0) : 0;
-      const length = Math.hypot(x, depth);
+      let x = command.direction;
+      let depth = command.depthDirection;
+      if (x === undefined && depth === undefined) {
+        const activeMove = this.manualMovement.get(f.id);
+        if (activeMove && this.state.elapsed <= activeMove.until) {
+          x = activeMove.direction;
+          depth = activeMove.depthDirection;
+        } else if (command.mode === 'dash') {
+          x = f.facing;
+          depth = 0;
+        } else {
+          x = 0;
+          depth = 0;
+        }
+      }
+      const length = Math.hypot(x ?? 0, depth ?? 0);
       return this.beginDodge(
         f,
         command.mode,
-        length > 0 ? x / length : f.facing,
-        length > 0 ? depth / length : 0,
+        length > 0 ? (x ?? 0) / length : command.mode === 'dash' ? f.facing : 0,
+        length > 0 ? (depth ?? 0) / length : 0,
       );
     }
     if (f.effects.some((e) => e.kind === 'stun') || f.cast || f.actionTime > 0) return false;
