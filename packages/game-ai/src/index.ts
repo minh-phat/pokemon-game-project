@@ -99,30 +99,9 @@ export function decideMovement(
   };
 }
 
-/** In manual mode AI handles positioning and the free basic attack only. */
+/** When manually controlled, the AI does not automatically advance or attack; fighter stays idle. */
 export function decideManualAction(f: Fighter, state: BattleSnapshot): AIAction {
-  const basic = fighterDefinition(f).skills[0];
-  const enemies = state.fighters.filter(
-    (v) => v.active && v.hp > 0 && v.team !== f.team && !isConcealed(v),
-  );
-  const target =
-    enemies.find((v) => v.id === f.targetId) ??
-    enemies.sort(
-      (a, b) =>
-        Math.hypot(a.x - f.x, a.depth - f.depth) - Math.hypot(b.x - f.x, b.depth - f.depth) ||
-        a.id.localeCompare(b.id),
-    )[0];
-  if (target && basic && (f.cooldowns[basic.id] ?? 0) <= 0) {
-    const distance = Math.hypot(target.x - f.x, target.depth - f.depth);
-    if (distance <= basic.range + fighterDefinition(target).collision.width / 2)
-      return { type: 'skill', skillId: basic.id };
-  }
-  return decideMovement(
-    f,
-    state,
-    basic ? Math.min(fighterDefinition(f).ai.preferredDistance, basic.range * 0.8) : undefined,
-    f.targetId,
-  );
+  return { type: 'wait' };
 }
 
 /** Pure utility/FSM decision layer. Only called after a fighter's reaction delay. */

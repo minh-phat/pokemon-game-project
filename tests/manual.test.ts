@@ -21,7 +21,6 @@ const move = (fighterId: string) => ({
   fighterId,
   direction: 1,
   depthDirection: 0,
-  sprint: false,
 });
 const guard = (fighterId: string, active = true) => ({ type: 'guard', fighterId, active });
 function step(e: ReturnType<typeof engine>, count = 60) {
@@ -77,8 +76,8 @@ describe('manual battle commands', () => {
     expect(e.setManualMode('alice', true)).toBe(true);
     expect(e.getBattleSnapshot().manualTeams).toEqual([true, false]);
     step(e, 10);
-    expect(a.thinkIn).toBeGreaterThan(0);
-    expect(a.moveIntent).not.toBe(0);
+    expect(a.moveIntent).toBe(0);
+    expect(a.state).toBe('Idle');
     expect(b.thinkIn).toBeGreaterThan(0);
     expect(a.cast).toBeNull();
     expect(e.setManualMode('alice', false)).toBe(true);
@@ -211,28 +210,32 @@ describe('manual battle commands', () => {
     step(e, 65);
     expect(e.getBattleSnapshot().groundHazards).toHaveLength(1);
   });
-  it('moves automatically in manual mode and pauses movement while guarding', () => {
+  it('stays idle without moving towards opponent in manual mode unless commanded', () => {
     const e = engine(),
       [a, b] = e.state.fighters;
     a.x = 250;
     b.x = 1000;
     e.setManualMode('alice', true);
     step(e, 20);
-    expect(a.x).toBeGreaterThan(250);
+    expect(a.x).toBe(250);
+    expect(a.moveIntent).toBe(0);
+    expect(a.state).toBe('Idle');
     expect(a.cast).toBeNull();
-    expect(e.command('alice', guard(a.id))).toBe(true);
-    step(e, 20);
+    expect(e.command('alice', move(a.id))).toBe(true);
+    step(e, 10);
+    expect(a.x).toBeGreaterThan(250);
+    expect(
+      e.command('alice', { type: 'move', fighterId: a.id, direction: 0, depthDirection: 0 }),
+    ).toBe(true);
+    step(e, 5);
     expect(a.moveIntent).toBe(0);
-    expect(Math.abs(a.vx)).toBeLessThan(1);
-    expect(e.command('alice', guard(a.id, false))).toBe(true);
-    step(e, 2);
-    expect(a.moveIntent).not.toBe(0);
+    expect(a.state).toBe('Idle');
     expect(e.setManualMode('alice', false)).toBe(true);
-    expect(a.moveIntent).toBe(0);
-    expect(a.sprinting).toBe(false);
+    step(e, 2);
+    expect(a.thinkIn).toBeGreaterThan(0);
   });
   it.each(['pikachu', 'charmander', 'squirtle', 'bulbasaur', 'runedrake'] as const)(
-    'automatically uses %s basic attack, but no special skill',
+    'does not automatically use %s basic attack or skills, but accepts manual skill command',
     (species) => {
       const e = initializeBattle(
         {
@@ -250,14 +253,18 @@ describe('manual battle commands', () => {
       b.depth = 0;
       b.thinkIn = 100;
       e.setManualMode('alice', true);
-      step(e, 1);
-      expect(a.cast?.skillId).toBe(POKEMON[species].skills[0].id);
-      step(e, 90);
+      step(e, 10);
+      expect(a.cast).toBeNull();
+      expect(a.state).toBe('Idle');
+      expect(a.moveIntent).toBe(0);
       expect(
-        e.state.events
-          .filter((event) => event.fighterId === a.id && event.kind === 'skill')
-          .every((event) => event.text === POKEMON[species].skills[0].name),
+        e.command('alice', {
+          type: 'skill',
+          fighterId: a.id,
+          skillId: POKEMON[species].skills[0].id,
+        }),
       ).toBe(true);
+      expect(a.cast?.skillId).toBe(POKEMON[species].skills[0].id);
     },
   );
   it('uses the normal guard, dodge cost, and skill cooldown rules', () => {
@@ -428,7 +435,7 @@ describe('manual battle commands', () => {
     expect(a.vDepth).toBeGreaterThan(0);
   });
   it.each(['dash', 'jump', 'crouch'] as const)(
-    'lets a player %s interrupt an AI basic attack immediately',
+    'lets a player %s interrupt an auto-basic attack immediately',
     (mode) => {
       const e = engine();
       const [a, b] = e.state.fighters;
@@ -438,7 +445,7 @@ describe('manual battle commands', () => {
       b.depth = 0;
       b.thinkIn = 100;
       e.setManualMode('alice', true);
-      step(e, 1);
+      e.beginSkill(a, 'quick-attack', true);
       expect(a.cast).toMatchObject({ skillId: 'quick-attack', autoBasic: true });
       const before = a.stamina;
       expect(e.command('alice', { type: 'dodge', fighterId: a.id, mode })).toBe(true);

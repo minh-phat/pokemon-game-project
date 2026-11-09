@@ -238,6 +238,15 @@ export class BattleEngine {
       f.sprinting = false;
       this.setGuard(f, false);
       f.thinkIn = 0;
+      if (
+        this.isManuallyControlled(f) &&
+        (f.state === 'Chase' ||
+          f.state === 'MaintainDistance' ||
+          f.state === 'Retreat' ||
+          f.state === 'FindTarget')
+      ) {
+        f.state = 'Idle';
+      }
     }
     return true;
   }
@@ -264,6 +273,18 @@ export class BattleEngine {
     this.state.controlledFighterIds[team] = fighterId;
     this.setGuard(next, false);
     next.thinkIn = 0;
+    this.manualMovement.delete(next.id);
+    next.moveIntent = 0;
+    next.moveDepth = 0;
+    next.sprinting = false;
+    if (
+      next.state === 'Chase' ||
+      next.state === 'MaintainDistance' ||
+      next.state === 'Retreat' ||
+      next.state === 'FindTarget'
+    ) {
+      next.state = 'Idle';
+    }
     return true;
   }
   private ensureControlledFighters() {
@@ -272,8 +293,22 @@ export class BattleEngine {
         (f) => f.id === this.state.controlledFighterIds[team],
       );
       if (selected?.active && selected.hp > 0) continue;
-      this.state.controlledFighterIds[team] =
-        this.state.fighters.find((f) => f.team === team && f.active && f.hp > 0)?.id ?? null;
+      const next = this.state.fighters.find((f) => f.team === team && f.active && f.hp > 0);
+      this.state.controlledFighterIds[team] = next?.id ?? null;
+      if (next && this.state.manualTeams[team]) {
+        this.manualMovement.delete(next.id);
+        next.moveIntent = 0;
+        next.moveDepth = 0;
+        next.sprinting = false;
+        if (
+          next.state === 'Chase' ||
+          next.state === 'MaintainDistance' ||
+          next.state === 'Retreat' ||
+          next.state === 'FindTarget'
+        ) {
+          next.state = 'Idle';
+        }
+      }
     }
   }
   private isManuallyControlled(f: Fighter) {
@@ -296,6 +331,15 @@ export class BattleEngine {
         this.manualMovement.delete(f.id);
         f.moveIntent = 0;
         f.moveDepth = 0;
+        f.sprinting = false;
+        if (
+          f.state === 'Chase' ||
+          f.state === 'MaintainDistance' ||
+          f.state === 'Retreat' ||
+          f.state === 'FindTarget'
+        ) {
+          f.state = 'Idle';
+        }
       } else {
         this.manualMovement.set(f.id, {
           direction,
@@ -516,29 +560,36 @@ export class BattleEngine {
         this.animate(f, 'hit');
       } else if (f.cast) this.castTick(f, dt);
       else if (f.actionTime === 0 && (!this.isManuallyControlled(f) || !f.guarded)) {
-        f.thinkIn -= dt;
-        if (f.thinkIn <= 0) {
-          const difficulty = this.config.aiTeams?.includes(f.team)
-            ? this.config.rules.difficulty
-            : 'normal';
-          const movement = this.isManuallyControlled(f) ? this.manualMovement.get(f.id) : undefined;
-          if (movement && movement.until > this.state.elapsed)
-            this.act(f, {
-              type: 'move',
-              direction: movement.direction,
-              depthDirection: movement.depthDirection,
-              state: 'Chase',
-            });
-          else {
+        if (this.isManuallyControlled(f)) {
+          const movement = this.manualMovement.get(f.id);
+          if (movement && movement.until > this.state.elapsed) {
+            f.moveIntent = movement.direction;
+            f.moveDepth = movement.depthDirection;
+            f.sprinting = false;
+            f.state = 'Chase';
+          } else {
             if (movement) this.manualMovement.delete(f.id);
-            this.act(
-              f,
-              this.isManuallyControlled(f)
-                ? decideManualAction(f, this.state)
-                : decideAction(f, this.state, this.rng, difficulty),
-            );
+            f.moveIntent = 0;
+            f.moveDepth = 0;
+            f.sprinting = false;
+            if (
+              f.state === 'Chase' ||
+              f.state === 'MaintainDistance' ||
+              f.state === 'Retreat' ||
+              f.state === 'FindTarget'
+            ) {
+              f.state = 'Idle';
+            }
           }
-          f.thinkIn = DIFFICULTY[difficulty].reaction * (0.8 + this.rng() * 0.4);
+        } else {
+          f.thinkIn -= dt;
+          if (f.thinkIn <= 0) {
+            const difficulty = this.config.aiTeams?.includes(f.team)
+              ? this.config.rules.difficulty
+              : 'normal';
+            this.act(f, decideAction(f, this.state, this.rng, difficulty));
+            f.thinkIn = DIFFICULTY[difficulty].reaction * (0.8 + this.rng() * 0.4);
+          }
         }
       }
       this.constrain(f);
@@ -730,7 +781,22 @@ export class BattleEngine {
       this.setGuard(f, true);
       return;
     }
-    if (action.type === 'wait') return;
+    if (action.type === 'wait') {
+      if (this.isManuallyControlled(f)) {
+        f.moveIntent = 0;
+        f.moveDepth = 0;
+        f.sprinting = false;
+        if (
+          f.state === 'Chase' ||
+          f.state === 'MaintainDistance' ||
+          f.state === 'Retreat' ||
+          f.state === 'FindTarget'
+        ) {
+          f.state = 'Idle';
+        }
+      }
+      return;
+    }
 
     if (action.type === 'move') {
       this.setGuard(f, false);
