@@ -1,5 +1,7 @@
 import 'reflect-metadata';
 import { AuthController, authDatabase } from './auth';
+import { AdminController } from './admin';
+import { json } from 'express';
 import { Controller, Get, Post, Param, Module, NotFoundException } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -39,11 +41,13 @@ class GameController {
   }
 }
 @Module({
-  controllers: [GameController, AuthController],
+  controllers: [GameController, AuthController, AdminController],
   providers: [{ provide: 'AUTH_DATABASE', useValue: authDatabase }],
 })
 class AppModule {}
 const app = await NestFactory.create<NestExpressApplication>(AppModule);
+// Sprite strip uploads arrive as base64 JSON; only admin routes get the larger limit.
+app.use('/auth/admin', json({ limit: '16mb' }));
 app.useBodyParser('json', { limit: '1mb' });
 app.enableCors({
   credentials: true,
@@ -80,3 +84,8 @@ app.enableShutdownHooks();
 const apiPort = Number(process.env.API_PORT ?? 3001);
 await app.listen(apiPort, '0.0.0.0');
 console.log(`Game API ready at http://localhost:${apiPort}`);
+// Connect eagerly so the default admin account exists right after startup.
+if (process.env.MONGODB_URI)
+  authDatabase.db().catch((error: unknown) => {
+    console.warn('MongoDB is unavailable; the admin account will be created on reconnect.', error);
+  });

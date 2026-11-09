@@ -50,7 +50,7 @@ describe('background match search', () => {
       rules: useGame.getState().rules,
       players: [],
     });
-    expect(useGame.getState().screen).toBe('lobby');
+    expect(useGame.getState().screen).toBe('match-selection');
     expect(useGame.getState().mode).toBe('online');
     expect(useGame.getState().matchSearchStartedAt).toBeNull();
   });

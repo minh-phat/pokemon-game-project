@@ -3,14 +3,7 @@
   "frameHeight": 160,
   "baseline": 150,
   "scale": 0.611353711790393,
-  "rows": [
-    "east-idle",
-    "east-run",
-    "north-run",
-    "northeast-run",
-    "southeast-run",
-    "south-run"
-  ],
+  "rows": ["east-idle", "east-run", "north-run", "northeast-run", "southeast-run", "south-run"],
   "cells": [
     {
       "row": 0,

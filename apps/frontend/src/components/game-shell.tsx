@@ -133,6 +133,16 @@ export function GameShell() {
           </nav>
           <div className="header-actions">
             <LanguagePicker />
+            {state.user?.role === 'admin' && (
+              <Button
+                id="header-admin-link"
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.assign('/admin')}
+              >
+                Admin
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"

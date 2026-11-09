@@ -29,11 +29,13 @@ import {
 const scrypt = promisify(scryptCallback);
 const COOKIE = 'arena_session';
 const SESSION_MS = 7 * 24 * 60 * 60 * 1000;
-interface User extends PetOwner {
+export type UserRole = 'admin' | 'player';
+export interface User extends PetOwner {
   _id: ObjectId;
   email: string;
   name: string;
   passwordHash: string;
+  role?: UserRole;
   createdAt: Date;
 }
 interface Session {
@@ -71,7 +73,39 @@ const publicUser = (user: User) => ({
   id: user._id.toHexString(),
   email: user.email,
   name: user.name,
+  role: user.role ?? 'player',
 });
+export const DEFAULT_ADMIN_EMAIL = 'admin@arena.local';
+export const DEFAULT_ADMIN_PASSWORD = 'admin12345';
+/** Create the default admin from ADMIN_EMAIL / ADMIN_PASSWORD once; never overwrites a password. */
+export async function ensureAdminUser(db: ReturnType<MongoClient['db']>) {
+  const email = (process.env.ADMIN_EMAIL || DEFAULT_ADMIN_EMAIL).trim().toLowerCase();
+  const password = process.env.ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD;
+  const name = (process.env.ADMIN_NAME || 'Admin').trim().slice(0, 30) || 'Admin';
+  if (process.env.NODE_ENV === 'production' && !process.env.ADMIN_PASSWORD)
+    console.warn('ADMIN_PASSWORD is not set; the default admin password is in use.');
+  const users = db.collection<User>('users');
+  const existing = await users.findOne({ email });
+  if (existing) {
+    if (existing.role !== 'admin')
+      await users.updateOne({ _id: existing._id }, { $set: { role: 'admin' } });
+    return;
+  }
+  try {
+    await users.insertOne({
+      _id: new ObjectId(),
+      email,
+      name,
+      passwordHash: await hashPassword(password),
+      role: 'admin',
+      createdAt: new Date(),
+    });
+    console.log(`Default admin account created: ${email}`);
+  } catch (error) {
+    // Another process created it concurrently.
+    if (!(error instanceof MongoServerError && error.code === 11000)) throw error;
+  }
+}
 export class AuthDatabase {
   private client?: MongoClient;
   private pending?: Promise<ReturnType<MongoClient['db']>>;
@@ -95,6 +129,7 @@ export class AuthDatabase {
         await db
           .collection<Session>('sessions')
           .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+        await ensureAdminUser(db);
         return db;
       })();
     }
@@ -112,25 +147,46 @@ export class AuthDatabase {
 }
 export const authDatabase = new AuthDatabase();
 
+export function checkOrigin(req: Request) {
+  const allowed = (process.env.FRONTEND_ORIGIN ?? 'http://localhost:3000,http://127.0.0.1:3000')
+    .split(',')
+    .map((value) => value.trim());
+  if (
+    req.headers['x-arena-request'] !== '1' ||
+    (req.headers.origin && !allowed.includes(req.headers.origin))
+  )
+    throw new ForbiddenException('Yêu cầu không hợp lệ.');
+}
+function sessionToken(req: Request) {
+  const value = req.headers.cookie
+    ?.split(';')
+    .map((value) => value.trim())
+    .find((value) => value.startsWith(`${COOKIE}=`))
+    ?.slice(COOKIE.length + 1);
+  return value && /^[a-f0-9]{64}$/.test(value) ? value : undefined;
+}
+/** Resolve the signed-in user from the session cookie or throw 401. */
+export async function requireUser(req: Request) {
+  const token = sessionToken(req);
+  if (!token) throw new UnauthorizedException('Vui lòng đăng nhập.');
+  const db = await authDatabase.db();
+  const session = await db.collection<Session>('sessions').findOne({
+    tokenHash: digest(token),
+    expiresAt: { $gt: new Date() },
+  });
+  if (!session) throw new UnauthorizedException('Phiên đăng nhập đã hết hạn.');
+  const user = await db.collection<User>('users').findOne({ _id: session.userId });
+  if (!user) throw new UnauthorizedException('Vui lòng đăng nhập.');
+  return { db, user };
+}
+
 @Controller('auth')
 export class AuthController {
   private checkOrigin(req: Request) {
-    const allowed = (process.env.FRONTEND_ORIGIN ?? 'http://localhost:3000,http://127.0.0.1:3000')
-      .split(',')
-      .map((value) => value.trim());
-    if (
-      req.headers['x-arena-request'] !== '1' ||
-      (req.headers.origin && !allowed.includes(req.headers.origin))
-    )
-      throw new ForbiddenException('Yêu cầu không hợp lệ.');
+    checkOrigin(req);
   }
   private token(req: Request) {
-    const value = req.headers.cookie
-      ?.split(';')
-      .map((value) => value.trim())
-      .find((value) => value.startsWith(`${COOKIE}=`))
-      ?.slice(COOKIE.length + 1);
-    return value && /^[a-f0-9]{64}$/.test(value) ? value : undefined;
+    return sessionToken(req);
   }
   private cookieOptions() {
     return {
@@ -208,17 +264,7 @@ export class AuthController {
     return { user: user ? publicUser(user) : null };
   }
   private async owner(req: Request) {
-    const token = this.token(req);
-    if (!token) throw new UnauthorizedException('Vui lòng đăng nhập.');
-    const db = await authDatabase.db();
-    const session = await db.collection<Session>('sessions').findOne({
-      tokenHash: digest(token),
-      expiresAt: { $gt: new Date() },
-    });
-    if (!session) throw new UnauthorizedException('Phiên đăng nhập đã hết hạn.');
-    const user = await db.collection<User>('users').findOne({ _id: session.userId });
-    if (!user) throw new UnauthorizedException('Vui lòng đăng nhập.');
-    return { db, user };
+    return requireUser(req);
   }
   @Get('pets') async pets(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     res.setHeader('Cache-Control', 'no-store');
@@ -240,13 +286,11 @@ export class AuthController {
     const { db, user } = await this.owner(req);
     await migrateLegacyPets(db, user);
     const token = randomBytes(32).toString('hex');
-    await db
-      .collection('matchTickets')
-      .insertOne({
-        tokenHash: digest(token),
-        userId: user._id,
-        expiresAt: new Date(Date.now() + 60000),
-      });
+    await db.collection('matchTickets').insertOne({
+      tokenHash: digest(token),
+      userId: user._id,
+      expiresAt: new Date(Date.now() + 60000),
+    });
     return { token };
   }
   @Post('summon') async summon(

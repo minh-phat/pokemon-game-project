@@ -1,14 +1,7 @@
 {
   "source": "jump-corrected.png",
   "method": "Package existing authored sprite frames, without repainting",
-  "originalRuntimeFrameIndices": [
-    12,
-    13,
-    50,
-    51,
-    17,
-    17
-  ],
+  "originalRuntimeFrameIndices": [12, 13, 50, 51, 17, 17],
   "fall": "Reverse the corrected jump poses",
   "review": "Each pose reviewed for one continuous tail, one tail flame, complete limbs and alpha margins.",
   "imagegenAttempts": [

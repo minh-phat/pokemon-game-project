@@ -15,6 +15,7 @@ import {
   POKEMON,
   SKILL_BY_ID,
   fighterDefinition,
+  spriteFrameWidth,
 } from '@arena/game-data';
 import { battleFeed } from '@/lib/battle-feed';
 import { selectManualFighter } from '@/lib/network';
@@ -100,7 +101,7 @@ export function createArenaScene(
       }
       for (const id of Object.keys(ASSETS.sprites) as (keyof typeof ASSETS.sprites)[])
         this.load.spritesheet(id, ASSETS.sprites[id], {
-          frameWidth: id === 'runedrake' ? 320 : 160,
+          frameWidth: spriteFrameWidth(id),
           frameHeight: 160,
         });
       this.load.on('loaderror', () => {
@@ -109,7 +110,7 @@ export function createArenaScene(
       });
       for (const [id, path] of Object.entries(ASSETS.locomotion))
         this.load.spritesheet(`${id}-directions`, path, {
-          frameWidth: id === 'runedrake' ? 320 : 160,
+          frameWidth: spriteFrameWidth(id),
           frameHeight: 160,
         });
     }

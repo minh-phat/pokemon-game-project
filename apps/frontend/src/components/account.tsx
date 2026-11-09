@@ -6,7 +6,7 @@ import { leaveRoom } from '@/lib/network';
 import { Button } from './ui/button';
 import { Dialog } from './ui/dialog';
 
-type User = { id: string; email: string; name: string };
+type User = { id: string; email: string; name: string; role?: 'admin' | 'player' };
 class AuthError extends Error {
   constructor(
     public status: number,

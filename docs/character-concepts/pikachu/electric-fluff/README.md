@@ -5,6 +5,7 @@ Bộ sprite thay thế theo ảnh người dùng gửi: thân vàng, bụng kem,
 `source.png` là ảnh nguồn có alpha. Script `scripts/build-pikachu-assets.mjs` tách các hàng/cột theo khoảng trong suốt, căn chân tại y=150 và đảo hướng sang phải theo quy ước engine. Không thay đổi chỉ số hay kỹ năng Pikachu.
 
 Chạy `node scripts/build-pikachu-assets.mjs` để tạo lại:
+
 - `apps/frontend/public/assets/pikachu-sheet.png`: 960 × 2400, 15 trạng thái × 6 khung hình.
 - `apps/frontend/public/assets/pikachu.png`: chân dung 160 × 160.
 

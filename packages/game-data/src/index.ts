@@ -15,6 +15,29 @@ export * from './directions';
 export * from './hydro-crossfire';
 export { combatPower } from './combat-power';
 export * from './progression';
+import animationOverrides from './animation-overrides.json';
+
+export type AnimationSpec = PokemonDefinition['animations'][AnimationName];
+/** Admin edits written by the sprite studio, keyed by species then animation. */
+export type AnimationOverrides = Partial<
+  Record<SpeciesId, Partial<Record<AnimationName, AnimationSpec>>>
+>;
+export const ANIMATION_OVERRIDES = animationOverrides as AnimationOverrides;
+export function isValidAnimationSpec(value: unknown): value is AnimationSpec {
+  const v = value as Partial<AnimationSpec> | null;
+  return (
+    !!v &&
+    Number.isInteger(v.start) &&
+    Number.isInteger(v.end) &&
+    v.start! >= 0 &&
+    v.end! >= v.start! &&
+    typeof v.frameRate === 'number' &&
+    v.frameRate > 0 &&
+    v.frameRate <= 60 &&
+    Number.isInteger(v.repeat) &&
+    v.repeat! >= -1
+  );
+}
 
 function skill(
   id: string,
@@ -638,6 +661,20 @@ export const POKEMON: Record<SpeciesId, PokemonDefinition> = {
     ai: { aggression: 0.75, dodge: 0.72, guard: 0.38, preferredDistance: 210, retreat: 0.55 },
   },
 };
+/** Authored animation ranges before admin overrides are applied. */
+export const BASE_ANIMATIONS = Object.fromEntries(
+  Object.entries(POKEMON).map(([id, definition]) => [id, definition.animations]),
+) as Record<SpeciesId, PokemonDefinition['animations']>;
+for (const [id, overrides] of Object.entries(ANIMATION_OVERRIDES)) {
+  const definition = POKEMON[id as SpeciesId];
+  if (!definition || !overrides) continue;
+  // Species may share one animations object, so copy before merging.
+  const merged = { ...definition.animations };
+  for (const [name, spec] of Object.entries(overrides))
+    if ((ANIMATIONS as readonly string[]).includes(name) && isValidAnimationSpec(spec))
+      merged[name as AnimationName] = { ...spec };
+  definition.animations = merged;
+}
 export const ROSTER = Object.values(POKEMON);
 export const SKILL_BY_ID = Object.fromEntries(Object.values(SKILLS).map((s) => [s.id, s]));
 

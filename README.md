@@ -135,6 +135,7 @@ The frontend currently imports immutable game data from the shared workspace, so
 Điểm hạng ban đầu là 0; thắng +25, thua -15 (tối thiểu 0), hòa không đổi. Các bậc Đồng, Bạc, Vàng, Bạch kim và Kim cương bắt đầu lần lượt tại 0, 300, 600, 1000 và 1600 điểm. Kết quả do máy chủ trận đấu ghi vào MongoDB. Rời trận sau khi ghép được tính là thua.
 
 Hàng đợi và trận đấu nằm trong bộ nhớ máy chủ phòng: dùng một tiến trình game-server để người chơi tìm thấy nhau. Khởi động lại tiến trình sẽ hủy hàng đợi và các trận đang chạy; cần MongoDB cho tài khoản, thú và điểm hạng. Kết quả chưa được ghi khi tiến trình dừng đột ngột có thể bị mất.
+
 - Online uses full MessagePack snapshots at 20 Hz rather than delta-compressed schema patches. State stays in one process. Rate limits are process-local; internet-scale abuse/load hardening is not complete.
 - Desktop Chrome and a mobile-sized Chrome viewport were exercised. Real mobile devices, Safari/Firefox, GPU diversity, screen-reader behavior, and high-latency networks need a wider test matrix. No universal 60 FPS or internet-latency guarantee is claimed.
 - Audio starts muted, respects autoplay restrictions, and uses short synthesized loops. Unlimited matches have no artificial timeout; the tested roster combinations all resolve, but future balance changes can introduce stalemates.
@@ -160,6 +161,18 @@ MONGODB_DB_NAME=pokemon_arena
 Có thể thay URI bằng chuỗi kết nối MongoDB Atlas của bạn. Không đưa URI chứa mật khẩu vào Git hoặc biến `NEXT_PUBLIC_*`. Khi chưa đặt `MONGODB_URI`, game vẫn hoạt động và API tài khoản trả lỗi 503 có thông báo cấu hình.
 
 Backend tự tạo collection `users` (email duy nhất, mật khẩu băm scrypt với salt ngẫu nhiên) và `sessions` (token băm SHA-256, hết hạn sau 7 ngày, TTL index). Cookie HttpOnly lưu phiên, đăng xuất thu hồi phiên trên database. API: `POST /auth/register` (`name`, `email`, `password`), `POST /auth/login` (`email`, `password`), `GET /auth/me`, `POST /auth/logout`. Các POST cần header `X-Arena-Request: 1`; trình duyệt gửi cookie với `credentials: include`. Đăng ký thành công tự đăng nhập. Giới hạn 10 lần đăng nhập/đăng ký mỗi IP mỗi phút.
+
+### Trang Quản Trị Sprite & Animation (`/admin`)
+
+Trang admin dành riêng cho việc xem, tinh chỉnh thông số và tải lên bổ sung/ghi đè sprite sheet cho các thú triệu hồi:
+
+- **Tài khoản mặc định:** `admin@arena.local` / `admin12345` (tự tạo khi backend kết nối MongoDB, cấu hình qua `ADMIN_EMAIL`, `ADMIN_PASSWORD` trong `.env`).
+- **Truy cập:** Mở trực tiếp `http://localhost:3000/admin` hoặc đăng nhập bằng tài khoản admin trên trang chủ rồi bấm nút **Admin** trên thanh điều hướng.
+- **Tính năng chính:**
+  - Xem trực tiếp toàn bộ 15 animation (nhảy, chạy, lướt, tung chiêu, đánh thường, đỡ đòn, cúi, gục ngã, ăn mừng...) trên sàn canvas tương tác: chỉnh tốc độ phát (0.5x–1.5x), zoom (1x–2x), lật ảnh, onion skin (bóng frame trước), hiển thị đường căn mặt đất.
+  - Tinh chỉnh frame bắt đầu/kết thúc, tốc độ FPS và kiểu lặp (loop / once) cho từng chiêu; lưu trực tiếp vào file cấu hình `packages/game-data/src/animation-overrides.json` của dự án.
+  - Xem danh sách kỹ năng chiến đấu liên kết với từng animation.
+  - Công cụ tải lên frame PNG: hỗ trợ ghi đè dải frame bắt đầu từ vị trí X hoặc nối thêm hàng mới vào cuối file sprite sheet PNG của thú trong `apps/frontend/public/assets`.
 
 Pets của tài khoản được lưu riêng trong collection `pets`. Mỗi document có `_id` riêng, `ownerId` liên kết `users._id`, `species`, `quality`, `level` (mặc định **1**), `experience` (mặc định **0**) và `createdAt`. Hai thú giống nhau vẫn là hai document riêng. `GET /auth/pets` trả bộ sưu tập của phiên đăng nhập; `POST /auth/summon` luôn cấp một pet miễn phí, kèm phẩm chất ngẫu nhiên và các mốc bảo đảm. Frontend hiển thị từng pet và cho xem chỉ số theo cấp/phẩm chất, nội tại, kỹ năng.
 

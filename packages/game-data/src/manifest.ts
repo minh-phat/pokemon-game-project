@@ -1,5 +1,11 @@
 import type { SpeciesId } from '@arena/shared-types';
 
+/** Sprite sheet cells are 160px tall; Runedrake's wide body uses 320px-wide cells. */
+export const SPRITE_FRAME_HEIGHT = 160;
+export function spriteFrameWidth(id: string) {
+  return id === 'runedrake' ? 320 : 160;
+}
+
 export const LOCOMOTION_SPRITES: Partial<Record<SpeciesId, string>> = {
   pikachu: '/assets/pikachu-directions.png',
   bulbasaur: '/assets/bulbasaur-directions.png',

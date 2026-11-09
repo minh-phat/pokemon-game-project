@@ -28,7 +28,7 @@ interface GameStore {
     Partial<Record<'duel-3' | 'duel-6' | 'duel-all' | 'tactics-all', string[]>>
   >;
   language: 'vi' | 'en';
-  user: { id: string; email: string; name: string } | null;
+  user: { id: string; email: string; name: string; role?: 'admin' | 'player' } | null;
   authLoading: boolean;
   accountView: 'login' | 'register' | 'profile' | null;
   screen: Screen;
