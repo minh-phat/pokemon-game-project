@@ -286,7 +286,7 @@ export function decideAction(
   if (
     f.species === 'eevee' &&
     threat &&
-    SKILL_BY_ID[threat.p.skillId]?.damagePercent >= 100 &&
+    SKILL_BY_ID[threat.p.skillId]?.damagePercent >= 180 &&
     !f.cooldowns['shadow-step'] &&
     f.energy >= SKILL_BY_ID['shadow-step'].energy &&
     f.y < (f.groundHeight ?? 0) + 2

@@ -95,6 +95,7 @@ describe('damage and hit geometry', () => {
         a.depth = b.depth = 0;
         a.thinkIn = b.thinkIn = 100;
         a.invulnerable = b.invulnerable = 0;
+        b.hp = 1000;
         const move = definition.skills[0];
         const hp = b.hp;
         expect(e.beginSkill(a, move.id)).toBe(true);
@@ -180,8 +181,13 @@ describe('damage and hit geometry', () => {
     const hp = b.hp;
     e.updateBattle(FIXED_DELTA);
     expect(hp - b.hp).toBe(
-      calculateDamage(32, POKEMON.runedrake.attack, POKEMON.charmander.defense, 'fire', 'fire') *
-        hits,
+      calculateDamage(
+        SKILLS.emberGlyph.damagePercent,
+        POKEMON.runedrake.attack,
+        POKEMON.charmander.defense,
+        'fire',
+        'fire',
+      ) * hits,
     );
     expect(
       e.state.events.filter((event) => event.kind === 'damage' && event.text.startsWith('Hỏa Ấn')),
@@ -221,7 +227,7 @@ describe('damage and hit geometry', () => {
       expect(POKEMON.runedrake.skills[2].id).toBe('cursed-scroll-bind');
       const hp = b.hp;
       const pulseDamage = calculateDamage(
-        40,
+        SKILLS.cursedScrollBind.damagePercent / 3,
         POKEMON.runedrake.attack,
         POKEMON[species].defense,
         'normal',
